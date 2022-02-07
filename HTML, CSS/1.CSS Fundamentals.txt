@@ -1,0 +1,315 @@
+﻿=========================================================
+#Conflicts Between Selectors: xung đột khi có nhiều selector trên cùng 1 element chỉ định cùng 1 kiểu thuộc tính
+- Inline style > Id (#) selector > Class (.) or pseudo-class (:) selector > Element selector (p, div, li, etc...) > Universal selector (*)
+- nếu cùng 1 kiểu selector cùng chỉ định 1 kiểu thuộc tính => chọn kiểu thuộc tính chung đó ở selector cuối cùng 
+=========================================================
+#Inheritance and the Universal Selector: 
+- các thuộc tính được kế thừa sẽ có độ ưu tiên thấp nhất
+- không phải các thuộc tính luôn được kế thừa (chủ yếu là các thuộc tính về text được kế thừa): font-family, font-weight, font-style, line-height, letter-spacing, text-align, text-shadow, list-style, etc...
+- Universal Selector: * {} : chọn tất cả element trên page để chỉ định thuộc tính, KHÔNG PHẢI LÀ KẾ THỪA => có thuộc tính box-sizing, border-top, etc.. vẫn áp dụng trên tất cả element (KHÁC VỚI body)
+=========================================================
+#The CSS Box Model: chỉ áp dụng cho display: block, hoặc inline-block
+- Content: nội dung thực của element, cho phép chỉ định width, height, khi chỉ định height lớn hơn height của text trong content, text sẽ được đẩy lên trên, mặc định không set height, text được căn giữa content (theo chiều dọc)
+- Border: đường viền quanh element, vẫn thuộc về element (inside)
+- Padding: khoảng trống xung quanh content, hay khoảng cách giữ content và border, thuộc về element (inside)
+- Margin: khoảng trống xung quanh element (outside), dùng để tạo không gian giữa các element với nhau. 
+  - 2 element (display : block) chỉ định margin khác nhau giữa chúng, page chỉ hiển thị khoảng marin lớn hơn,không đem + 2 khoảng margin với nhau. 
+** Fill area: bao gồm content padding border, là phần có thể nhìn thấy của element, được phủ kín bới các thuộc tính background-color, background-image, etc...
+=> element width = left border + left padding + width content + right padding + right border (chỉ định width, height cho 1 element là chỉ định width, height cho content không phải cho toàn bộ element)
+* short-hand property *
+  - top-bottom-left-right
+  - top-bottom | left-right
+  - top | left-right | bottom
+  - top | right | bottom | left
+=========================================================
+#Types of Boxes
+- Inline boxes: display: inline
+  - chiếm chính xác khoảng không gian cần thiết cho content của nó
+  - không tạo ngắt dòng trước và sau element
+  - không ảnh hưởng bới các thuộc tính witdh, height
+  - padding, margin chỉ áp dụng đối với chiều rộng (left, right) 
+  - pading vẫn đệm khoảng chiều cao nhìn thấy được của element tuy nhiên không di chuyển element như Block element
+  - 2 element (display: inline) sẽ + 2 khoảng margin với nhau , khác với block lấy khoảng margin lớn nhất
+  : a, strong, em, button, etc...
+(left, right)
+- Block-level boxes: display: block
+  - định dạng dưới dạng block
+  - chiếm 100% chiều rộng của parent element
+  - xếp chồng lên nhau theo chiều dọc
+  - áp dụng box model
+  - có thể làm vỡ giao diện khi child element chiếm nhiều không gian hơn parent element (parent element được set height, width)
+  - chiếm hầu hết Html element 
+  : body, main, header, footer, section, nav, aside, div, h1 -> h6, p, ul, ol, li, etc...
+- Mix inline and block-level: display: inline-block
+  - nhìn giống inline về outside
+  - hành vi giống block-level về inside
+  - chiếm khoảng không gian cần thiết cho 1 element, không tạo ngắn dòng trước sau mỗi element
+  - áp dụng box model các đầy đủ các thuộc tính witdh, height, padding, margin
+  : img
+=========================================================
+#Absolute Positioning
+- Normal flow: position: relative
+  - Element trong 1 flow
+  - Element được bố trí theo mã nguồn gốc của HTML, giống như bình thường
+  - Có thể kết hợp với top, left, bottom, z-index để thay đổi vị trí so với chính nó ban đầu (không ảnh hưởng đến các element xung quanh)
+- Absolute positioning: position: absolute
+  - Cho phép xác định vị trí tuyệt đối của element ở bất kỳ đâu trên page
+  - Element bị loại khỏi flow
+  - Không còn bất cứ tác động nào đến các yếu tố xung quanh, cho phép chồng chéo các element
+  - Sử dụng thuộc tính top, bottom, left, right để định vị vị trí phần tử so với 1 container được định vị relative  (cần 2 thuộc tính, 1 chỉ định chiều dọc, 1 chỉ định chiều ngang) 
+  - Theo mặc định, chỉ số top, bottom, left, right được tính theo viewport (không có container nào chứa element được định vị relative), tuy nhiên không di chuyển khi scroll
+  - Cần có mối quan hệ với 1 container relative => chọn lần  lượt các cấp parent element nào có position: relative đầu tiên sẽ lấy element đó làm gốc
+*/ 
+  - viewport: không thuộc container nào có thuộc tính position: relative;
+    => lấy 1 màn hình lúc reload làm gốc
+  - page: thuộc body {position: relative;}
+    => lấy cả page làm gốc
+/*
+---------------------------------------------------------
+- position: static; giá trị mặc định của các element, top, bottom, left, right, z-index không có tác dụng
+- position: fixed; loại khỏi flow, dính lên view port và di chuyển theo scroll
+- position: sticky; loại khỏi flow, giữ cho element không thoát khỏi viewport khi scroll (vẫn di chuyển quanh viewport được, khác fixed)
+ 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+==================================================================================================================
+TEXT
+-Styling Text: 
+  color: blue; :thay đổi màu
+  font-size: 26px; :thay đổi cỡ phông
+  font-family: sans-serif; :thay đổi loại phông, sans-serif: kiểu chữ không chân, cho phép trình duyệt chấp nhận bất cứ loại font nào có trên máy (random, máy có loại nào thì chọn bừa 1 cái rồi dùng)
+  text-transform: uppercase; : thay đổi kiểu chữ, uppercase: kiểu chữ in hoa
+  font-style: italic; :thay đổi kiểu phông, italic: chữ nghiêng
+  line-height: 1.5; :chỉ định chiều cao dòng chữ, 1.5: không đi kèm đơn vị sẽ mặc định là 1.5 lần font-size. mặc định line-height = 1
+  text-align: center :căn chỉnh vị trí text so với phần tử mẹ, center: căn giữa
+  font-weight: bold; : chỉ định kiểu phông với nhiều option
+-Styling List:
+  ul {
+    list-style: none; /*loại bỏ ký tự đánh dấu đầu mỗi thẻ li*/
+  }
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+==================================================================================================================
+CSS SELECTOR
+-Combining Selectors
+  h1, h2, h4, p, li {} : chỉ định chung style cho nhiều element
+  header div p {} : chỉ định style cho tất cả thẻ p trong thẻ div trong thẻ header (chỉ cho thẻ p) 
+
+-Class and ID Selector
+  -Chỉ định property trong html
+   id="idName" : không cho phép lặp lại trên nhiều element
+   class="className"
+  -Sử dụng trong css
+  #idName {} : chỉ định style cho thẻ có property id = idName
+  .className {} : chỉ định cho thẻ có property class = className
+-Adjacent element selector: element liền kề
+ h1 + p {} : các thẻ p ngay sau thẻ h1 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+==================================================================================================================
+COLORS
+-Rgb/Rgba Notation: kết hợp giữ 3 màu red-green-blue, 3 chỉ số màu từ 0 -> 255, chỉ số thứ 4 có thể thêm là alpha từ 0 -> 1 thể hiện độ trong suốt
+  : rgb(0, 255, 255) : màu cyan
+  : rgba(0, 255, 255, 0,3) : màu cyan độ trong suốt 30% 
+-Hexadecimal notation: kết hợp giữu 3 chỉ số màu, mỗi chỉ số từ 00 -> ff
+ : transparent; : màu trong suốt
+ : currentColor; : lấy màu hiện tại, thường dùng cho border lấy màu của content
+
+ linear-gradient: đổ màu chuyển, được coi như image
+    color | color; deg |color | color; to top right | color | color; color % % | color % %
+ radial-gradient: đổ màu chuyển theo hình tròn
+
+ 
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+==================================================================================================================
+CSS BOX MODEL
+-Boder: 
+  border-width: 5px; :border rộng 5px
+  border-style: solid :border kiểu nét liền
+  border-color: #1098ad : viền màu #1098ad
+  - kết hợp các properties với top, right, left, bottom để chỉ định style 1 cạnh nhất định của border
+    border-right-width: 2px; cạnh phải border rộng 2px
+  * short-hand property *
+  border: 5px solid #1098ad; :chỉ định style của border
+    + kiểu kết hợp option: style; largeur | style; style | couleur; largeur | style | couleur
+    + 5px solid #1098ad: rộng 5px nét liền màu #1098ad
+  - kết hợp các properties với top, right, left, bottom để chỉ định style 1 cạnh nhất định của border
+    border-top: 4px dash #555; :viền trên rộng 4px kiểu gạch nối màu #555
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+==================================================================================================================
+PSEUDO CLASS: 
+-Hover  
+  _selector:hover {} : style cho element được chuột đè lên, khi di chuột qua sẽ trở về style cũ 
+-Select child element
+  *** thứ tự child element so với parent element phải là TUYỆT ĐỐI(_selector phải đúng thứ tự chỉ định so với parentE của nó)   
+  _selector:first-child {} : chỉ định style cho các child element đầu tiên của parent element, childe element chính là _selector, parent element là element chưa _selector
+  _selector:last-child {} : chỉ định style cho các child element cuối cùng
+  _selector:nth-child(x) {} : chỉ định style cho các child element thứ x
+     x : số :chỉ định đúng thứ tự element
+     X : odd :chỉ định các element có số thứ tự lẻ
+     X : even :chỉ định các element có số thứ tự chẵn
+  parentEl childEl:first-child {} : chỉ định đúng element child trong parentEl tương ứng, không phải tất cả các parent element như bình thương 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+==================================================================================================================
+PSEUDO-ELEMENTS: các element không thuộc về HTML nhưng vẫn có thể chọn và tạo kiểu trong css
+  ::fist-letter, ::first-line...
+
+/*bắt buộc có thuộc tính content: '', mặc định display: inline*/
+  ::before {} : tạo element giả là child element đầu tiên, nhận element đang chọn là parent element
+  ::after {} : tạo element giả là child element cuối cùng, nhận element đang chọn là parent element
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+==================================================================================================================
+HYPERLINKS
+  text-decoration: none; bỏ gạch chăn dưới thẻ a
+    text-decoration là 1 shorthand property: line | style | color; line | color; line
+    text-decoration: underline dotted orange; có gạch chân kiểu chấm màu cam
+-pseudo class với links
+  a:link {} : style cho thẻ a có thuộc tính href
+  a:visited {} : style cho thẻ a đã từng truy cập
+  a:active {} : style cho thẻ a đang được nhấn chuột
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+==================================================================================================================
+IMAGE 
+- Hành vị mặc định width, height: chỉ định 1 chiều nhất định, sẽ auto căn chỉnh chiều còn lại cho phù hợp kích cỡ ảnh
+  transform: scale(1.5); : phóng đại ảnh lên 1.5 lần, đè lên các element xung quanh, mặc định là 1
+  filter: lọc màu của img
+    blur()
+    brightness()
+    contrast()
+    grayscale()
+    hue-ratate()
+    drop-shadow() 
+    invert()
+    opacity()
+    saturate()
+    sepia()
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+==================================================================================================================
+ICONS
+ stroke: #087f5b; :đổ màu cho line icon
+ fill: #087f5b; :đổ màu cho icon kín
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+==================================================================================================================
+BOX-SHADOW, TEXT-SHADOW
+ box-shadow: 2px 2px 2px 1px rgba(0, 0, 0, 0.2); :đổ bóng cho khối
+   - options: /* offset-x | offset-y | color */
+              /* offset-x | offset-y | blur-radius | color */
+              /* offset-x | offset-y | blur-radius | spread-radius | color */ 
+              /* inset | offset-x | offset-y | color */
+       - Với hai giá trị, chúng tương ứng được coi là tọa độ bù của bóng: <offset-x>và<offset-y>
+       - Nếu giá trị thứ ba được cung cấp, giá trị này sẽ tương ứng với bán kính của vùng mờ: <blur-radius>
+       - Nếu giá trị thứ tư được cung cấp, giá trị này sẽ tương ứng với bán kính lây lan <spread-radius>:
+       - inset là đổ bóng bên trong
+       - offset-x: > 0 đổ bóng sang trái, < 0 đổ bóng sang phải, = 0 không có bóng 2 bên
+       - offset-y: > 0 đổ bóng xuống dưới, < 0 đổ bóng lên trên, = 0 không đổ bóng trên dưới
+       - blur-radius: <length>; :tăng độ mờ của bóng tính từ mép bóng, giá trị cang lớn, độ mờ của bóng càng khếch tán, không cho phép giá trị âm, mặc định = 0 
+       - spread-radius: <length>; : >0 bóng lan rộng ra, < 0 bóng thu nhỏ lại, mặc định =0
+ text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.2); :đổ bóng cho text
+       - giống box-shadow nhưng không chứa giá trị spread-radius
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+==================================================================================================================
+BORDER-RADIUS
+  border-radius: 10px;
+   -options: Radius is set for all 4 sides
+             top-left-and-bottom-right | top-right-and-bottom-left
+             top-left | top-right-and-bottom-left | bottom-right
+             top-left | top-right | bottom-right | bottom-left
+             (first radius values) / radius
+             ...
+       - first radius values: chấp nhận 1 hoặc 2 số, chỉ định cách bo góc theo elip, ..., mặc định không có first radius values sẽ bo tròn đều
+       - border-radius chấp nhận truyền vào <length> hoặc <%>
+
+  overflow: visible | hidden | scroll | auto;
+     visible: cho phép nhìn thấy nội dung element bị tràn khỏi container chứa nó
+     hidden: ẩn nội dụng element bị tràn khỏi container chứa nó
+     scroll: content được cắt vừa trong container, luôn hiện thanh scroll
+     auto: giống scroll chỉ hiện scroll khi content tràn container
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////// 
+==================================================================================================================
+BACKGROUND
+  background-color: #fff; :thay đổi màu nền
+  background-image: thay đổi hình nền
+      : linear-gradient() 
+      : url()
+      : kết hợp với nhiều url, nhiều lớp chuyển màu, lớp nào đặt đầu tiên sẽ hiển thị đè lên các lớp còn lại 
+  background-clip: border-box; :thay đổi giới hạn hình ảnh của box-model, áp dụng cho background-color
+    border-box: hình ảnh hoặc màu nền kéo dài tới mép ngoài border 
+    padding-box: hình ảnh hoặc màu nền kéo dài tới mép ngoài padding
+    content-box: nền có giới hạn trong content (cover)
+    text: nền có giới hạn trong text (cover)
+  background-size:
+    container: chia tỷ lệ hình ảnh lớn nhất có thể trong container(tỷ lệ ảnh gốc, không cắt, kéo dãn hình ảnh), không lấp đầy container, thì hình ảnh sẽ được lặp lại nhiều lần phủ kín khoảng trống
+    cover: hỉnh ảnh được cân bằng (thu nhỏ hoặc phóng to) lấp đầy container, nếu tỷ lệ ngang dọc không phù hợp với container sẽ xem xét cắt đi 1 phần ngang hoạc dọc để lấp kín container
+    auto: tùy theo tỷ lệ ngang dọc sẽ lấp đầy container theo 1 chiều ngang hoặc dọc
+    100px 200px: ngang 100px, dọc 200px bắt đầu từ mép trên trái container
+    100px: ngang 100px, dọc auto bắt đầu từ mép trên tái container
+    100%: rộng 100%, dọc tỷ lệ lớn hơn container sẽ bị cắt, nếu tỷ lệ nhỏ hơn sẽ để khoảng trống
+  background-repeat: kết hợp background-size: container 
+    no-repeat: không cho lặp lại ảnh
+    repeat: cho phép lặp lại ảnh
+    repeat-x: lặp lại ảnh theo trục x
+    repeat-y: lặp lại ảnh theo trục y
+    ...
+  background-origin: giống background-clip, áp dụng cho background-image
+  background-position: đặt vị trí ảnh so với mép container: left, top, bottom, right, center
+  
+  /* short-hand */
+  background 
+
+         
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////// 
+==================================================================================================================
+OBJECT-FIT: thay đổi kích thước các các replaced elements(iframe, video, img, embed) để phù hợp với container chứa nó
+~~ background-size
+  :fill; lấp đầy container (méo ảnh, video)
+  :container; element được chia tỷ lệ dài/rộng để 1 chiều tỷ lệ lớn hơn vừa vặn trong container (hở khoảng chống)
+  :cover; element được chia tỷ lệ dài/rộng để 1 chiều tỷ lệ nhỏ hơn vừa vặn trong container (lấp đầy container, không méo ảnh, video thiếu 1 phần ảnh video)
+  :none;  đúng kích thước ảnh ban đầu
+  :scale-down; tùy tình huống sẽ như :container hoặc :none
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////// 
+==================================================================================================================
+VH, VW, MAX-WIDTH, REM
+
+  vh: <int>; độ lớn = <int> / độ cao của viewport
+  vw: <int>; độ lớn = <int> / độ rộng của viewport
+  
+  max-width: <length>; :đặt chiều rộng tối đa cho element, khi thu viewport, chiều rộng sẽ tự thu khớp lại toàn bộ viewport
+
+  rem: 1 rem bằng 1 size của root element (html), mặc định là 16px
+       bằng cách chỉ thay đổi size ở thẻ html, sẽ thay đổi toàn bộ size của các element dùng đơn vị rem
+       trick: html { font-size: 62.5%; }
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////// 
+==================================================================================================================
+TRANSFORM
+  transform: scale(1.5); :phóng đại toàn bộ container lên 1.5 lền
+  transform: translate(-50%, 50%); :dịch chuyển container sang phải -50% chiều rộng chính nó, xuống dưới 50% chiều cao chính nó
+  transform: rotate(0.5turn); :quay container 0.5 vòng
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////// 
+==================================================================================================================
+TRANSITION: Tạo hiệu ứng chuyển trạng thái từ từ
+ transition: <css property> | <timeout>;
+    đặt thời gian chuyển trạng thái giữa css property nhất đinh
+ transition: all 1s; tất cả thuộc tính chuyển trạng thái hết 1s
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////// 
+==================================================================================================================
+BUTTON
+ /*reset css*/
+ display: inline-block; // loại bỏ khoảng giữa các button vì mặc định inline có margin
+ border: none;
+ color: #fff;
+ padding: 8px 12px;
+
+
+
+
+
+
+
+ 

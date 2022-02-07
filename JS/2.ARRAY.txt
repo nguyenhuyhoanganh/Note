@@ -1,0 +1,354 @@
+﻿MAP()
+cách gọi:
+var arr = array.map(callBackFn(), thisArg)
+
+*CÚ PHÁP*
+
+// Arrow function
+map((element) => { ... })
+map((element, index) => { ... })
+map((element, index, array) => { ... })
+
+// Callback function
+map(callbackFn)
+map(callbackFn, thisArg)
+
+// Inline callback function
+map(function(element) { ... })
+map(function(element, index) { ... })
+map(function(element, index, array){ ... })
+map(function(element, index, array) { ... }, thisArg)
+
+Trong đó: 
+  +)callBackFn sẽ nhận vào tối đa 3 tham số
+1.element: phần tử hiện tại được sử lý trong mảng, lặp liên tục từ phần tửu đầu tiên đến phần tử cuối cùng của mảng
+2.index: chỉ số phần tử hiện tại của phần tử đang được xử lý trong mảng
+3.array: chính mảng đang map
+  +)thisArg thay thế cho đối tượng this trong function callback, nếu không có thisArg, this = undefined
+
+=>Trả ra 1 mảng mới, mỗi element của mảng thực thi code trả về 1 element của mảng mới
+
+
+*1 SỐ CÁCH HAY DÙNG*
+
+--- trả về tất cả các option được chọn trên màn hình
+
+let elems = document.querySelectorAll('select option:checked')
+let values = Array.prototype.map.call(elems, function(obj) {
+  return obj.value
+})
+
+
+============================================================================================================================================================================================
+FILTER()
+Cách gọi:
+var arr = array.filter(callBackFn(), thisArg)
+
+*CÚ PHÁP*
+
+// Arrow function
+filter((element) => { ... } )
+filter((element, index) => { ... } )
+filter((element, index, array) => { ... } )
+
+// Callback function
+filter(callbackFn)
+filter(callbackFn, thisArg)
+
+// Inline callback function
+filter(function(element) { ... })
+filter(function(element, index) { ... })
+filter(function(element, index, array){ ... })
+filter(function(element, index, array) { ... }, thisArg)
+
+=>funtion kiểm tra element trả về 1 mảng gồm các giá trị được lọc qua function
+
+*1 SỐ CÁCH HAY DÙNG*
+
+--- lọc các phần tử trong mảng
+
+const fruits = ['apple', 'banana', 'grapes', 'mango', 'orange']
+/**
+ * Filter array items based on search criteria (query)
+ */
+const filterItems = (arr, query) => {
+  return arr.filter(el => el.toLowerCase().indexOf(query.toLowerCase()) !== -1)
+}
+console.log(filterItems(fruits, 'ap'))  // ['apple', 'grapes']
+console.log(filterItems(fruits, 'an'))  // ['banana', 'mango', 'orange']
+=========================================================================================RẤT QUAN TRỌNG=====================================================================================
+REDUCE()
+Cách gọi:
+var any = array.(callBackFn(), initialValue)
+
+*CÚ PHÁP*
+
+// Arrow function
+reduce((previousValue, currentValue) => { ... } )
+reduce((previousValue, currentValue, currentIndex) => { ... } )
+reduce((previousValue, currentValue, currentIndex, array) => { ... } )
+reduce((previousValue, currentValue, currentIndex, array) => { ... }, initialValue)
+
+// Callback function
+reduce(callbackFn)
+reduce(callbackFn, initialValue)
+
+// Inline callback function
+reduce(function(previousValue, currentValue) { ... })
+reduce(function(previousValue, currentValue, currentIndex) { ... })
+reduce(function(previousValue, currentValue, currentIndex, array) { ... })
+reduce(function(previousValue, currentValue, currentIndex, array) { ... }, initialValue)
+
+Trong đó: 
+  +)callBackFn sẽ nhận vào tối đa 4 tham số
+1.previousValue là giá trị trả về của lần lặp trước đó trong callBackFn, nếu không có initialValue, giá trị lần lặp đầu tiên nhận được là phần tử đầu tiên của mảng
+2.currentValue là giá trị phần tử hiện tại đang lặp, nếu không có initialValue, giá trị lần lặp đầu tiên là phần tử thứ 2 của mảng
+3.currentIndex chỉ mục của currentValue
+4.array mảng đang được lặp
+  +)initialValue: quyết định kiểu trả về của hàm reduce phụ thuộc vào typeOf của initialValue, initialValue là giá trị previousValue khi mảng được lặp lần đầu tiên
+
+=>Trả về kết quả của hàm reduce, có thể là mảng, string, số, objectr, ...phụ thuộc vào initialValue
+
+*1 SỐ CÁCH HAY DÙNG*
+
+---tính tổng các phần tử trong mảng
+
+let total = [ 0, 1, 2, 3 ].reduce(
+  ( previousValue, currentValue ) => previousValue + currentValue,
+  0
+)
+
+---làm phẳng mảng
+---đếm số lần xuất hiện trong mảng
+---nhóm đối tượng theo thuộc tính
+---liên kết các mảng trong 1 mảng các đối tượng bằng Spread
+---thay thế filter(), map()
+---thực hiện promise tuần tự 
+
+https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/Reduce
+
+
+============================================================================================================================================================================================
+FOREACH()
+cách gọi:
+var arr = array.forEach(callBackFn(), thisArg)
+
+TƯƠNG TỰ MAP
+
+=> thực thi 1 đoạn code tuần tự theo từng element của mảng, trả về undefined, thường đưa 1 biến bên ngoài vào để thay đổi giá trị biến sau từng vòng lặp
+
+---Tính tổng các phần tử trong mảng, in các phần tử trong mảng, ...
+
+============================================================================================================================================================================================
+SOME() giống FILTER(), trả về true nếu có ít nhất 1 element lọc qua được function, nếu không sẽ trả về false 
+EVERY() giống SOME(), trả về true nếu tất cả element lọc qua được function, nếu không trả về false
+FIND() giống FILTER(), lọc qua toàn bộ element  trong mảng, trả về phần tử đầu tiền thảo mãn điều kiện của fn, nếu không có trả về undefined
+============================================================================================================================================================================================
+.unshift('[element]'): thêm phần tử đầu mảng
+.push('[element]', '[element]',...): thêm 1 hoặc nhiều phần tử cuối mảng, trả về độ dài mảng
+.pop('[element]'): xóa phần tử cuối mảng, trả về phần tử vừa xóa, nếu mảng rỗng trả về undefined
+.shift('[element]'): xóa phần tử đầu mảng, trả về phần tử đó
+.unshift('[element]', '[element]', ...): thêm 1 hoặc nhiều phần tử đầu mảng, trả về độ dài mới
+.join('[character]'): nối các phần tử của mảng bằng [character] tạo thành 1 String
+.slice(start, end): cắt mảng tham trị
+.splice(start, deleteCount, item1, item2, itemN) cắt mảng tham chiếu
+.toString(): chuyển thành string, ngắn cách giữa các phần tử là ','
+array1.concat(array2): nối 2 mảng
+-------------------------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------------------------
+arr.slice(); trả về bản sao của mảng
+arr.slice(start); cắt từ start, trả về mảng mởi
+arr.slice(start, end); cắt từ start đến end, trả về mảng mới
+arr.splice(); copy 1 mảng, không trỏ mảng cũ
+arr.splice(start); cắt từ start, làm thay đổi mảng (xóa phần còn lại khỏi mảng)
+arr.splice(start, count); cắt từ start lấy count phần tử, làm thay đổi mảng, mảng mởi là phần chưa cắt (xóa phần tử khỏi mảng)
+arr.reverse(); đảo ngược phần tử mảng, làm thay đổi mảng
+arr.concat(arr2); tạo ra mảng mới là [...arr, ...arr2]
+arr.join('[character]'); nối các phần tử của mảng bằng [character] tạo thành 1 String
+arr.at(index); trả về phần tử ở index, index âm thì lấy ngược lại từ cuối mảng
+arr.indexOf(element); tìm kiếm index của phần tử nếu có trong mảng
+arr.includes(element); true nếu có phần tử trong mảng, false nếu không
+arr.flat(); làm phẳng mảng, loại 1 cấp cặp [] ở mỗi element  [1, [2, [3, 4], 5], 6, [7, 8]].flat() = [1, 2, [3, 4], 5, 6, 7, 8]
+arr.flat(number); làm phẳng mảng theo number cấp độ
+arr.sort(); sắp xếp theo bảng chữ cái, nếu truyền vào số, vẫn coi tự đổi số là string để sắp xếp => làm thay đổi mảng
+arr.fill(number, start, end); thay đổi mảng từ start đến end bằng number
+
+-----------------------------------------------------------------------------------------------------------------------------------------------
+.forEach(): nhận vào mảng, thao tác trên từng phần tử, có thể thay đổi mảng
+.map(): nhận vào mảng, trả về mảng mới đã được thay đổi trên từng element
+.filter(): nhận vào mảng, trả về mảng mới gốm các phần tử thỏa mãn đk
+.reduce(): tổng hợp tất cả phần tử của mảng ban đầu thành 1 giá trị
+.find(): trả về phần tử đầu tiên thỏa mãn
+.findIndex(): trả về index của phần tử thỏa mãn
+.some(): trả về true nếu có ít nhất 1 phần tử thỏa mãn điều kiện
+.every(): trả về true nếu tất cả element thỏa mãn điều kiện
+.flatMap(): kết hợp giữa map để lọc đk và .flat() để làm phẳng mảng, => trả về 1 mảng, chỉ làm phẳng 1 cấp độ mảng
+.sort(): truyền vào 1 callbackfn(a,b): a, b là 2 element so sánh đk, làm thay đổi mảng
+  return > 0 thì a -> b
+  return < 0 thì a <- b
+   //sắp xếp số tăng dần
+  arr.sort((a, b) => {
+    if(a > b) return 1;
+    if(a <= b) return -1;
+  })
+   // sắp xếp cách 2
+  arr.sort((a, b) => a - b);
+---------------------------------------------------------------------------------------
+-Tạo mảng n phần tử empty
+const arr = new Array(7); 
+// thêm phần tử mảng chỉ bằng cách arr.fill()
+
+- Array.from
+  -tạo mảng
+const x = Array.from({length: 7}, (_, i) => i + 1);
+//[1, 2, 3, 4, 5, 6, 7]
+
+  -tạo mảng từ các cấu trúc giống mảng
+//
+NodeList => Arr
+Array.from(document.querySelectorAll('.class')) => trả về mảng các element
+
+////////////////////////////////////////////////////////////////////
+Sets (DUY NHẤT)
+// trả về 1 kiểu Sets: là 1 object có nhiều phần tử, các phần tử là duy nhất, các phần tử không có keysname => không truy xuất ra từng phần tử được//
+// Set(_Iterables) nhận vào những kiểu lặp lại
+const staff = ['Waiter', 'Chef', 'Manager', 'Chef', 'Waiter'];
+const staffUnique = new Set(staff);
+console.log(staffUnique); // Set(3) {"Waiter", "Chef", "Manager"}
+staffUnique.add('Boss'); // thêm Boss vào staffUnique
+staffUnique.delete('Manager'); // xóa Manager vào staffUnique
+staffUnique.has('Manager'); // kiểm tra xem có Manager ở staffUnique, trả về true, false
+staffUnique.clear(); xóa toàn bộ phần tử
+staffUnique.size; lấy ra số lượng
+// chuyển Set sang mảng
+const staffArrUnique = [...staffUnique]
+// có thể dùng for-of cho set để lặp các phàn tử
+////////////////////////////////////////////////////////////////////
+Maps
+// Giống Object, các keys không chỉ là String, có thể là bất cứ kiểu dữu liệu gì
+
+const rest = new Map();
+rest.set('name', 'Hoanganh');
+rest.set(1, 'abc');
+console.log(rest.set(1, 'lisbon, portugal'));
+// vừa thêm vào Map, vừa trả về Map
+// Map(3) {"name" => "Hoanganh", 1 => "abc",
+   2 => "lisbon, portugal"}
+
+// do vừa thêm vừa trả về => có thể thêm liên tục
+rest.set(1, 'abc').set(6, 'xyz');
+
+/// lấy phần tử
+rest.get(_keyname); // keyname phải đúng định dạng
+Console.log(res.get('name')); // Hoanganh 
+
+rest.set(true, 'We are open :D')
+.set(false, 'We are closed :(')
+.('open', 11)
+.('close', 23)
+
+const time = 21;
+console.log(rest.get(time > rest.get('open') && time < rest.get('close')));
+// We are open :D
+
+rest.has(_key): kiểm tra có không
+rest.remove(_key): xóa theo key
+rest.clear(): xóa toàn bộ map
+rest.size : lấy ra số lượng property
+
+///truyền 1 Object làm keys
+//do Object lưu trữ value ở vùng nhớ heap
+// => khi set trực tiếp 1 Object, và get ra
+rest.set([1, 2], 'test');
+rest.get([1,2]); 
+// không trả về kết quả do khi set và get 2 Array(cũng là Object) truyền vào thực chất là 2 Array khác nhau
+// => đặt tên biên cho array trc khi set
+const arr = [1,2]
+rest.set(arr, 'test');
+rest.get(arr); 
+
+/// có thể lấy DOM element làm key
+rest.set(document.querySelector('h1'), 'Heading');
+
+//cách viết khác khi tạo map
+const question = new Map([
+  ['question', 'What is the best programming
+   language in the world?'],
+  [1, 'C'],
+  [2, 'Java'],
+  [3, 'JavaScript'],
+  ['correct', 3],
+  [true, 'correct'],
+  [false, 'Try again!'],
+]);
+console.log(question);
+
+//Convert Object to Map: Object.entries()
+const hoursMap = new Map(Object.entries(openningHours))
+
+// có thể dùng for of lặp map
+for (const [key, value] of question) {
+  if(typeof key === 'number')
+   console.log(`Answer ${key}: ${value}`);
+}
+
+//convert map to array
+console.log([...question]);
+console.log([...question.keys()]); // trả về mảng keys
+console.log([...question.values()]); trả vfee mảng values
+
+////////////////////////////////////////////////////////////////////////////////
+Which Data Structure to Use?
+
+Source of data
+- soruce code
+- UI DOM
+- web API
+
+Data structure
+- Simple list: Arrays or Sets
+- Key/Value: Objects or Maps
+
+- Array vs Set: chỉ có values
+Array:
+- khi cần thứ tự list các values có thể trùng lặp
+- khi cần thao tác với dữ liệu: do array cung cấp nhiều phương thức hơn
+Set:
+- khi cần làm việc với những giá trị duy nhất
+- khi cần hiệu năng cao
+- khi cần loại bỏ giá trị trùng lặp khỏi mảng
+- Object vs Map: cần mô tả values sử dụng key
+Object:
+- nhiều lưu trữ cũ dùng object, quá lạm dụng object
+- dễ dàng truy cập values với . hoặc []
+- nên sử dụng khi thao tác JSON
+- nến sửu dụng nếu cần funtions là 1 thuộc tính (method)
+Map:
+- hiệu năng hơn
+- key có thể là bắt cứ kiểu dữ liệu nào
+- dễ dàng lặp lại
+- dễ dàng tính tón kích thước
+- nên sử dụng khi chỉ cần tránh ánh xạ key đến values
+- nên sửu dụng khi không muốn key là string
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

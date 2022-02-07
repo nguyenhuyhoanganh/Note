@@ -1,0 +1,641 @@
+﻿SYNCHRONOUS: đồng bộ, code thực thi từng dòng theo thứ tự viết code
+gặp rắc rối khi 1 dòng code thựu thi mất quá nhiều thời gian
+
+ASYNCHRONOUS: bất đồng bộ, chỉ được thực thi sau một nhiệm vụ đang chạy trong background kết thúc quá trình thực thi
+callback trong hàm asynchronous đã được đăng ký, lập tức chuyển đến dòng code đồng bộ tiếp theo làm code chính không bị block, không đợi nhiệm vụ bất đồng bộ để kết thúc công việc
+setTimeOut: khởi động bộ đếm thời gian theo cách không đồng bộ,  chạy trong background, không ngắn mã chính tiếp tục thực thi
+geoLocation API, Ajax call
+
+map, find, ... các phương thức của mảng nhận vào 1 callback nhưng vẫn không làm cho mã không đồng bộ 
+
+img.src: đặt source cho 1 hình ảnh được js triển khai như 1 hàm bất đồng bộ
+event 'load' tải hình ảnh ở background theo source và thực thi callback khi tải xong
+addEventListener không phải mã không đồng bộ, nó chỉ thực sự là 1 hàm để ĐĂNG KÝ 1 sự kiên và đợi nó xảy ra, vẫn thực thi tiếp đoạn mã dưới, addEventListener không thực hiện bất cứ đoạn mã nào dưới background 
+
+hàm callback không làm mã bất đồng bộ, nó chỉ đc đính kèm ở nhiều tác vụ bất đồng bộ
+==================================================================================================================
+AJAX:
+viết tắt của asyncronous javascript and xml, cho phép giao tiếp với các máy chủ web từ xa theo cách không đồng bộ
+thực hiện call AJAX trong code để yc 1 số dữ liệu từ máy chủ web động
+=> không cần load page, giúp sửu dụng dữ liệu trong app 1 cách linh hoạt
+- thực hiện 1 http request đến máy chủ có dữu liệu, máy chủ sẽ thiết lập trả về response chứa dữ liệu yêu cầu
+- thực hiện qua lại giữ webserver và client diễn ra KHÔNG ĐỒNG BỘ trong background
+
+webserver chứa 1 web api chứa dữ liệu client y/c
+
+API: Application Programming Interface, cwo bản là 1 phần mềm có thử được sử dụng bởi 1 phần mềm khác cho phép ứng dụng nói chuyện với nhau
+và trao đổi thông tin
+- Có nhiều ;oại APIs trong phát triền web như: DOM API, Geolocation API, etc là 1 phần mềm cho phép phần mềm khác tác tác vs nó
+Own Class API : cung cấp 1 số phương pháp như 1 public interface, các object tạo từ class có thể coi là tự chủ đưuọc đóng gói, cá phần mềm khác có thể tương tác được
+
+AJAX là Online API nhận yêu câu, truy xuất dữ liệu từ database, giử lại client
+online API gọi tắt là API hay API web
+
+trước đó AJAX sử dụng XML để truyền dữ liệu, nhuwg hiện tại không còn dùng và đổi qua JSON,
+
+=============================================================================================================
+// thực hiện XML HTTP request (cách cũ nhất)
+// gọi ajax lấy dữ liệu country
+// callback
+const getCountryData = function (countryName) {
+  const request = new XMLHttpRequest();
+  request.open('GET', `https://restcountries.com/v3.1/name/${countryName}`);
+  request.send();
+  
+  request.addEventListener('load', function () {
+    const [data] = JSON.parse(this.responseText); 
+    console.log(data);
+    
+    // xử lý với data    
+
+  })
+}
+// -> dễ dẫn đến callback hell nếu muốn thứ tự mở XML request lần lượt: bằng cách gọi lần lượt API trong cuộc gọi APi khác 
+========================================================================================================
+Cách Website hoạt động
+- Client dử dụng DNS phân tách url sang đai chỉ ip để thực hiện connect tới webserver qua đại chỉ ip
+- việc connect với webserver thực qua giao thức TCP/IP: TCP dùng để phân giải, hợp nhất các request, respone từ đầu đến đích, IP dùng để định tuyến đích đến
+- khi connect đến webserver, client bắt đầu giửu HTTP request bao gồm 
+  - Method + request target(url) + HTTP version
+  - header : Host, browser, language, ...
+  - body : chứa nội dung request
+- web server nhận được request tìm nạp dữu liệu từ database trả về HTTP respone bao gồm
+  - HTTP version + status message (200 OK, 404 NOTFOUND)
+  - header: Date, Content-type, transfer-encoding, ...
+  - body : chứa dữ liệu của response
+==========================================================================================================
+CALLBACK HELL:
+khi nhiều cuộc gọi AJAX cuàng được gọi 1 lúc, chúng chạy song song
+=> không thể kiểm soát cái nào hoàn thành trước
+Vì có nhiều lệnh gọi AJAX phụ thuộc lẫn nhau => cần triền khai 1 chuỗi lệnh gọi AJAX lần lượt
+Để chuổi AJAX thực thi chạy lần lượt sau khi cái được gọi trước kết thúc 
+=> gọi lại lệnh AJAX tiếp theo trong hàm callback của cuộc gọi AJAX mà nó phụ thuộc
+
+việc gọi liên tiếp lệnh AJAX trong callback của 1 AJAX dẫn đến việc callback trong callback trong callback trong callback, ...
+=> hành vi này gọi là callback hell: làm cho code trở nên lộn xộn, khó bảo trì, kho hiểu => dẫn đến nhiều bug
+
+===========================================================================================================
+PROMISE:
+/**
+//fetch api
+const request = fetch('_url'); // ngay lập tức trả về 1 promise ở trạng thái pending
+
+PROMISE: là 1 object được sử dụng như 1 placeholder cho kết quả trong tương lai của 1 hoạt động không đồng bộ
+- hay là 1 vùng chứa cho 1 giá trị được phân phối không đồng bộ
+- hay là vật chứa cho 1 giá trị trong tương lai
+
+Ex: respone từ 1 cuộc gọi AJAX là 1 promise:
+- khi bắt đầu thực hiện AJAX call, không có giá trị nào được nêu ra nhưng sẽ so 1 giá trị xuất hiện trong tương lai
+- sử dụng promise để xử lý giá trị xuất hiện trong tương lai này
+- không cần dựa vào các hàm callback để xử lý các kết quả không đồng bộ
+
+* js hỗ trợ xâu chuôi các promise cho 1 chuỗi hoạt động không đồng bộ
+ thay vì lồng các hàm callback vào nhau
+
+* trạng thái của promise được thay đổi theo thời gian
+- pending: khi chưa có giá trị nào được trả về từ tác vụ không đồng bộ
+  (tác vụ không đồng bộ vẫn thực thi dưới background)
+- settled : khi tác vụ kết thúc, promise được giải quyết, khi này promise trả về 1 trong 2 loại
+  - fulfilled: promise đã hoàn thành, promise trả về giá trị mong đợi
+  - rejected: promise bị từ chối, xảy ra lỗi trong tác vụ không đồng bộ: url sai, không có mạng, vv
+
+* promise cung cấp phương thức xử lý khi nhận các trạng thái khác nhau 
+ - promise chỉ được thực hiện 1 lần => trạng thái sau khi thực hiện sẽ luôn không thay đổi
+     => hoặc là promise đã được thực hiện, hoặc là bị từ chối
+ * XỬ LÝ FULFILLED 
+   .then(_callbackfn(_successValue){}) 
+	// trong fetch nếu thành công, _successvalue là respone trả về từ việc AJAX call
+	// respone là object thuộc kiểu respone chứa status: 200, body chứa dữ liệu, type: "cors", url, ...
+	// để đọc đưuọc dữ liệu trả về trong body cần thực hiện .json()
+	// phương thức .json cũng là 1 hàm bất đồng bộ => tiếp tục trả về 1 promise mởi
+     ex:fetch('url').then(function(respone) {
+	  return response.json(); // trả về 1 promise mới và giá trị sẽ được nhận ở phương thức .then kể tiếp
+	}).then( data => console.log(data););
+     // XÂU CHUỖI PROMISE: bằng cách thực hiện liên tiếp phuoeng thức .then()
+     // nếu trong .then() chỉ đơn giản trả vfee 1 value không phải promise, .then sẽ chuyển valude đó thành 1 promise luôn ở trạng thái fulfilled
+ * XỬ LÝ REJECTED 
+ // trong .then nhận vào 2 tham số response và err
+ // có thể bắt lỗi từng then qua việc xử lý err ở từng .then()
+     .catch(err => alert(err))
+	// được thêm ở cuối chuỗi promise bắt err xuất hiện đầu tiên trong chuỗi promise
+	// chỉ được gọi khi promise bị từ chối
+     .finally(() => {}) được gọi cả khi promise rejected hay fulfilledd 
+	// được khi luôn cần 1 thực thi sau khi kết thúc promise
+	// ex: ẩn vòng quay load trang, ...
+
+-Fetch không trả về reject khi gặp mã lỗi 403, 404, ...
+mã lỗi trả về thuộc tính status của respone (object trả về khi fetch)
+ * BẮT ERROR CỦA RESPONE
+ if(!response.ok) throw new Error(`404 not found`);
+
+//xử dụng throw để bắt những lỗi không chạy vào reject
+// lỗi bị throw bắt sẽ được then method chuyển xuống catch như 1 promise bị reject
+==============================================================================================================
+//SIMPLE PROMISE
+const promise = new Promise(function(resolve, reject) {
+  if(Math.random() >= 0.5) resolve('WIN');
+  else reject('LOST');
+})
+
+promise.then(res => console.log(res))
+  .catch(err => console.error(err));
+
+// constructor fn Promise nhận vào 1 function
+// function nhận vào 2 callback
+// callback 1 trả về 1 promise fulfilled, được thực thị tiếp trong .then()
+// callback 2 trả về 1 promise rejected, được thực thi trong .catch()
+==============================================================================================================
+//RESOLVE, REJECT IMMEDIATELY: lấp tức trả vfeef resolve hoặc reject
+
+Promise.resolve('immediately').then(res => console.log(res));
+Promise.reject(new Error('immediately')).catch(err => console.error(err));
+===========================================================================================================
+RUNTIME IN THE BROWSER:
+là 1 vùng chứa bao gồm nhiều phần cần thiết để thực thi mã javascript
+- JS Engine: (heart of the runtime)
+  - HEAP: nơi object được lưu trữ trong bộ nhớ
+  - CALL STACK: nơi code thực sự được thực thi, chỉ làm được 1 công việc tại 1 thời điểm
+  - không có sự đa nhiệm
+- Web APIs : 1 số api được cung cấp cho engine nhưng không phải của chính JS
+   ex: DOM, Timers, Fetch API, geoLoCation API, ...
+- Callback Queue (LILO): cấu trúc dữ liệu chứa tất cả code của callback fn sẵn sàng được thực thi (đến từ events)
+
+// bất cứ khi nào CALLSTACK trống, EVENT LOOP giử callbacks từ QUEUE tới CALLSTACK để nó được thực thi
+// EVENT LOOP là điều cần thiết trong JS để triển khai mô hình non-blocking
+// là cách JS xử lý đa nhiệm xảy ra trong cùng 1 thời gian
+
+// JS Engine được xây dựng trên ý tưởng single thread
+=> mã asynchronous được thực thi ở đâu?
+- mọi tác vụ bất đồng bộ liên quan đến DOM được chạy trên API Web, tương tự với AJAX call hay timeout hay bất kỳ tác vụ bất đồng bộ khác
+- khi thực thi xong tác vụ trên web API, kết quả sẽ được đưa vào callbackqueue để thực thi các hàm callback (kết quả trả về của webapi là sau khi load, respone trả về của AJAX call, sau khi hết timeout, ...)
+- trong callback queue các callback sẽ được thực thi lần lượt theo thứ tự truyền vào, các callback sau sẽ đợi các callback trước thực thi
+
+Ex: khi setTimeOut 5s, sau 5s web api sẽ đưa lệnh callback vào callback queue 
+- lệnh callback mới được đưa vào đợi các lệnh callback có sẵn tronh queue thực thi trước
+- sau khi các lệnh callback cũ đã thực thi xong, sẽ chạy lênh callback mới đẩy vào queue 
+=> thực tế sẽ mất nhiều hơn 5s => đảm báo sẽ thực hiện sau 5s, nhưng còn phụ thuộc vào trạng thái cảu callbackqueue
+
+
+??? callbackqueue cũng chứa các callbacks từ DOM events như click, keypress, ...
+DOM event không thực sự là hành vi bất đồng bộ nhưng chúng vẫn dùng callbackqueue để chạy các lệnh callback đính kèm
+nếu 1 sự kiên click xảy ra với addEventListenner thì vẫn xảy ra trên web api và đưa vào queue
+
+EVENT LOOP: nhìn vào callstack và xác định xem nó trống hay không
+nếu callsactk thực sự trống, không có mã nào được thực thi
+=> event loop lấy callback đầu tiên từ callbackqueue và đẩy vào callstack (event loop tick)
+
+- 1 event loop tick là 1 lần event loop lấy 1 callback từ callbackqueue
+
+=> nhiệm vụ event loop là điều phối giữa callsatck và các callback trong callback queue, xác định chính xác khi nào mỗi callback được thực thi
+
+Ex: đối với DOM
+khi đặt src cho 1 elemnt hình ảnh, nó được load trong web api, addeventlistener sẽ được chạy trên callstack(đơn giản là đăng ký 1 callback khi sự kiện load kết thúc trên webapi)
+- sau khi load xong trên web api, callback đính kèm event load được môi trường đưa vào callbackqueue và đợi để evenet loop đẩy vào callsatck để thực thi
+
+// sự không theo thứ tựu của các callback là do tốc độ nhanh chậm xử lý trên web api
+// xong trước được đưua vào callbackqueue trước => được đẩy vào callsatack trc và hoàn thành trc
+
+Ex: với promise
+- quá trình fetch hoàn thành, data được nhận từ response
+- .then nhận promise, đẩy callback gắn với .then() vào microtasks queue (không phải callback queue)
+- microtasks queue có quyền ưu tiên hơn callback queue
+- event loop kết thúc 1 event loop tick sẽ kiểm tra microtasks queue trước xem có call back nào sẽ chạy tất cả trc khi tiếp tục chạy các callback trong callbackqueue
+
+======================================================================================================================================================
+PROMISIFYING: chuyển đổi hành vi không đồng bộ dựa trên callback sang promise
+// tạo 1 function thay vì nhận vào 1 tham số là callback
+=> bỏ callback truyền vào function, trả về 1 promise
+
+Ex: promisifying settimeout 
+setTimeout(_callbackfn, seconds)
+--->
+
+const wait = function(seconds) {
+  return new Promise(function(resolve) {
+    //resolve là 1 callback => truyền resolve vào hàm setTimeOut
+    setTimeOut(resolve, seconds * 1000);
+    // thực hiện resole sau seconds giây, không cần truyền vào resolve vì không bắt buộc
+  })
+}
+
+wait(1).then(() => console.log(waited for 1 seconds))
+
+Ex: Promisifying the Geolocation API
+const getPosition = function () {
+  return new Promise(function (resolve, reject) {
+    // navigator.geolocation.getCurrentPosition(
+    //   position => resolve(position),
+    //   err => reject(err)
+    // );
+    navigator.geolocation.getCurrentPosition(resolve, reject);
+  });
+};
+getPosition().then(pos => console.log(pos));
+
+// navigator.geolocation.getCurrentPosition cũng nhận vào 2 callbackfn
+-> đặt 2 callback truyền vào tương ứng với resolve và reject ở Promise
+===========================================================================================================
+ASYNC, AWAIT (ES2017)
+- thêm async trước function để làm funtion trở thành function bất đồng bộ
+- await đặt trước 1 câu lệnh trong function async để bắt code chờ thwcuj thi xong câu lệnh mới thực thi câu lệnh kế tiếp
+ => awai sẽ blocking code đang thực thi trong 1 hàm bất đồng bộ
+ => không block callstack => không ảnh hưởng
+// fetch api async await
+
+const asyncfn = async function () {
+
+  //fetch('url').then(res => console.log(res))
+
+  const res = await fetch('url');
+  console.log(res); // trả về 1 respone
+}
+===========================================================================================================
+HANDLING ERROR ASYNC, AWAIT WITH TRY CATCH
+- bọc khối code async trong try{}, khi có bất cứ lỗi nào, khối code trong try sẽ dừng thực thi và chuyển lỗi xuống catch
+
+try {} catch(err) {console.error(err.message);}
+- khi fetch api mã lỗi 403, 404, ... không đưọc bắt vào catch
+=> kiểm tra trong thái của response.
+if(!respone.ok) throw new Error('something went wrong')
+
+* ASYNC Function luôn trả về 1 promise
+=> muốn nhận 1 value trả về từ async function thực hiện nhận vào giá trị bằng phương thức .then()
+
+asyncFn.then(value => console.log(value))
+
+* nếu có 1 error xuất hiện trong khổi code => sẽ được bắt bằng catch()
+=> giá trị trả về sẽ là undefined
+=> tuy nhiên dù bị error, giá trị trả về của async function vẫn là 1 promise fulfilled
+=> để bắt err vào catch() của promise trả về => throw new Error('err') bên trong catch của cặp try catch trên async fn
+===========================================================================================================
+Promise.all() : nhận vào 1 mảng promise trả về 1 promise có kết quả là mảng kết quả của các promise trong mảng
+  nếu 1 trong các promise reject => tất cả sẽ bị reject
+// dùng để thực thi các promise song song trong 1 async fn
+Ex: const data = await Promise.all([_promise1, _promise2, _promise3])
+
+Promise.race(): nhận 1 mảng promise => trả về 1 promise đầu tiên có giá trị là settled 
+// dùng ngăn chặn những promise không bao giờ kết thúc bằng cách thêm 1 promise set time out
+
+Promise.allSettled: tương tự promise.all nhưng luôn trả về 1 mảng kết quả kể cả rejected
+Promise.any: trả về promise đầu tiên fulfiled
+===========================================================================================================
+------------------------------------------------------------------------------------------------------
+PROMISE:
+1.Trạng thái:
+pending: đang xử lý
+-> settled: trả về kết quá
+       1: fulfiled: success
+       2: rejected: error
+2.khác biệt so với callback
+- xử lý nhiều trạng thái khác nhua, tùy vào kết quả trả về
+- xử lý tuần tự không lồng nhau tạo thành callback hell
+/// có 2 cách bắt lỗi
+/// 1.bắt lỗi cho từng promise bằng cách nhận vào err sau mỗi then
+/// 2.bắt lỗi cho tất cả promise bằng .catch(err => alert(err));
+/// Ném ra 1 lỗi trong then() khi có kqua trả về mà k đúng mục đích: throw new Error('Error');
+/// finally() // xử lý sau cùng bất kể promise trả về reject hay fullfil, thường dùng để ẩn loadding
+
+// tạo promise thông thường
+
+const lotteryPromie = new Promise(function(resolve, reject) {
+  console.log('Promise is running...');
+  setTimeout(function() {
+    if(Math.random() >= 0,5) {
+      resolve('WIN');
+    } else {
+      reject(new Error('LOSE'));
+    }
+  }, 2000);
+});
+
+lotteryPromie.then(res => console.log(res))
+             .catch(err => cosole.log(err));
+
+//Promisifying setTimeout ///Promisifying: chuyển đổi từ callback sang promise
+const wait = function(seconds) {
+  return new Promise(function (resolve) {
+    setTimeout(resolve, seconds * 1000);
+  });
+};
+
+wait(2).then(() => {
+  console.log('I waited for 2 seconds');
+  return wait(1);
+}).then(() => console.log('I waited for 1 second more'));
+
+//Resolve, Reject immediately
+Promise.resolve('immediately').then(res => console.log(res));
+Promise.reject(new Error('immediately')).catch(err => console.error(err));
+
+FETCH: cách gọi ajax mới
+//promise
+const getContryData = function(country) {
+  fetch (`https://restcountries.com/v3.1/name/${countryName}`)  // gọi fetch sẽ trả về 1 promise
+  .then(response => respone.json(), err => alert(err))
+     // phương thức json có sẵn ở response đọc dữ liệu trong body của respone
+     // .json() cũng là 1 hàm bất đồng bộ, trả về 1 promise mới
+// response nhận vào ở đây là 1 object, có các thuộc tính giống như respone trả về gồm htmlmethod, status, body, ...
+  .then(data => console.log(data))
+}
+
+///getPosition
+
+const getPosition = function () {
+  return new Promise(function (resolve, reject) {
+    navigator.geolocation.getCurrentPosition(
+      position => resolve(position),
+      err => reject(err)
+    );// lấy ra vị trí hiện tại
+    // vì hàm cũng nhận vào 2 tham số => có thể viết tắt
+    // navigation.geolocation.getCurrentPosition(resolve, reject);
+  })
+}
+
+
+
+
+//////////////CODE PROMISE FETCH-API WHEREAMI///////////////////////////
+////app.js
+const btn = document.querySelector(".btn-country");
+const countriesContainer = document.querySelector(".countries");
+
+const renderCountry = function(data, className = "") {
+    const html = `
+    <article class="country ${className}">
+      <img class="country__img" src="${data.flags.png}" />
+      <div class="country__data">
+        <h3 class="country__name">${data.name.common}</h3>
+        <h4 class="country__region">${data.region}</h4>
+        <p class="country__row"><span>👫</span>${(
+          +data.population / 1000000
+        ).toFixed(1)} people</p>
+        <p class="country__row"><span>🗣️</span>${
+          Object.values(data.languages)[0]
+        }</p>
+        <p class="country__row"><span>💰</span>${
+          Object.values(data.currencies)[0].name
+        }</p>
+      </div>
+    </article>
+    `;
+    countriesContainer.insertAdjacentHTML("beforeend", html);
+    countriesContainer.style.opacity = 1;
+};
+
+const renderError = function(msg) {
+    countriesContainer.insertAdjacentText("beforeend", msg);
+    countriesContainer.style.opacity = 1;
+};
+
+const getPosition = function() {
+    return new Promise(function(resolve, reject) {
+        navigator.geolocation.getCurrentPosition(
+            (position) => resolve(position),
+            (err) => reject(err)
+        ); // lấy ra vị trí hiện tại
+        // vì hàm cũng nhận vào 2 tham số => có thể viết tắt
+        // navigation.geolocation.getCurrentPosition(resolve, reject);
+    });
+};
+
+const whereAmI = function() {
+    getPosition()
+        .then((pos) => {
+            const { latitude: lat, longitude: lng } = pos.coords;
+            console.log(lat, lng);
+            return fetch(`https://geocode.xyz/${lat},${lng}?geoit=json`);
+        })
+        .then((res) => {
+            if (!res.ok) throw new Error(`Problem with geocoding ${res.status}`);
+            return res.json();
+        })
+        .then((data) => {
+            console.log(data);
+            console.log(`you are in ${data.city}, ${data.country}`);
+            return fetch(`https://restcountries.com/v3.1/name/${data.country}`);
+        })
+        .then((res) => {
+            if (!res.ok) throw new Error(`Country not found (${res.status})`);
+            return res.json();
+        })
+        .then((data) => {
+            renderCountry(data[0]);
+            const neighbour = data[0].borders[0];
+            if (!neighbour) return;
+            return fetch(`https://restcountries.com/v3.1/alpha/${neighbour}`);
+        })
+        .then((res) => {
+            if (!res.ok)
+                throw new Error(`Country not found (${res.status})`);
+            return res.json();
+        })
+        .then(data => {
+            renderCountry(data[0], 'neighbour')
+        })
+        .catch((err) => console.error(`${err.message} 💥`));
+};
+ 
+///index.html
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <link rel="stylesheet" href="style.css" />
+    <script defer src="app.js"></script>
+    <title>Asynchronous JavaScript</title>
+</head>
+
+<body>
+    <main class="container">
+        <div class="countries">
+            <!--
+        <article class="country">
+          <img class="country__img" src="" />
+          <div class="country__data">
+            <h3 class="country__name">COUNTRY</h3>
+            <h4 class="country__region">REGION</h4>
+            <p class="country__row"><span>👫</span>POP people</p>
+            <p class="country__row"><span>🗣️</span>LANG</p>
+            <p class="country__row"><span>💰</span>CUR</p>
+          </div>
+        </article>
+        -->
+        </div>
+        <button class="btn-country">Where am I?</button>
+        <div class="images"></div>
+    </main>
+</body>
+
+</html>
+
+////////////////////////////////////////////////////////////////////////
+
+ASYNC FUNCTION
+
+//thực hiện 1 function không đồng bộ
+
+const getPosition = function () {
+  return new Promise(function (resolve, reject) {
+    navigator.geolocation.getCurrentPosition(resolve, reject);
+  });
+};
+
+const whereAmI = async function () {
+  try {
+    // Geolocation
+    const pos = await getPosition();
+    const { latitude: lat, longitude: lng } = pos.coords;
+    // Reverse geocoding
+    const resGeo = await fetch(`https://geocode.xyz/${lat},${lng}?geoit=json`);
+    if (!resGeo.ok) throw new Error('Problem getting location data');
+    const dataGeo = await resGeo.json();
+    console.log(dataGeo);
+    // Country data
+    const res = await fetch(
+      `https://restcountries.eu/rest/v2/name/${dataGeo.country}`
+    );
+    if (!res.ok) throw new Error('Problem getting country');
+    const data = await res.json();
+    console.log(data);
+    renderCountry(data[0]);
+  } catch (err) {
+    console.error(`${err} 💥`);
+    renderError(`💥 ${err.message}`);
+  }
+};
+whereAmI();
+
+=>>>> ASYNC function luôn trả về 1 promise
+ do javascript không biết sẽ trả về những gì từ async function khi gọi nó lúc nó vẫn thức thi dưới background
+ promise do async funtion trả về luôn ở trạng thái fullfill dù cho trong async function thực thi bị reject
+ nếu reject thì data trả về trong promise này là undefined
+ => để promise trả về từ async funtion nhận về reject cần throw err từ trong catch(err) {} của khổi lệnh try catch
+
+////////////////////1 SỐ FUNCTION STATIC CỦA OBJCET PROMISE
+
+/// 1 công việc yêu cầu data từ 3 nguồn data1, data2, data3 để thực hiện
+/// thay vì chạy động bộ .then() hay await để lấy dữ liệu từng data (điều này gây mất thời gian)
+/// sử dụng Promise.all([promise1, promise2, promise3]) nhận vào mảng các promise và thực hiện song song đến khi tất cả promise có kết quả để trả về
+///  const data = await Promise.all([promise1, promise2, promise3]);
+/// data trả về là 1 mảng giá trị fullfil của 3 promise
+
+
+/// Promise.all([promise1, promise2, promise3]) trả về 1 mảng fullfil, nếu có bất kỳ promise nào reject thì sẽ reject ngay lập tức
+/// Promise.race([promise1, promise2, promise3]) trả về fullfil hoặc reject của promise thực hiện nhanh nhất
+/// Promise.allSettled([promise1, promise2, promise3]) trả về 1 mảng bất kể promise reject hay fullfil
+/// Promise.any([promise1, promise2, promise3]) giống race nhưng bỏ qua các promise đã bị reject và trả về fullfil của promise nhanh nhất, nếu tất cả để reject thì ???
+
+
+///////VÍ DỤ:
+
+const getJSON = function (url, errorMsg = 'Something went wrong') {
+  return fetch(url).then(response => {
+    if (!response.ok) throw new Error(`${errorMsg} (${response.status})`);
+
+    return response.json();
+  });
+};
+
+//// 1.Ví dụ Promise.all() lấy data từ 3 promise để trả về
+
+const get3Countries = async function (c1, c2, c3) {
+  try {
+    // const [data1] = await getJSON(
+    //   `https://restcountries.eu/rest/v2/name/${c1}`
+    // );
+    // const [data2] = await getJSON(
+    //   `https://restcountries.eu/rest/v2/name/${c2}`
+    // );
+    // const [data3] = await getJSON(
+    //   `https://restcountries.eu/rest/v2/name/${c3}`
+    // );
+    // console.log([data1.capital, data2.capital, data3.capital]);
+    const data = await Promise.all([
+      getJSON(`https://restcountries.eu/rest/v2/name/${c1}`),
+      getJSON(`https://restcountries.eu/rest/v2/name/${c2}`),
+      getJSON(`https://restcountries.eu/rest/v2/name/${c3}`),
+    ]);
+    console.log(data.map(d => d[0].capital));
+  } catch (err) {
+    console.error(err);
+  }
+};
+get3Countries('portugal', 'canada', 'tanzania');
+
+
+
+//// 1.5 ví dụ bắt reject của Promise.all() 
+
+Promise.all([
+  Promise.resolve('Success'),
+  Promise.reject('ERROR'),
+  Promise.resolve('Another success'),
+])
+  .then(res => console.log(res))
+  .catch(err => console.error(err));
+
+
+
+//// 2.Ví dụ Promise.race() trả về reject khi chờ 1 promise quá lấu (do mạng kém)
+
+const timeout = function (sec) {
+  return new Promise(function (_, reject) {
+    setTimeout(function () {
+      reject(new Error('Request took too long!'));
+    }, sec * 1000);
+  });
+};
+Promise.race([
+  getJSON(`https://restcountries.eu/rest/v2/name/tanzania`),
+  timeout(5),
+])
+  .then(res => console.log(res[0]))
+  .catch(err => console.error(err));
+
+
+
+//// 3. ví dụ Promise.allSettled();
+
+Promise.allSettled([
+  Promise.resolve('Success'),
+  Promise.reject('ERROR'),
+  Promise.resolve('Another success'),
+]).then(res => console.log(res));
+
+
+
+//// 4. ví dụ Promise.any()
+
+
+
+==============
+JSON.stringigy(_object): chuyển object trong js về string lưu trữ trong localstorage
+localStorage.setItem('key', JSON.stringigy(_object));
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,25 @@
+﻿Geolocation API
+: api của trình duyệt giống như timer, internationalization
+
+navigator.geolacation.getCurrentPosition(_succesCallback, _errorCallback);
+//_succesCallback được gọi khi lấy được vị trí người dùng thành công
+//_errorCallback được gọi khi lấy vị trí người dùng thất bại
+
+//////
+navigator.geolocation.getCurrentPosition(fuction(position) {
+  console.log(position);
+}, fuction() {
+  alert('Could not get your position')
+})
+
+======================================================================
+JSON.stringigy(_object): chuyển object trong js về string lưu trữ trong localstorage
+localStorage.setItem('key', JSON.stringigy(_object));
+// chỉ dùng để lưu lượng nhỏ dữ liệu (blocking)
+
+data = JSON.parse(localStorage.getItem('key'));
+// lấy data từ localStorage
+localStorage.removeItem('key'); xáo data cso key trong localStorage
+
+
+location.reload(); // reset lại trình duyệt

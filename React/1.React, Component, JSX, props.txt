@@ -1,0 +1,229 @@
+﻿create-react-app:
+ > npx create-react-app my-app
+ > cd my-app
+ > npm start
+
+ > npm install
+ > npm start
+================================================================================================
+REACT/REACT-DOM=================================================================================
+React
+-React.createElement() trả về từng element trong react
+  -Component function sử dụng return JSX dưới nền sẽ thực hiện React.createElement() để render ra từng element
+ 
+   React.createElement('_nameTagEl', {_objectAttribute}, React.createElement(), React.createElement(), ...)
+     - _nameTagEl: tên các DOM element bình thường: div, h1, span, ... (~type)
+** type đầu tiền truyền vào React.createElement() thông thường là string đặt theo _nameTagEl, tuy nhiên cũng có thể đưa type này là 1 function hoặc class
+     - _objectAttribute: 1 object chứa các attribute của chính element đó: className, htmlFor, tittle, ... (~props)
+     - các arguments truyền vào sau đó là các props.children: có thể là 1 chuỗi string hoặc tạo các react element khác làm childen cùng cấp của element vừa tạo  (~childen)
+  
+-React.createContext(): tạo state global dùng kết hợp useContext() để truy xuất state không truyền qua props của từng component
+
+React-DOM : giúp từ React tạo ra DOM
+-ReactDOM.render( ReactElement, DOMElement );
+  render các react element thành DOM element hiển thị trên page bên trong 
+  1 phần tử DOM duy nhất sẽ được react sử dụng để hiển thị toàn bộ cây React sẽ sử dụng .render
+-ReactDOM.createPortal( ReactElement, DOMElement )
+  - Hiển thị React Element bên ngoài hệ thống DOM chính mà không làm mất ngữ cảnh của react như gán props, ...
+  - ReactDOM.createPortal() được bao bọc trong {} như mã JS ở trong JSX
+  - Component trả về JSX này như 1 component bình thường và export component để dùng để ghép vào 1 component khác
+  - Khi render từ React element sang DOM element, react elementnayf được render tại bên trong DOMElement truyền vào ReactDOM.createPortal(), DOM này sẽ khác với DOM dùng để .render ra cây React gốc
+  - Vẫn đảm bảo gói component này trong các parent sử dụng nó  (mã react) => vẫn sử dụng đưucọ ngữ cảnh của react
+  ex: Sử dụng để hiển thị các modal, backdrop
+
+
+HOC: Higher Order Component: sử dựng bao bọc lấy component funtion
+-React.memo()
+-React.forwardRef()
+================================================================================================
+COMPONENT/PROPS=================================================================================
+Component
+-Dưới nền React.createElement() được đưa và đối số đầu tiên là 1 function component
+-funtion component này trả về 1 đoạn mã JSX giúp lồng ghép các JSX trong 1 file với file khác
+-Chia toàn bộ html thành các component giúp tái sử dụng các component
+
+Props
+ - với react element : giống như attribute của thẻ html
+    class => className, for => htmlFor
+ - với react component :
+    props được truyền vào fn component như 1 đối số giúp tham chiếu đến các props được đặt vào chính react component bên trong JSX của 1 component khác
+Ex:
+   import { Fragment } from 'react';
+
+   const PostItem = (props) => {
+     return (
+       <Fragment>
+         <img  
+           src={props.src}
+           alt={props.alt}
+         />
+         <h2 className="post-title">{props.title}</h2>  
+       </Fragment>
+     )
+   }
+
+   const App = () => {
+     return (
+     <Fragment>
+         <h1>List Post</h1>
+         <PostItem
+           title="C#(.NET) Tương tác với file Excel"
+           image="https://...."
+           alt="C# with Excel"
+         /> 
+         <PostItem
+           title="C#(.NET) Tương tác với file Excel"
+           image="https://...."
+           alt="C# with Excel"
+         />
+       </Fragment>
+     )
+   }
+
+props.children: đưa vào giữa cặp thẻ <></> của component giúp component nhận nội dung giữa cặp thẻ <></> tại parent sử dụng nó
+
+** có thể dụng props để đưa 1 funtion giúp thay đổi 1 state nào đó từ parent component đến child component, child component thao tác dữ liệu tại chính nó, kiểm tra điều kiện và thực thi props là funtion được parent truyền vào => thay đổi state của parent ngay từ child component
+** key không phải props được thêm vào các item khi render giao diện từ array
+** ref không phải props được truyền qua component fn, là tham số đặc biệt được đưa vào thứ 2 sau props ở component funtion, và đảm bảo bọc function đó bằng React.forwardRef()
+** children là props đặc biệt đại diên cho nội dung đưa vào giữa cặp thẻ mở và đóng của component được import
+** sử dụng destructuring với props đưa vào component funtion để có thể đặt giá trị default cho 1 prop nào đó khi không tuyền prop đó vào component ở parent
+
+//////////////////////////////////////
+tạo component linh hoạt
+Ex1: sử funtion component trong 1 object
+  const Form = {
+    Input () {
+      return <input />
+    },
+    Checkbox() {
+      return <input type="checkbox" />
+    }
+  }
+  const App => {
+    return (
+      <div id="wrapper">
+        <Form.Input />
+        <Form.Checkbox />
+      </div>
+    )
+  };
+
+Ex2: custom type button tùy props truyền vào
+  funtion Button({title, href, onClick}) {
+    let Component = 'button';
+    const props = {}
+    if (href) {
+      Component = 'a';
+      props.href = href;
+    }
+    if (onClick) {
+      props.onClick = onClick
+    }
+    
+    return (
+      <Component {...props}>{title}</Component>
+    );
+  };
+
+  const App => {
+    return (
+      <div id="wrapper">
+        <Button 
+          title="This is link"
+          href="https://..."
+        />
+        <Button 
+          title="Click me!"
+          onClick(() => console.log('call event onClick')) 
+        />
+      </div>
+    )
+  };   
+
+-Sử dụng toán tử logic render element
+  {_booleanValue && <h1>Hello!</h1>} : render khi _booleanValue là truthy
+  <h1>{title || content}</h1> : hiển thị title, nếu không có title xem content có không sẽ hiển thị content
+  {state > 1 ? 'state greatter than 1' : ''} : hiển thị khi state > 1
+
+================================================================================================
+JSX=============================================================================================
+JSX: JavaScripts XML, hỗ trợ viết HTML, XML trong JS, sử dụng Babel để --Chuyển đổi JSX sang React.createElement(), thay thế cho React.createElement()
+
+-Cú pháp: tương tự HTML
+ - prop: className === class
+         htmlFor === for
+ - {js code}: sử dụng viết js trong mã JSX    
+-JSX khi return về trong 1 component cần được wrap bởi 1 element, không cho phép trả về các element cùng cấp nối tiếp nhau
+-React hỗ trợ 1 component wrap, component này sẽ không xuất hiện trong DOM khi render tuy nhiên vẫn đảm bảo JSX trả về đã được bao bọc trong 1 element
+  import React from 'react';
+    <React.Fragment>props.children</React.Fragment>
+  hoặc import { Fragment } from 'react';
+    <Fragment>props.children</Fragment>
+
+-JSX render-array
+  -sử dụng .map() thao tác với array không cần .join('') do thực chất babel chuyển JSX thành React.createElement(), từ argument thứ 3 đưa vào React.createElement() là liên tiếp các childrens
+  -luôn thêm key vào từng child trong 1 list array, với mỗi key là 1 giá trị unique => giúp react đảm bảo khi render lại list (khi có state thay đổi) => react sẽ biết được chính xác child nào thay đổi hay thêm 1 child cuối array, react cần biết chính xác để chỉ thực thi sửa lại child cần sử hoặc thêm vào child mới thay vì render lại toàn bộ
+ Ex: JSX:
+ (<ul>
+  {datas.map(data => {
+    <li key={data.id}>data.name</li>
+   })}
+ <ul>)
+-Sử dụng component được tạo bởi funtion cần import funtion đó và viết HOA chữ cái đầu khi đưa component đó vào mã JSX
+  import { Fragment } from 'react';
+  import ComponentChild from './ComponentChild';
+
+  const ParentComponet = () => {
+    return (
+      <Fragment>
+         <h1>This is Child Component</h1>
+         <ComponentChild />
+      </Fragment>
+    ); 
+  };
+  
+  export default ParentComponent;
+-Để đưa react element hoặc text vào 1 custom component sử dụng props.children đặt ở giữa cặp thẻ mở đóng của element cần đưa trong JSX của custom component đó
+-Sử dụng mã JS gán value cho các Input element để two-way binding dữ liệu
+-AddEvent vào JSX
+  -JSX hộ trợ các event băng cách thêm prop với tên: on + _nameEvent
+   'click' == onClick={() => setState('new state')}
+   'blur' == onBlur
+   'dblclick' == onDoubleClick
+  -gán prop này vào 1 funtion như 1 callback fn sẽ thực thi khi evenet kích hoạt, callback nhận vào 1 event như event ở callback trong addEventListener
+  -không sử dụng addEventListener với JSX tránh add nhiều event cùng 1 kiểu trên 1 element mỗi khi render lại giao diện
+-Sử dụng JS trong cặp {}, JS nhất định cần à 1 expression như 1 biểu thức gán, so sánh, hoặc 1 giá trị, không thể đưa logic như if else, switch case vào JSX
+  - đưa 1 prop không gán giá trị nòa cho prop đó, => prop đó nhận trong fn component mang giá trị là tru kiểu boolean
+================================================================================================
+CSS-STYLE=======================================================================================
+style react
+-CSS inline JSX: style={{ fontSize: 120 }} , gói các css trong 1 class, nếu thuộc tính có 2 kí tự thì có thể dùng 2 cách viết: fontSize: 120 hoặc 'font-size': 120
+-Sử dụng css bình thường, import vào component tương ứng: css sẽ ở phạm vi global => đảm bảo css của từng component không được trùng tên nhau
+
+-npm i styled-components : tạo 1 component bằng chính library, đính trực tiếp style vào component
+  - const _NameComponent = styled._elementTagName`css_code`;
+      _NameComponent: là tên component muốn export để
+      _elementTagName: tag name các element bình thường mà HTML hỗ trợ (button, div, ul, input, ...)
+      css_code: là code css cho cả component đó
+           nếu style trực tiếp cho component => không cần selector, viết trực tiếp sau cặp ``
+           nếu style cho các child element của component => thay selector bằng ký tự &, viết liền kề trong cặp ``
+  - _NameComponent này sẽ tự động được trả về là 1 component trong react, luôn luôn hỗ trợ thêm element giữa các cặp <></> như <>{props.children}</>
+  - Component này có thể sử dụng để export như 1 component bình thường (chỉ hỗ trợ style, không thêm event, attribute) , có thể sử dụng làm 1 child element trong 1 component lớn (viết chung 1 file, sẽ được dùng như cú pháp JSX hỗ trợ thêm event, attribute như cú element trong JSX)
+  - Hỗ trợ viết JS bằng cặp {} ở trong css_code để đặt các style động, JS này sẽ truy cập được props như 1 component bình thường, chỉ dùng để lấy dữ liệu truyền vào và dựa vào đó để đặt style động
+
+-Sử dụng css module:
+  - Đặt tên file css có đuôi .module.css
+  import classes from '_namefilecss.module.css'
+  - Thêm style vào trực tiếp JSX: className='classes._nameclass'
+  - React sẽ tự động chuyển đổi class từng component thành class duy nhất, không trùng với component khác (cho dù 2 component cùng tên class ở trong code)
+ 
+
+
+
+
+
+
+
+
+
+

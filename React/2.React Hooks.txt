@@ -1,0 +1,257 @@
+﻿Re-render/Mounted & Unmounted
+- Re-render: render lại toàn page (khi 1 state thay đổi)
+- Mounted: render ra component mới khi so khớp với 1 state trong JSX của parent component
+   : render ra parent, gắn child vào parent là mounted, mounted xong mới render child tiếp trong parent
+- Unmounted: hủy render component mới trong parent component
+
+////////////////////////////////////////////////
+Ex: JSX mounted trong function component
+
+import React, { useState } from 'react';
+import ChildComponent from './ChildComponent';
+
+const ParentComponent = () => {
+  const [state, setState] = useState(false);
+
+  return (
+    <div>
+       <button onClick={() => setState(!state)}>Toggle</button>
+       {show && <ChildComponent />}
+    </div>
+  );
+};
+
+export default ParentComponent;
+================================================================================================
+USE-STATE=======================================================================================
+useState() : khi muốn re-render giao diện mỗi khi dữ liệu thay đổi (thao tác state)
+const [state, setState] = useState(initState);
+-useState() tạo ra 1 state (biến mà react theo dõi sự thay đổi của nó để render giao diện)
+  -initState truyền vào là giá trị đầu tiên muốn gán cho state
+  -initState có thể nhận vào 1 callbackfn và nhận giá trị mà callback đó trả về để khởi tạo state (state không nhận là 1 function mà nhận giá trị cả function đó): sử dụng khi muốn đưa 1 tính toán phức tạp trong 1 function để khởi tạo state thay vì tính toán function ở bên ngoài và sẽ luôn thực thi tính toán lại mỗi khi re-render component
+-useState() trả về 1 mảng gồm 2 phần tử
+  -state muốn khởi tạo, lần đầu khởi tạo mang giá trị === initState  
+  -setState: function giúp thay đổi giá trị của state
+    setState(_value) : đưa giá trị state muốn thay đổi vào làm tham số, gọi liên tiếp setState() trong 1 lần render sẽ chỉ có 1 giá trị state được lưu từ lần render trước, state chỉ thay đổi 1 lần trong 1 lần
+    setState(preState => { return _value })  : đưa vào 1 funtion vào làm tham số, funtion này tham chiếu đến giá trị state trước đó được setState(), đảm bảo luôn setState lần lượt dựa vào giá trị của state trước (trong cùng 1 lần render)
+      => gọi setState() liên tiếp trong 1 lần render đảm bảo giá trị state thực thi thay đổi lần lượt sau mỗi lần gọi
+
+*Two-way binding ràng buộc 2 chiều, làm việc với form
+  -One-way binding (React): sửa dữ liệu trên giao diện giúp thay đổi state
+-Two-way binding đảm bảo khi sửa dữ liệu giao diện hay sửa đổi state sẽ thay đổi cả bên còn lại
+////////////////////////////////////////////////
+- INPUT TEXT 
+    component fn:  
+      const [inputValue, setInputValue] = useState('');// khởi tạo state bằng chuỗi rỗng
+      JSX: 
+        input type="text": 
+          prop: value={inputValue} onChange={e => setInputValue(e.target.value)}
+- INPUT RADIO
+    const datas = [{id: 1, name: 'A'}, {id: 2, name: 'B'}];
+    component fn:  
+      const [checkedValue, setCheckedValue] = useState();
+      // khởi tạo state bằng undefined == không check
+      JSX:
+        {datas.map(data => (
+          <div key={data.id}>
+            <input
+              type="radio"
+              checked={checkedValue === data.id}
+              onChange={() => setCheckedValue(data.id)}
+             >
+          </div>   
+         ))}
+- INPUT CHECKBOX
+    const datas = [{id: 1, name: 'A'}, {id: 2, name: 'B'}];
+    component fn:  
+      const [checkedValue, setCheckedValue] = useState([]);
+      // khởi tạo state bằng mảng rỗng
+      const handleCheck = (id) => {
+        setCheckedValue(preState => {
+          if(checkedValue.includes(id)) {
+            return preState.filter(item => item != id);
+          }           
+          return [...preState, id];
+        })
+      }
+      JSX:
+        {datas.map(data => (
+          <div key={data.id}>
+            <input
+              type="checkbox"
+              checked={checkedValue.includes(data.id)}
+              onChange={() => handleCheck(data.id)}
+             >
+          </div>   
+         ))}
+================================================================================================
+USE-EFFECT======================================================================================
+useEffect(): sử dụng khi thao tác với state, với props để render giao diện phụ thuộc vào các dependencies đính kèm, thay thế cho useState khi call API, update DOM: scroll/ resize, listen DOM event, clean up (remove listener/unsubscribe, clear timer)
+userEffect(() => { ... }, [ dependencies ]);
+
+-Nhận vào 2 arguments:
+  1: callback fn thực thi logic phụ thuộc vào sự thay đổi của các dependencies 
+  2: mảng các dependencies để useEffect theo dõi thực thi callback fn: các props hoặc các state
+-Callback LUÔN LUÔN được gọi ngay sau khi component chứa useEffect() MOUNTED
+-Mảng dependencies không bắt buộc khi đưa vào useEffect(), là 
+  TH1: useEffect(callbackfn) : Sử dụng update DOM (document.title)  không addEvent, tránh setState() trong TH này
+   -Callback luôn luôn được gọi mỗi khi component re-render (thay đổi state)
+   -Code ngoài useEffect sẽ thực thi trước (JSX trước) rồi mới thực thi callbackfn (:re-render trước mounted)
+   -Do callback thực thi SAU khi re-render => đảm bảo giao diện đã render trước khi mounted => tránh khi thực thi logic nặng trước khi render (thực thi logic không sử dụng useEffect() => thực thi logic trước mới render)
+  TH2: useEffect(callbackfn, []) : Sử dụng call API, addEvent, setTimmer, khi setState() trong useEffect() nhưng không muốn re-render vô hạn lần
+   -Sử dụng call API ngay ngoài useEffect hoặc useEffect không đi kèm argument thứ 2 và đưa data lên giao diện bằng setState(data) 
+     => giao diện sẽ re-render khi thực thi lấy được data: setState(data) 
+     => mỗi lần re-render sẽ thực thi lại việc call API => tạo vòng lặp call API vô hạn
+   -Đưa vào useEffect argument thứ 2 là 1 mảng rỗng: [] 
+     => chỉ gọi callbackfn 1 lần duy nhất sau khi component được mounted 
+     => nếu setState() trong useEffect() có [], tổng thể component fn vẫn thực thi 2 lần, lần đầu render ra component, thực thi callback trong useEffect (có setState()) => render lại component (thực thi lại component fn) không thực thi lại callback trong useEffect()
+   -AddEvent trong useEffect() => thực thi 1 callback trong callback của useEffect 
+     => setState() trong callback của addEventListener() 
+     => dẫn đến việc liên tục setState() khi event đó được kích hoạt, tổng thể useEffect vẫn chỉ gọi 1 lần khi lần mounted đầu tiên, chỉ có duy nhất 1 hàm addEvent
+     => callback của event sẽ set lại state, render lại toàn bộ component ngoại trừ hàm useEffect
+   -SetInterval trong useEffect() 
+     => thao tác setState trong callback của setInterval trong callback của useEffect => setInterval vẫn chỉ gọi duy nhất 1 lần lúc component mounted
+     => do không có deps, khi setInterval thực thi setState liên tục, tuy nhiên không thực thi lại code trong useEffect => state luôn mang 1 giá trị được khởi tạo ban đầu do tính chất closure (vì useEffect sử dụng state 1 lần đầu tiên lúc mounted) 
+     => thao tác với state trong setInterval lại thao tác với chính state ban đầu (mất tính liên tục của setInterval)
+     => C1: đưa funtion thao tác với prestate vào setState() để thao tác với state trước đó:
+        setState(preState => {...}); đảm bảo mỗi khi setState lại sẽ thao tác với state trước đó đã được setState()
+     => C2: thay setInterval = setTimeOut và đưa state vào làm 1 deps trong mảng deps của useEffect => setTimeout liên tục được gọi khi state nó thao tác bị thay đổi => thực thi liên tục useEffect => tham chiếu liên tục đến state ở bên ngoài được set lại do setTimeout mỗi lần thực thi useEffect 
+     
+  TH3: useEffect(callbackfn, [dependencies]) : Sử dụng khi thay đổi state ở ngoài useEffect() và theo dõi state đó để thực thi callbackfn => đưa state vào mảng dependencies
+   -Callback fn được gọi lại mỗi khi dependency thay đổi (lần đầu tiên khi mouted vẫn thực thi callback)
+   -setState() trong useEffect ở trường hợp này mà không đưa state đã set vào mảng dependencies
+     => việc setState() sẽ không tạo thành vòng lặp giống TH2, chỉ setState 1 lần sau khi mouted hoặc sau khi bất cứ dependencies nào thay đổi
+
+-callbackfn cho return lại 1 funtion, function này thực thi trước bất cứ khi nào component unmounted hoặc trước khi callback trong useEffect() được thực thi lại
+  - State trong return function này là state của lần gọi callback trước
+  - Khi addEventListener với callback sử dụng setState
+    => sử dụng trong useEffect với [] giúp không liên tục addEvent khi trong callback của event đó có thực thi setState để render lại giao diện (tránh chạy lại componnet fn liên tục)
+    => remove event khi return lại funcion trong callbackfn của useEffect() => khi unmound component đồng thời xóa đi event đã add vào component đó tránh rò rỉ bộ nhớ 
+  - Khi sử dụng các timmer function có callback sử dụng setState
+    => sử dụng trong useEffect với [] giúp không thêm liên tục các timmer fn 
+    => remove timmer khi return lại funtion trong callback của useEffect => khi unmound component đồng thời xóa đi timmer đó để tránh rò rỉ bộ nhớ
+  - Sử dụng URL.createObjectURL(file): tạo url lấy ra file đó, sử dụng url để preview img
+    => luôn tạo bộ nhớ mới chứa ảnh trong url được tạo ra
+    => thay đổi file theo dõi bằng onChange ở JSX => thực thi tạo URL mới, URL cũ vẫn trong bộ nhớ => rò rỉ bộ nhớ
+    => sử dụng return trong callback của useEffect() thực hiện:   URL.revokeObjectURL(file) 
+     
+*useLayoutEffect() thực thi code trong callback trước khi render (sync)
+ => sử dụng khi setState ngoài useLayoutEffect vầ lại dùng useLayoutEffect theo dõi state đó, kiểm tra state và set lại nếu setState ở ngoài bị lỗi => (UI) không render lại giao diện 2 lần liền như useEffect() (async)
+
+================================================================================================
+USE-REF=========================================================================================
+useRef(): tạo ra 1 object trong component fn không được khởi tạo lại mỗi khi re-render
+ => object trỏ đến cùng 1 địa chỉ khi mỗi lần re-render
+ ~~ tạo biến ngoài phạm vi component fn 
+const refObj = useRef(_initValue);
+ _initValue là gì trị khởi tạo của refObj.current khi lần đầu mounted, nếu không đưa gì vào useRef() => giá trị khởi tạo bằng undefined
+-useRef() luôn trả về 1 object, object có 1 property duy nhất là current
+  giá trị của refObj.current là _initValue trong lần mounted đầu tiên
+-Sử dụng refObj.current để lưu biến ngoài phạm vi của các handlerEvent, giúp biến luôn trỏ đến 1 vùng nhớ (không khởi tạo lại biến) khi re-render giao diện 
+  => thao tác sửa đổi biến ở nhiều handlerEvent khác nhau (mỗi handlerEvent thực thi đồng thời re-render giao diện và đặt giá trị mới cho biến useRef đó) => luôn lưu giá trị cũ mỗi lần re-render
+
+-Sử dụng useRef để lưu 1 state trước của lần render trước
+  const [state, setState] = useState(60);
+  const prevState = useRef()
+  
+  useEffect(() => {
+    prevState.current = state;
+    // callback này được thực thi sau render 
+    // => sau dòng này prevState.current đã bằng state hiện tại
+  }, [state]);
+  
+  const handleStart = {
+    setInterval(() => {
+      setState(prev => prev - 1);
+    }, 1000)
+  }
+
+  console.log(prevState.current, state);
+  // callback trong useEffect thực thi  sau render JSX 
+  //=> tại đây prevState.current = state trước
+ 
+  return (
+    <div> 
+      <h1>{state}</h1>
+      <button onClick={handleStart}>Start</button> 
+    </div>
+  )
+
+-Sử dụng useRef lưu DOMElement bằng cách đặt prop ref={refObject} vào element cần lưu, không sử dụng được với ComponentElement
+  -Thao tác sửa DOM trực tiếp trên biến refObject.current
+  -Lấy value của Input ELement: refObject.current.value thay thế sử dụng useState() để onChange
+  -Lấy object tạo độ Element: refObject.current.getBoundingClientRect()
+  -Khi có tình huống update lại DOM element đã ref => refObject luôn được update theo
+
+-Sử dụng useRef() với ComponentElement: (React không cho truyền prop ref từ parent component sang child component)
+  - tạo refObj ở parent component
+  - gán refObj cũng bằng prop ref tại component child trong JSX của parent component
+  - tại child component fn, bao bọc component này bằng React.forwardRef()
+  - component fn child cho nhận thêm 1 tham số thứ 2 là ref, ref chính là object truyền vào prop ref ở JSX của parent component
+  - gán ref này bằng prop ref 1 lần nữa tại chính xác DOMElement muốn lưu trong JSX của child component fn 
+  => giúp lưu DOM element của child component, thao tác với DOM element đó tại parent element
+  
+================================================================================================
+================================================================================================
+useReducer()
+
+
+================================================================================================
+================================================================================================
+useContext()
+
+
+
+
+
+
+
+================================================================================================
+================================================================================================
+useImperativeHandle()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

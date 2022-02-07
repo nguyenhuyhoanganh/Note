@@ -1,0 +1,233 @@
+﻿const fs = require('fs'); // cho phép đọc ghi dữ liệu
+const textIn = fs.readFileSync('./txt/input.txt', 'uft-8'); // đọc từ file input.txt
+console.log(textIn);
+
+const textOut = `${textIn} create on ${Date.now()}`;
+fs.writeFileSync('./txt/output.txt', textOut); //ghi dữ liệu
+
+///////////////////////////////////////////////////
+const http = require('http');
+const url = require('url');
+
+const ser = http.createServer((req, res) => {
+  const { query, pathname } = url.parse(req.url, true);// lấy ra đường dẫn và query
+  
+  if(pathname === '/' || pathname === '/overview') {
+     res.witeHead(200, {'Content-type': 'text/html'});
+     const output = getData().replaceToHtml();
+     // getData và replaceToHtml là fn tự viết để lấy dữu liệu trả về HTML
+     
+     res.end(output);
+  } else if(pathname === 'product') {
+     res.witeHead(200, {'Content-type': 'application/json'});
+     const product = getDataById(query.id);
+     // getDataById là fn tự viết lấy product theo id, query truyền vào lấy từ url bên trên
+     
+     res.end(product);
+  } else {
+     res.writeHead(404, {
+       'Content-type': 'text/html',
+       'my-own-header': 'hello-world',
+     });
+     res.end('<h1>Page not found</h1>');
+  }
+})
+
+ser.listen(8000, '127.0.0.1', () => {
+  console.log('Listening to request on port 8000');
+})
+
+///////////////////////////
+npm:
+npm init
+
+///////////////////////////
+các gói đi kèm nodejs
+npm i slugify : tạo ra các url
+npm i nodemon --save-dev : khởi động lại node bất cứ khi nào thay đổi code
+nodemon index.js : khởi động nodemon
+
+npm i express
+npm i superagent
+1.///////////////// EVENTLOOP ///////////////////////////////
+LÝ THUYẾT: Sync >> eventloop (MacroTask): 
+	setTimeout, setInterval >> network, disk, child process (I/O polling and callbacks) >> setImmediate(Check) >> close callback
+microTask chèn và trước mỗi giai đoạn của eventloop (nextTick >> promise = queueMicrotask
+THỰC TẾ: trong callback của 1 poll, setImmediate luôn chạy trước setTimeout(callback, 0)
+Chắc là trong callback nếu gọi đông thời cả setTimeout, setImmediate, fs thì sẽ chạy tuần tự?//lười thử
+1 ví dụ nữa: addEventListener click vào button 2 lần, mỗi lần có 1 sync và 1 async 
+   gọi click trực tiếp trong code sẽ trả về thưc tự lần lượt từ event 1 đến event2 theo thứ tự sync1 > async1 > sync2 > async2
+   nấu click ngoài giao diện, các event sẽ gộp lại và trả về cùng 1 lần theo thứ tự sync1 > sync2 > async1 > async2
+
+2.//////////////// THREADPOOL ////////////////////////////////
+tác vụ nặng như I/O, crypto, fs... được đưa vào threadpool để chạy, threadpool có 4 luồng mặc định chạy 4 tác vụ cùng 1 lúc song song với main thread và trả ra kết quả vất cứ khi nào chạy xong
+có thể set số luồng lên tối đa 1024 bằng cách process.UV_THREADPOOL_SIZE
+thứ tự chạy trong threadpool cũng lộn xộn
+vdu: với threadpool_size = 4,
+ta gọi lần lượt fs(callback); cryto1(10000), cryto2(10000), cryto3(10000), cryto4(10000)
+trả về cry1 > fs > cry2 > cry3 > cry4
+
+=> vì vậy nếu cần cứ để threadpool_size lớn để các tác vụ nạy có không gian chạy đồng thời
+3.//////////////////// EVENTS AND EVENT DRIVEN ARCHITECTURE ////////////////////////
+Events and Event Driven Architecture
+Nodejs sử dụng hệ thống tệp HTTP và bộ đinh thời xây xung quanh kiến trúc hướng sự kiện
+Node có 1 số object được gọi làbộ phát sự kiện (Event emitter) sẽ phát ra các sự kiện được đặt tên nagy khi có gì đó quan trọng xảy ra trong app như 1 req đến server hoặc bộ đếm thời gian (timer expires) hoặc 1 tệp hoàn tất
+node cung cấp Eventlistener tắt các callbackfn đính kèm với mỗi
+const ser = http.createServer();
+ser.on('request', (req, res) => {
+  console.log('request received')
+  res.end('request received');
+}
+// ser.on tương tự như 1 trình lắng nghe
+///////
+const EventEmitter = require('events');
+
+const myEmitter = new EventEmitter();
+
+myEmitter.on('abc', () => {
+  console.log('Message: abc was called!!!');
+})
+myEmitter.on('abc', param => {
+  console.log(`the parameter of abc is: ${param}`);
+})
+
+myEmitter.emit('abc', 142000);
+/// run hiển thị ra tất cả event add cho 'abc', đơn giản thì giống DOM addListener, hiển thin sync lần lượt theo thứ tự các event đã thêm
+////////Mở rộng cho event emitter
+const EventEmitter = require('events');
+
+const myEmitter = new EventEmitter();
+
+class Hoanganh extends EventEmitter {
+  constructor() {
+    super();
+  }
+}
+const myEmitter = new HoangAnh();
+
+myEmitter.on('abc', () => {
+  console.log('Message: abc extends Hoanganh was called!!!');
+})
+myEmitter.emit('abc');
+/////////////////1 ví dụ khác về Events and Event Driven Architecture ///////////////////////////////////////
+const http = require('http');
+
+const server = http.createServer();
+server.on('request', (req, res) => {
+  console.log('request received');
+  console.log(req.url);
+  res.end('request received');
+})
+server.on('request', (req, res) => {
+  console.log('Another request');
+})
+server.on('close', (req, res) => {
+  res.end('Server close');
+})
+
+ser.listen(8000, '127.0.0.1', () => {
+  console.log('Watting for requests...');
+});
+/* trả về trình duyệt: request received */
+/* trả về console: 
+ Watting for requests...
+ request received
+ /
+ Another request
+ request received
+ /favicon.ico
+ Another request
+*/
+// các trình duyệt cố gắng yêu cầu 1 biểu tượng cho trình duyệt cho mỗi website thông qua /favicon.ico => server sẽ đc gọi 2 lần
+
+4.//////////////////////////// STREAM ////////////////////////////////
+Đọc hoặc ghi từng phần mà không hoàn thành toán bộ thao tác đọc và ghi, => không phải giữ tất cả dữu liệu trong bộ nhớ để thực hiện
+// đọc tệp bằng stream, đọc 1 phần dữ liệu, làm gì đó với dữ liệu và giải phóng bộ nhớ hoặc bộ lặp cho đến khi toàn bộ tệp đã được xử lý
+// về mật thời gian sẽ xử lý dữ liệu lần lượt thay vị đợi cho đến khi mọi thứ đều được tải lên
+- readable streams: pipe(), read() - http requests, fs read streams
+- writable streams: write(), end() - http respones, fs write streams
+- duplex streams: - net web socket: cho phép mở cổng 2 đầu vừa đọc vừa ghi, giao tiếp giữu client end server
+- transform streams: -zlib Gzip creation: giống duplex đồng thời có thể sửa đổi hoặc chuyển đổi dữ liệu khi đang đọc ghi
+///code////
+const fs = require('fs');
+const server = require('http').createServer();
+server.on('request', (req, res) => {
+  //solution 1:
+  fs.readFile('test-file.txt' (err, data) => {
+    if(err) console.log(err);
+    res.end(data);
+  });// tệp quá lớn, cần phải tải hết mới thực hiện => không áp dụng thự tế
+  
+  //Solution 2: Stream
+  // không thực sự cần đọc dữ liệu từ tệp thành 1 biến
+  // thay vì đọc dữu liệu vào 1 biến và lưu trữ dữ liệu vào bộ nhớ
+  // tạo 1 luông stream, nhận từng đoạn dữ liệu, giử đến client dưới dạng respones
+  console  readable = fs.createReadStream('test-file.txt');
+  readable.on('data', chunk => {
+    res.write(chunk);
+  })
+  readable.on('end', () => {
+    res.end();
+  })
+  readable.on('error', err => {
+    res.statusCode = 500;
+    res.end('File not found!');
+  });// vấn đề luồng được sử dụng để đọc tệp nhanh hơn nhiều so với  thực tế kết quả phản hồi của 1 luồng qua mạng, làm lấn áp luồng respones
+     // không xử lý đc vấn đề nhanh đến vậy :back pressure, phản hồi không thể giử dữ liệu nhanh như nhận dữ lệu từ tệp
+  //Solution 3: khắc phục solution 2: dùng pipe()
+  //cho phép phân phối đầu ra của 1 luồng có thể đọc được ngay vào của 1 luồng có thể ghi được
+  console readable = fs.createReadStream('test-file.txt');
+  readable.pipe(res);
+  // readableSource.pipe(writeableDest);
+});
+
+server.listen(8000, '127.0.0.1', () => {
+  console.log('Listening...');
+});
+
+///////////////////REQUIRING MODULES//////////////////////////
+console.log(arguments)// trả về mảng các đối số gồm
+0: các exports
+1: require function
+2: module 
+3:_filename
+4:_dirname
+=> thấy được các export => toạn bộ code bao quanh bới 1 function(exports, require, module, _filename, _dirname)
+console.log(require('module').wrapper);// trả về hàm chứa module
+--------test-module.js------------
+class A { doAnything(x) {return x;} }
+module.exports = A;//có thể là 1 class, 1 function, 1 đối tuọng
+// có thể viết tắt: module.exports = class { doAnything(x) {return x;} }
+
+--------test-module-1.js------------
+export.add = (a, b) => a + b;
+export.divide = (a, b) => a / b;
+export.multiply = (a, b) => a * b;
+// chỉ sử dụng export khi thêm thuộc tính vào đối tượng export
+--------test-module-2.js------------
+console.log("hello form module");
+
+module.exports = () => console.log('Log caching');
+---------main.js---------------------
+//module.export
+const B = require('./test-module');
+const b = new B();
+console.log(b.doAnything('9'));// hiển thị ra 9
+//export
+const c = require('./test-module-1');
+console.log(c.add(1,5));// trả về 6
+console.log(c.devide(6,2));// trả về 3
+// dùng destructor với đối tượng export
+const {add, multiply} = require('./test-module-1');
+console.log(add(1,5));// trả về 6
+console.log(multiply(6,2));// trả về 12
+// => tạo ra được 2 biến mới có chức năng của đối tượng export
+
+// caching
+require('./test-module-2')();
+require('./test-module-2')();
+require('./test-module-2')();
+// gọi lại hàm 3 lần chỉ trả về 1 lần hello form module
+// trả về 3 lần Log caching => Do module chỉ được tải đúng 1 lần nên chỉ thực thi 1 lần hello form module
+
+//////////////////////CALLBACK HELL//////////////////////////

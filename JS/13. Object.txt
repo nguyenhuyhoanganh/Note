@@ -1,0 +1,52 @@
+﻿Primitives vs Objects (primitive vs reference types)
+- Primitives: numer, string, boolean, symbol, bigint, null, undefined : được lưu trữ trong execution contexts, nơi nó đưucọ khai báo và thực thi trong callstack
+
+  /// ví dụ
+  let age = 18;
+  let oldAge = age;
+  age = 31;
+  console.log(age);// 31
+  console.log(oldAge);// 30
+
+  variables => address => value
+  hoàn toàn xảy ra trong callstack
+
+- Objects: object literal, functions, arrays, ... : được lưu trữ trong heap
+ 
+  /// ví dụ
+  const me = {name: 'hoang-anh', age: 21, };
+  const replication = me;
+  replication = 22;
+  console.log(me.age); // 22
+  ------------------------------------------------
+ |        CALLSTACK           ||       HEAP       |
+ | object => address => value == address => value |
+ |                            ||                  | 
+  ------------------------------------------------
+// do vậy từ khóa const khi khai báo cho 1 object, sau đó thay đổi thuộc tính object vẫn không lỗi
+
+=> để copy 1 object ra 1 vùng nhớ mới không có tham chiếu
+const replication2 = Object.assign({}, me); // method này gộp 2 object lại trả về 1 object mới, ở đây t gộp 1 object rỗng với object muốn copy
+// tuy nhiên nếu có 1 object bên trong1 object thì object child sẽ chỉ là 1
+=> để deep clone: sử dụng lib LoDash, hoặc toán tử spread
+const clone = {...me};
+
+/////////////////////////////////////////////////////////////////////////
+Looping Objects: Object Keys, Values, and Entries
+
+for (day of Object.keys(openingHours)) {
+  console.log(key);
+}
+// lặp key name
+
+Object.keys(openingHours) // trả về mảng keyname
+Object.values(openingHours) // trả về mạng các values
+Object.entries(openingHours) // trả về mảng, mỗi phần tử của mảng là 1 mảng 2 phân tử [keyname, values]
+
+
+const entries = Object.entries(openingHours);
+for(const [key, {open, close}] of entries) {
+  console.log(`On ${key} we open at ${open} and close at ${close}`);
+}
+///////////////////////////////////////////////////////////
+

@@ -1,0 +1,296 @@
+﻿NODE: là javascript runtime hoạt động dựa trên V8 engine của gooogle và libuv
+
+ V8 engine (được việt bằng C++ và JS) chuyển đổi javascript thành mã máy
+ Libuv là 1 opensource (được viết hoàn toàn bởi c++) tập trung vào IO bất đồng bộ, cung cấp cho nodejs quyền truy cập vào hệ điều hành, mạng, tập tin, ...
+ Libuv đồng thời cung cấp cho node 2 tính năng quan trong là eventloop và threadpool 
+ - eventloop chịu trách nhiệm xử lý các tác vụ nhẹ như thực thi callback hay xử lý netwwork IO
+ - thread pool xử lý các tác vụ nặng hơn như truy cập file, nén file, ...
+Node js còn hoạt động trên http-parser, c-ares, openSSL, zlib
+========================================================================================
+THREAD, THREADPOOL
+node chỉ chạy 1 thread => dễ dàng bị block
+ single thread:
+khởi tạo chương trình -> thực thi top-level code (đoạn mã không nằm trong callbackfn)
+-> yêu cầu các module -> đăng ký sự kiện callback
+-> bắt đầu EVENT LOOP (lặp đi lặp lại thị thi các callback)
+
+1 số code quá năng để thực thi trong eventloop, dẫn đến block thread
+=> thread pool cung cấp 4 thread tách biệt với main thread để bổ sung (có thể cấu hình tới 128 thread)
+event loop giảm tải các tác vụ nặng vào threadpool bao gồm: file system apis, cryptography (mã hóa, lưu mật khẩu bộ nhớ đệm), compression (nén tập tin), DNS lookups(khớp miền web với IP tương ứng), ...
+========================================================================================
+EVENT LOOP
+: là nơi tất cả code bên trong các các callbackfn của cả ứng dụng được thực thi
+HTTP request, timmer expried (setTimeOut), finish file reading,... sẽ phát ra các sự kiện ngay kho hoàn thành xong công việc
+event loop sẽ chọn các event này và gọi các callbackfn được liên kết với mỗi event
+
+=> event loop sẽ nhận các event, mỗi khi các event được thực thi xong sẽ gọi các lệnh callback cần thiết đính kèm với event đó
+=> công việc chính là điều phối: gọi các callback, giảm tải các tác vụ nặng vào threadpool, ..
+
+* khi start application, event loop ngay lập tức đươc chạy
+event loop sẽ có nhiều giai đoạn với mỗi giai đoạn có 1 hàng đợi các callback mà eventloop nhận được 
+
+- có 4 giai đoạn quan trọng nhất của eventloop
+- 2 giai đoạn khác được thực thi nội bộ của node (không quan trọng)
+
+- giai đoạn 1: xem xét các Expired timer callbacks (cuộc gọi lại của các bộ hạn giờ đã hết hạn: setTimeOut): được xử lý đầu tiên
+   nếu có 1 expired timmer hết hạn sau đó khi đang trong thời gian của các giai đoạn khác đang xử lý, thì callback của timmer đo sẽ chỉ được gọi khi eventloop quay lại giai đoạn đầu tiên (lthực thi hết các callback trong callback queues)
+- giai đoạn 2: IO polling và thực thi callback của IO, tìm kiếm các event IO mới sẵn sàng được xử lý, đưa vào callbackqueues (liên quan đến mạng và làm việc với file)
+=> 99% code đã được thực thi
+- giai đoạn 3: setImmediate callbacks (sử dụng khi muốn thực thi lệnh callback ngay lập tức) sau khi thực hiện giai đoạn 3
+- giai đoạn cuối: close callbacks
+
+2 queues khác là 
+- nextTick()
+- microTask queue
+: dành cho những promise đã được xử lý, được thực thi nagy sau giai đoạn hiện tại, không chờ đợi hết 1 callback queue
+
+thực thi hết 4 giai đoạn sẽ kết thúc 1 event loop tick
+sau đó quyết định xem event loop có nên tiếp tục hay không để tới event loop tick mới hay thoát ctrinh
+việc quyết định được nodejs kiểm trả xem còn bất kỳ timmer hay tác vụ IO chạy nền nào không
+listen(8000, '127.0.0.1', callback()) chính là 1 tác vụ IO khiến cho Nodejs vẫn tiếp tục chạy, lắng nghe HTTP reqquest sau khi khởi tạo server
+đọc ghi file cũng là IO task
+
+*** không block event loop 
+- không sử dụng fs, cryto, zlib modules đồng bộ trong các callbackfn
+- không thực hiện tính toán phức tạp trong event loop
+- cẩn thận với các phương thức JSON cho object lớn, mất thời gian để parse từ json qua object và ngược lại
+- không sử dụng biểu thức chính quy phức tạp
+
+
+(những thứ thực sự chạy trong event loop là các hàm bất đồng bộ trong callbackfn)
+
+setTimeOut(()=> console.log('timer 1'), 0); // ngoài eventloop, là output
+setImmediate(() => console.log('immediate 1')); // ngoài event loop
+fs.readFile('test.txt', () => {
+ console.log('I/O'); // ngoài event loop;
+
+ setTimeOut(()=> console.log('timer 2'), 0); // trong eventloop
+ setImmediate(() => console.log('immediate 2'));// trong event loop
+})
+
+========================================================================================
+EVENT_DRIVEN ARCHITECTURE
+trong nodejs có 1 object là event emitters sẽ phát ra sự kiện ngay khi điều gì quan trọng xảy ra như 1 request đến server khác hay hết timmer hay hoàn thiện đọc xong 1 file
+
+những event này sau đó có thể đươc chọn bởi eventlisner thiết lập các callback gắn vào từng event
+
+const EventEmitter = require("events");
+const http = require("http");
+
+class Sales extends EventEmitter {
+  constructor() {
+    super();
+  }
+}
+
+const myEmitter = new Sales();
+
+myEmitter.on("newSale", () => {
+  console.log("There was a new sale!");
+});
+
+myEmitter.on("newSale", () => {
+  console.log("Costumer name: Jonas");
+});
+
+myEmitter.on("newSale", stock => {
+  console.log(`There are now ${stock} items left in stock.`);
+});
+
+myEmitter.emit("newSale", 9);
+
+//////////////////
+
+const server = http.createServer();
+
+server.on("request", (req, res) => {
+  console.log("Request received!");
+  console.log(req.url);
+  res.end("Request received");
+});
+
+server.on("request", (req, res) => {
+  console.log("Another request 😀");
+});
+
+server.on("close", () => {
+  console.log("Server closed");
+});
+
+server.listen(8000, "127.0.0.1", () => {
+  console.log("Waiting for requests...");
+});
+======================================================================================
+STREAM
+được dùng để xử lý việc đọc ghi dữu liệu từng phần mà không cần hoàn thành toàn bộ thao tác đọc ghi
+ tránh giữ toàn bộ data trong bộ nhớ 
+như phát trực tuyến video, thay vì đợi load toàn bộ video, sẽ load từng phần và thực hiện tác vụ trên phần đó xong mới laod tiếp
+=> hoàn hảo để xửu lý lượng lớn dữ liệu
+=> giữ bộ nhớ hiệu quả hơn
+
+Nodejs có 4 loại stream cơ bản
+-Readable streams: streams from which we can read (consume) data : http requests, fs read streams, ...
+-Writable streams: streams which we can write data: http response, fs write streams
+-Duplex streams: streams that are both readable and write data same time : net web socket
+-Transform streams: duplex streams tat transform data as it is written or read: zlipGzip creation
+
+tất cả stream đều phát ra và lắng nghe sự kiện
+event quan trọng:
+- reable: data, end
+   data phát ra khi có 1 phần data mới được sử dụng
+   end phát ra khi không còn data nào xử lý nữa
+   fuction quan trọng : pipe() : cho phép kết nối các stream vs nhau truyền dữ liệu từ stream này qua stream khác mà không lo lắng về các sự kiện
+                        read()
+- writable: drain, finish (event)
+   fuction quan trọng : write() 
+                        end()
+
+///code////
+const fs = require('fs');
+const server = require('http').createServer();
+server.on('request', (req, res) => {
+  //solution 1:
+  fs.readFile('test-file.txt' (err, data) => {
+    if(err) console.log(err);
+    res.end(data);
+  });// tệp quá lớn, cần phải tải hết mới thực hiện => không áp dụng thự tế
+  
+  //Solution 2: Stream
+  // không thực sự cần đọc dữ liệu từ tệp thành 1 biến
+  // thay vì đọc dữu liệu vào 1 biến và lưu trữ dữ liệu vào bộ nhớ
+  // tạo 1 luông stream, nhận từng đoạn dữ liệu, giử đến client dưới dạng respones
+  console  readable = fs.createReadStream('test-file.txt');
+  readable.on('data', chunk => {
+    res.write(chunk);
+  })
+  readable.on('end', () => {
+    res.end();
+  })
+  readable.on('error', err => {
+    res.statusCode = 500;
+    res.end('File not found!');
+  });// vấn đề luồng được sử dụng để đọc tệp nhanh hơn nhiều so với  thực tế kết quả phản hồi của 1 luồng qua mạng, làm lấn áp luồng respones
+     // không xử lý đc vấn đề nhanh đến vậy :back pressure, phản hồi không thể giử dữ liệu nhanh như nhận dữ lệu từ tệp
+  //Solution 3: khắc phục solution 2: dùng pipe()
+  //cho phép phân phối đầu ra của 1 luồng có thể đọc được ngay vào của 1 luồng có thể ghi được
+  console readable = fs.createReadStream('test-file.txt');
+  readable.pipe(res);
+  // readableSource.pipe(writeableDest);
+  // luồng có thể đọc . pipe ( luồng có thể ghi, đồng thời là đích đến của việc đọc dữ liệu )
+});
+
+server.listen(8000, '127.0.0.1', () => {
+  console.log('Listening...');
+}); 
+======================================================================================
+REQUIRINGS MODULES
+mỗi file ở node js đc coi là 1 module
+kết nối các modules bằng việc sử dụng require và export ở mỗi modules
+=> conmmon js modules system hoạt động tốt nhất trên server
+- khác với ES modules: import, export
+
+cách hoạt động:
+phân giải đường dẫn đến module và modules được tải
+-> đòng gói -> thực thi code trong modules -> return các modules được export -> lưu toàn bộ modules vào bộ nhớ đệm
+ 1.làm sao node biết tệp nào cần tải khi yêu cầu module
+   (có 3 loại module: của node, của bên thứ 3, của chính ng viết)
+   khi các hàm yêu cầu nhận được tên module như đầu vào, trước tiên sẽ cố gắng xem node có module đó không để tải như http, fs, ...
+   nếu đường dẫn bắt đầu bằng 1 dấu . hoặc 2 dấu . là modules của nhà phát triển (node cố gắng tải tệp đó, nhưng nếu không có tệp nào đúng tên, node sẽ cố gắng thay dấu . hoặc .. bằng index.js để tìm kiếm module 1 lần nữa và nạp modules đó)
+   còn lại, node sẽ tìm kiếm trong tệp node_modules các modules từ npm
+ 2. sau khi load xong, code module được bao bọc thành 1 function cung cấp quyền truy cập vào 1 vài object đặc biệt
+   thực chất node lấy tất cả code nhét vào 1 function IIFE cso các them số bao gồm export, require, module, __filename, __dirname
+   làm cho require, export, modules, .. như biến toàn cục được đưa vào bất cứ modules nào
+   // tránh cho việc ghi đè các biến trùng tên giữa các module nếu chỉ đơn gainr là ghép ní các module
+   // giúp cấp quyền truy cập từ module này sang module khác
+   => mỗi modules hoàn có pahmj vi riêng của nó
+   những objext mà module cử node cung cấp:
+   - require: 
+   - module: tham chiếu của module hiện tại
+   - exports: 1 tham chiếu từ module.export, được sử dụng
+   - __filename, __dirname: đường dẫn tuyết đối vào tệp của module hiện tại
+ 3. các funtion được wrap sẽ được thực thtrong node runtime
+ 4. return export
+     nếu chỉ là 1 biến, 1 funion thì sử dụng module.export
+     xuất nhiều biến được đặt tên, gán nó vào 1 thược tính của object export như (export.add = (a+b) => a+b);
+ 5. các module được lưu vào bộ nhớ đêm lần đầu, nếu tải 1 module nhiều hơn 2 lần chỉ nhận 1 kết quả được truy xuất từ cache
+
+console.log(arguments)// trả về mảng các đối số gồm
+0: các exports
+1: require function
+2: module 
+3:_filename
+4:_dirname
+=> thấy được các export => toạn bộ code bao quanh bới 1 function(exports, require, module, _filename, _dirname)
+console.log(require('module').wrapper);// trả về hàm chứa module
+--------test-module.js------------
+class A { doAnything(x) {return x;} }
+module.exports = A;//có thể là 1 class, 1 function, 1 đối tuọng
+// có thể viết tắt: module.exports = class { doAnything(x) {return x;} }
+
+--------test-module-1.js------------
+export.add = (a, b) => a + b;
+export.divide = (a, b) => a / b;
+export.multiply = (a, b) => a * b;
+// chỉ sử dụng export khi thêm thuộc tính vào đối tượng export
+--------test-module-2.js------------
+console.log("hello form module");
+
+module.exports = () => console.log('Log caching');
+---------main.js---------------------
+//module.export
+const B = require('./test-module');
+const b = new B();
+console.log(b.doAnything('9'));// hiển thị ra 9
+//export
+const c = require('./test-module-1');
+console.log(c.add(1,5));// trả về 6
+console.log(c.devide(6,2));// trả về 3
+// dùng destructor với đối tượng export
+const {add, multiply} = require('./test-module-1');
+console.log(add(1,5));// trả về 6
+console.log(multiply(6,2));// trả về 12
+// => tạo ra được 2 biến mới có chức năng của đối tượng export
+
+// caching
+require('./test-module-2')();
+require('./test-module-2')();
+require('./test-module-2')();
+// gọi lại hàm 3 lần chỉ trả về 1 lần hello form module
+// trả về 3 lần Log caching => Do module chỉ được tải đúng 1 lần nên chỉ thực thi 1 lần hello form module
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

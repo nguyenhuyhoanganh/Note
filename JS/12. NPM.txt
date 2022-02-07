@@ -1,0 +1,70 @@
+﻿NPM
+npm init
+npm install _tên_thư_viện
+- tên thư viên + phiên bản sẽ được thêm tại dependencies trong package.json
+
+- các thư viện phổ biến
+lodash: thao tác vs array, object. cloneDeep object
+
+// sử dụng clone object thông thường 
+const objectNew = Object.assign({}, _object_cần_sao_chép)
+// chỉ clone ở mức 1, thay đổi các object lồng trong bị thay đổi theo
+
+// sửu dụng cloneDeep ở lodash
+import cloneDeep from './node_modules/lodash-es/cloneDeep.js';
+const state = {
+  cart: [
+    {product: 'bread', quantity: 5},
+    {product: 'pizza', quantity: 5},
+  ],
+  user: {loggedIn: true},
+}
+const stateClone = Object.assign({}, state);
+const stateDeepClone = cloneDeep(state);
+state.user.loggedIn = flase;
+
+=> stateClone thay đổi, stateDeepClone giữ nguyên
+
+- khi sao chép dự án sang nơi khác không sao chép tệp node_module
+- sử dụng package.json 
+
+npm install : tải lại tất cả các gói trong package.json
+
+npm run _script: thực hiện các lệnh script trong package.json đúng với tên 
+===========================================================================
+PARCEL:  npm i parcel --save-dev
+lưu trong devDependency
+- là 1 giao diện command line hỗ trợ phát triển phần mềm tương tự webpack
+- sử dụng parcel để gói các module lại với nhau
+
+npx parcel index.html : npx là phần mở rộng hỗ trợ npm, index.html là file html chứa script lên kết đến file js gốc
+
+parcel tạo ra 1 thư mục dist chứa mã thwucj thi cho người dùng cuối
+tránh đưa tất cả  module install lên server
+- tạo ra 1 máy chủ live server của riêng nó thực thi ở cổng 1234
+- đồng bộ code khi save ở file code gốc với folder dist
+
+if(module.hot) {
+  module.hot.accept();
+}
+// mã cho parcel hiểu thay đổi code khi save, tránh reload trang web
+
+- giúp import module bên thứ 3 chỉ cần import tên module, không cần chỉ dẫn chính xác đường dẫn đến file cần import
+- có thể hoạt động với commonJS hay với cả ES6, tự động download thư viện nếu chưa có module tương ứng với import
+===================================================================================
+**BABEL : hỗ trợ convert các toán tử ES6 về trưới đó để sử dụng cho trình duyệt cũ: có sẵn cùng parcel
+**CORE-JS: hỗ trợ thêm các syntax như promise, find, map, ... cho trình duyệt cũ
+npm -i core-js
+import 'core-js/stable'
+**REGENERATOR: hỗ trợ polifilling async function
+npm i regenerator-runtime
+import "regenerator-runtime/runtime"
+
+
+
+
+
+
+
+
+

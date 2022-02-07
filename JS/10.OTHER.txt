@@ -1,0 +1,344 @@
+﻿JAVASCRIPT Engine  And Runtime
+- heap, callstack: heap lưu trữ objects, callstack lưu trữ primitives
+- callbackqueue, API web/ V8 Engine(NodeJS)
+- event loop chuyển giao từ callback queue sang callstack
+- scope, scope chain, scoping: var(function) / let, const(block)
+- hosting:          | HOSTED |    INITIAL VALUE    | SCOPE |
+  -fn declarations  |  yes   |     Actual func     | Block |
+  -var              |  yes   |      undefined      | Func  |
+  -let, const       |   no   | <unitialized>, TDZ  | Block |
+  -fn express, arrow|  depends if using var or let/const   |
+- when declare var variable, will create a property on the global window object, (not let, const)
+
+///////////////////////////////////////////////////////////////////
+this keyword
+- trỏ đến chủ sở hưũ cửa fuction
+- không static, phụ thuộc vào cách fn được gọi, đưuọc gán giá trị khi thực sự được gọi
+  - gọi 1 fn như metod (1 fn gắn liên với 1 object): this trỏ đến object đang gọi method
+  - gọi 1 fn bình thường, không gắn với object: this mang giá trị undefined ở chế độ "use strict". Nếu không trong strict mode , this sẽ trỏ đến global object (window trong browser) 
+  - arrow fn: this trở thành <this of surrounding function (lexical this) > trỏ đến fn cha
+  - Event listenner : this trỏ đến phần tử DOM được gắn event
+  - new, call, apply, bind
+
+* 'this' does NOT point to the function itself and also NOT the its variable environment
+/// this trong 1 function declaration hay expressten, khi call fn, không gán vào 1 object
+/// trả về undifined (dù ở câl fn trong window, obeject, function, ...)
+
+
+1 số lỗi mắc phải với this:
+- dùng var kết hớp với this của arrow fn
+- gọi fn không gán với 1 object cụ thể
+- truyền this vào 1 function bên trong 1 function parent: có thể gán this bằng 1 biến bên ngoài hoặc dùng arrow fn
+
+/////////////////////////////////////////////////////////////////
+arguments keyword
+
+funtion (a, b, c) {
+ console.log(arguments); // trả về [a, b, c]
+}
+là 1 mảng tham số truyền vào các regular fn (không có trong arrow fn) 
+
+//////////////////////////////////////////////////////////////////
+Destructuring arrays
+
+// destructuring
+const arr = [2, 3, 4, 5, 6];
+const a = arr[0]; // 2
+const [x, y, z] = arr; // x = 2, y = 3, z = 4
+const [first, second, , , fifth] = arr; // first = 1, second = 2, fifth = 5;
+const [p, q, r] = [8, 9]; // p = 8, q = 9, r = undefined
+
+//nested destructuring
+const nested = [2, 4, [5, 6, 7]];
+const [i, , [j, , k]] = nested; // i = 2, j = 5, k = 7
+
+// change value
+let main = 1;
+let secondary = 2;
+[secondary, main] = [main, secondary]; // secondary = 1, main = 2
+
+//default values
+const [e = 1, f = 1, g = 1] = [2, 3]; // e = 2, g = 3, f = 1
+
+////////////////////////////////////////////////////////////////////////////////
+Destructuring objects
+
+const restaurant = {
+  name: 'Classico Italiano',
+  location: 'Via Angelo Tavanti 23, Firenze, Italy',
+  categories: ['Italian', 'Pizzeria', 'Vegetarian', 'Organic'],
+  starterMenu: ['Focaccia', 'Bruschetta', 'Garlic Bread', 'Caprese salad'],
+  mainMenu: ['Pizza', 'Pasta', 'Risotto'],
+  openingHours: {
+    thu: {
+      open: 12,
+      close: 22,
+    },
+    fri: {
+      open: 11,
+      close: 23,
+    },
+    sat: {
+      open: 0,
+      close: 24,
+    },
+  },
+  order: function (startIndex, mainIndex) {
+    return [this.starterMenu[startIndex],
+    this.mainMenu[mainIndex]];
+  },
+};
+
+const {name, openningHours, categories} = restaurant; //trả về giá trị đúng như tên thuộc tính trong restaurant
+const {name: restaurantName, categories: tags} = restaurant // trả về name, categories của restaurant với tên khác
+
+// default values
+const {menu: [], starterMenu: starters = []} = restaurant; // vẫn trả về starterMenu, với menu không có thì trả về giá trị default là [], không đặt default sẽ trả về undefined
+
+// mutating variables
+let a = 111;
+let b = 999;
+const obj = { a: 23, b: 17, c: 4 };
+/**
+ * let { a, b } = obj; // không được do đã khai báo a, b
+ * { a, b } = obj; // không được do JS mong muốn trong cặp {} là 1 code block, và không thể gán code block cho 1 giá trị
+ **/
+({ a, b } = obj); // a = 23, b = 17
+
+// nested object
+const { fri: {open, close} } = openningHours; // trả về giá trị open và close của fri
+
+// inject 1 object as a parameter to the function
+functon X(a, b, c) { console.log( a, b, c); }; // có thể sử dụng cùng default values
+X({a: 'HoangAnh', b: '1-4-2000', c: 21}); // trả về HoangAnh 1-4-2000 21
+
+////////////////////////////////////////////////////////////////////////////////
+The Spread Operator (..._) : three dots on right side of =
+
+const arr = [7, 8, 9];
+const badNewArr = [1, 2, arr[0], arr[1], arr[2]];
+console.log(badNewArr); // (5) [1, 2, 7, 8, 9]
+
+const newArr = [1, 2, ...arr]; 
+console.log(newArr); // (5) [1, 2, 7, 8, 9]
+console.log(...newArr); // 1 2 7 8 9
+
+const newMenu = [...restaurant.mainMenu, 'Gnocci'];
+console.log(newMenu); // (4) ["Pizza", "Pasta", "Risotto", "Gnocci"]
+
+//use case
+// Copy array
+const mainMenuCopy = [...restaurant.mainMenu];
+
+// Join 2 array
+const menu = [...restaurant.mainMenu, ...restaurant.starterMenu];
+
+// Iterables: arrays, strings, maps, sets. Not objects
+// sử dụng được Spread để tách các phần tử
+const str = 'anh';
+const letters = [...str, 's'];
+console.log(letters); // (4) ["a", "n", "h", "s"];
+
+// có thể sử dụng spread để truyền vào làm tham số 1 function khi gọi hàm
+
+
+//Objects từ 2018
+const newRestaurant = {foundedIn: 1998, ...restaurant, founder: 'Guiseppe'}; // trả về restaurent mới có thêm 2 properties mới
+const restaurantCopy = {...restaurant}; // trả vfee 1 đối tuowgj mới nhưng không tham chiếu đối tượng ban đầu: deep clone
+
+////////////////////////////////////////////////////////////////////////////////
+Rest Pattern and Parameters : three dots on left side of =
+
+1) Destructuring
+const [a, b, ...others] = [1, 2, 3, 4, 5, 6]; //a = 1, b = 2, others = [3, 4, 5, 6]
+ 
+const [pizza, , risotto, ...otherFood] = [...restaurant.mainMenu, ...restaurant.starterMenu]; // trả về pizza và risotto trong menu, otherFood là phần còn lại sau risotto
+
+//Objects
+{ sat, ...weekdays } = restaurant.openingHours ; // trả về object sat trong openingHours
+
+2) Functions
+// truyền vào khi khởi tạo 
+const add = function(...numbers) {
+  console.log(numbers);  //lấy tất cả giá trị truyền vào gộp thành 1 mảng
+  let sum = 0;
+  for (let i = 0; i< numbers.length; i++) {
+    sum += numbers[i];
+  }
+  return sum;
+}
+
+add(2, 3, 4, 5); // (4) [2, 3, 4, 5] 14
+
+const x = [23, 5, 7];
+add(...x) // in mảng, trả về giá trị 35
+
+function X(a, ...b) {console.log(a, b);};
+X('mushrooms', 'onion', 'olives', 'spinach');
+// 'mushrooms' ['onion', 'olives', 'spinach']
+
+//////////////////////////////////////////////////////////////////////////////////
+AND, OR
+
+---OR---
+//Use ANY data type, return ANY data type, short-circuiting
+/** nếu gặp giá trị đầu tiên truthy thì trả về ngay giá trị đó, nếu không có truthy thì trả về giá trị cuối cùng */
+console.log(3 || 'Jonas'); // 3 
+console.log('' || 'Jonas'); // Jonas
+console.log(undifined || null ); // null
+
+///practical example
+const guests1 = restaurant.numGuests ? restaurant.numGuests : 10;
+const guests2 = restaurant.numGuests || 10;
+//guests 1 = guests2, không hoạt động với numGuests = 0
+
+---AND---
+// trả về giá trị falsy đầu tiên gặp được, nếu không có trả về giá trị cuối cùng
+const (0 && 'Jonas')
+
+///practical example
+if(restaurant.orderPizza) restaurant.orderPizza('mushrooms', 'spinach');
+restaurant.orderPizza && restaurant.orderPizza('mushrooms', 'spinach');
+// same
+
+////////////////////////////////////////////////////////////////////////////////////
+The Nullish Coalescing Operator (??)
+
+- ?? giống || những hoạt đông với những toán tử nullish tahy vì falsy
+- nullish : null and undifined (NOT 0 or '')
+const guests2 = restaurant.numGuests ?? 10; // nhận cả numGuests = 0
+
+
+//////////////////////////////////////////////////////////////////////////////////////////
+Logical Assignment Operators
+
+const rest1 = {
+ name: 'Capri',
+ numGuests: 20,
+};
+const rest2 = {
+ name: 'La Piazza',
+ owner: 'Giovanni Rossi',
+};
+
+//OR assignmet operator
+rest2.numGuests = rest2.numGuests || 10;
+rest2.numGuests ||= 10; // same
+
+//Nullish assignmet operator
+rest2.numGuests = rest2.numGuests ?? 10;
+rest2.numGuests ??= 10; // same
+
+//AND assignmet operator
+rest2.owner = rest2.owner && '<ANONYMOUS>';
+rest2.owner &&= '<ANONYMOUS>';
+ 
+///////////////////////////////////////////////////////////////////
+FOR-OF
+
+for (const item of list) console.log(item);
+for (const item of list.entries()) console.log(item); // mỗi item là 1 mảng có 2 phần tử, phần tử 0: là chỉ mục, phần tử 1 là value
+
+for (const [i, el] of list.entries()) console.log(`${i}: ${el}`);
+
+///////////////////////////////////////////////////////////////////
+Enhanced Object Literals
+const name = {
+  firstName: 'Hoang Anh',
+  lastName: 'Nguyen Huy',
+}
+
+const me = {
+
+  //ES6 enhanced object literals
+  name,
+
+  yearOfBirth: 2000,
+  jod: '  student',
+
+  calcAge(curentYear) {
+    return curentYear - this.yearOfBirth;
+  },
+}
+
+const weekdays = ['mon', 'tue', 'wed', 'thu', 'fri','sat', 'sun'];
+const openningHours = {
+  [weekdays[3]]: {
+    open: 12;
+    close: 22;
+  },
+  [weekdays[4]]: {
+    open: 11;
+    close: 23;
+  },
+  [`day-${2+4}`]: {
+    open: 0;
+    close: 24;
+  },
+}
+
+////////////////////////////////////////////////////////////////////
+Optional Chaining (?.)
+
+if(restaurant.openingHours.mon && restaurant.openingHours) 
+  console.log(restaurant.openingHours.mon.open);
+
+cosole.log(restaurant.openingHours.mon?.open)// same, nếu nullish .mon thì trả về undefined
+// cố gắng đọc mở open chỉ xảy ra khi restaurant.openingHours.mon thực sự tôn tại
+// và phải đảm bảo .openingHours tồn tại mới tiến đến .mon
+
+=> sử dụng 
+cosole.log(restaurant.openingHours?.mon?.open)
+
+// sử dụng để check xem 1 method có tồn tại không để gọi kết hợp ??
+console.log(restaurant.order?.(0,1) ?? 'Method dose not exist')
+
+// Arrays
+
+const users = [{name: 'Hoang-anh', age: 21},];
+console.log(user[0]?.name ?? 'Users array empty');
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+   

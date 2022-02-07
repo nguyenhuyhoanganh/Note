@@ -1,0 +1,45 @@
+﻿SELECTOR CSS
+.class            : lấy tất cả thẻ có class là .class
+.class1.class2    : lấy tất cả thẻ có cả 2 class .class1 và .class2
+.class1 .class2   : lấy tất cả thẻ con có class là .class2 trong thẻ có class là .class1
+#id               : lấy tất cả thẻ có id là #id
+*                 : lấy tất cả các thẻ
+p                 : lấy tất cả thẻ <p>
+p.class           : lấy tất cả thẻ p có class là .class
+p,div             : lấy tất cả thẻ <p>, <div>
+div p             : lấy tất cả thẻ <p> trong <div> (con, cháu, chắt, chút, chít)
+div > p           : lấy tất cả thẻ <p> là con trực tiếp của thẻ <div>
+div + p           : lấy thẻ <p> cùng cấp đặt ngay sau thẻ <div>( nếu <p> không đặt ngay sau <div> thì không lấy được)
+p ~ ul            : lấy mọi thẻ <ul> cùng cấp, sau thẻ <p>
+[target]          : lấy tất cả thẻ có 1 thuộc tính target (nhiều thuộc tính)
+[target=_name]    : lấy tất cả thẻ có thuộc tính target = "name"
+[tittle~=flower]  : lấy tất cả thẻ có 1 thuộc tính title chứa từ "flower"
+[lang|=en]        : lấy tất cả thẻ có 1 thuộc tính lang bắt đầu bằng "en"
+a[href^="https"]  : lấy tất cả thẻ <a> có thuộc tính href bắt đầu bằng "https"
+a[href$=".pdf"]   : lấy tất cả thẻ <a> có thuộc tính href kết thúc bằng ".pdf"
+a[href*="school"] : lấy tất cả thẻ <a> có  thuộctính href chứa "school"
+======================================================================================================================
+PSEUDO CSS
+a:active          : lấy thẻ <a> đang active
+p::after          : thêm 1 element giả làm con thẻ <p>, xếp đầu các element con
+p::before         : thêm 1 element giả làm con thẻ <p>, xếp cuối các element con
+input:checked     : css cho thẻ <input> đang được checked
+input:default     : css cho thẻ <input> đang ở trạng thái bình thường
+input:disabled    : css cho thẻ <input> đang disabled
+p:empty           : chọn mọi thẻ <p> không có phần tử con kể cả các node
+input:enabled     : chọn mọi thẻ <input> đã được enabled
+p:fist-child      : chọn phần tử con đầu tiên của thẻ <p>
+p::first-letter   : ký tự đầu tiên của thẻ <p>
+p::first-line     : dòng đầu tiên của thẻ <p>
+p:first-of-type   : mọi thẻ p là con đầu tiên của thẻ cha chưa nó
+input:focus       : thẻ <input> đang được focus (thẻ đc tab chọn)
+a:hover           : thẻ <a> đang được đè chuột
+:not(p)           : lấy tất cả ngoại trừ p
+#news:target      : lấy phần tử id là #news đang hoạt động (được nhận vào url chứa liên kết)
+input:valid       : lấy thẻ <input> hợp lệ
+........................
+https://www.w3schools.com/cssref/css_selectors.asp   
+
+------------------------------------------------------------------------------------------------------------------------
+img[data-src] : chọn element có attribute_name là data-src 
+     

@@ -1,0 +1,43 @@
+﻿const str = 'today IS tuesday'
+
+str[0]; // t
+str.length; //16
+str.indexOf('o'); //1
+str.lastIndexOf('d'); //13
+str.slice(4); //'y IS tuesday'
+str.slice(4, 7); //'y is'
+str.slice(0, str.indexOf(' ')); //today
+str.slice(str.lastIndexOf(' ') + 1); tuesday
+str.slice(-2); //ay
+str.slice(1, -1); //oday IS tuesday
+str.toLowerCase(); //today is tuesday
+str.toUpperCase(); //TODAY IS TUESDAY
+console.log('hOaNg'.toLowerCase()[0].toUpperCase() + 'hOaNg'.toLowerCase().slice(1)); // Hoang
+str.trim(); // cắt hết khoảng trắng và ksy tự xuống dòng
+str.replace('o', '0'); //t0day IS tuesday, vhir thay thế chuỗi đầu tiên tìm được
+str.repalce(/d/g, 'D'); repalce all : toDay IS tuesDay
+str.includes('oday'); // true
+str.startsWith('to'); // true
+str.endsWith('xyz'); // false
+str.split(' '); // Arraty(3) ["today", "IS", "tuesday"]
+str.push(':D'); // thêm cuối string
+arr.join(' '); ghép các phần tử arr thahf chuỗi cách nhau bới ' ';
+str.padStart(18, '--'); //--today IS tuesday thêm dấu - vào đầu sao cho lngth = 18
+str.padEnd(18, '--'); //today IS tuesday-- thêm dấu - vào cuối sao cho length = 18
+str.padStart(18, '--').padEnd(20, '--'); //--today IS tuesday---
+str.repeat(3); // lặp 3 lần
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

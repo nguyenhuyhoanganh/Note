@@ -1,0 +1,131 @@
+1 SỐ KHÁI NIỆM VỀ FUNCTION
+- Anonymous function: function không có tên, có thể truyền arguments
+	function(value) {return value;};
+- Regular function: function có tên, có thể tái sử dụng qua cách gọi tên function
+	function f(value){return value;};
+	f();
+- Function expressions: tạo 1 biến và gán cho nó 1 function
+	var f = function(value) {return value;};;
+- Function declarations: khai báo 1 hàm bắt đầu bằng function operator và có gán tên
+	function f(value){return value;};
+- Arrow function: ES6, không cần khai báo function, ...
+	const f = (a, b) => a + b ;
+	const f1 = () => console.log('value');
+ 	// this trong arrow function trả về chính đối tượng ngoài 1 cấp chứa nó
+- IIFE: là 1 hàm đưuọc khởi tạo và thực thi ngay lập tức, các biến được gói bên trong IIFE  chỉ được sử dụng bên trong nó, tránh tạo các biến global
+	(function(){return value})();
+- arguments: nhận vào tất cả các parameter truyền vào trong function và đánh key từ 0 như mảng, không chứa các phương thức của mảng, để dùng các phương tức cp thể parse qua array hoặc goi phương thức trực tiếp qua fn.call() 
+- Pure function: function không phụ thuộc vào biền bên ngoài, không có tương tác với bên ngoài từ bên trong hàm, vd: Http request, DOM, Math, ...
+- Constructor function: là hàm khởi tạo, dùng từ khóa this
+	function Name (firstN, lastN) {
+		this.firstN = firstN;
+		this.lastN = lastN;
+		this.getName = function(){
+			return `Tên: ${this.firstN} ${this.lastN}`
+		}	
+	}
+	const person = new Name('Hoang', 'Anh');
+	console.log(person.getName())// Tên: Hoang Anh
+	// Thêm 1 prototype mới cho constructor function
+	Name.prototype.getFirstName = function() {return this.firstN};
+	// khi khởi tạo 1 biến bằng constuctor function, các parameter truyền vào của Constructor F được khởi tạo theo và nhận giá trị bằng giá trị truyền vào ngay lúc khởi tạo Constructor F
+	console.log(firstN)// return: Hoang, nếu khởi tạo 1 biến mới lại bằng Con F, thì các paramter truyền vào lại gán lại
+- Closure: khi khai báo 1 hàm con trong 1 hàm cha, hàm con có thể nhận giá trị các biến được khai báo trong hàm cha để thực hiện tính toán
+function speak() {
+    var words = 'hi';
+    return function logIt() {
+        console.log(words);
+    }
+}
+var sayHello = speak();
+// không lấy ra được words
+console.log(sayHello) trả về function logIt, không xuất hiện khởi tạo var words = 'hi'
+console.log(sayHello())// trả về hi
+- Factory function: function sử dụng closure
+function Factory(name, age){
+	let private = 1;
+	function ten() { return name;}
+	function tuoi() { return age;}
+	function tuoiMu() {
+		return age + 1;
+	}
+	return {
+		ten,
+		tuoi,
+		tuoiMu
+	}
+}
+const person = Factory('HoangAnh', 21)
+console.log(person.tuoiMu())// 22
+// giúp che giấu biến private
+- Currying: Cách gọi lồng các hàm vào nhau, mỗi hàm truyền 1 biến: f(a)(b)(c) thay vì f(a, b, c)
+const movies = [
+    {
+        "id": 1,
+        "name": "Matrix"
+    },
+    {
+        "id": 2,
+        "name": "Star Wars"
+    },
+    {
+        "id": 3,
+        "name": "The wolf of Wall Street"
+    }
+]
+// console.log(movies.map(function (movie) { return movie.name }))
+const get = property => object => object[property];
+// const get = function (property) {
+//     return function (object) {
+//         return object[property];
+//     }
+// }
+const getName = get('name')
+console.log(movies.map(getName));
+- Hoisting: Thứ tự thực thi trước 1 số f, biến, ...
+var salary = "1000$";
+(function () {
+  console.log("Original salary was " + salary);
+  var salary = "5000$";
+  console.log("My New Salary " + salary);
+})();
+//Original salary was undefined
+//My New Salary 5000$
+- Higher Orfer Functions: là các hàm lấy các hàm khác làm đối số hoặc trả về các hàm làm kết quả của chúng https://anonystick.com/blog-developer/higher-order-functions-in-javascript-201905107183914
+- Generators
+- Callback
+- Promise
+- Async Await
+- this: 
+	+ trong 1 đối tượng trỏ về chính đối tượng đó
+	+ trong 1 function là 1 phương thức của đối tượng trả về chính đối tượng chứa phương thức đó
+	+ trong 1 function không phải 1 phương thức của đối tương (kể cả là function con của 1 phương thức) trả về đối tượng window
+	+ phương thức của 1 object là 1 arrow function thì từ khóa this được sử dụng sẽ trả về window
+	+ arrow function là Childfunction của 1 function, mà function đó là phương thức của Object thì arrow function mới trả về Object đó (nôm na arrow function trả về Object trên 1 cấp với Object đang chứa nó)
+	+ fn.bind(): khi gán một biến bằng cách lấy trực tiếp function của 1 object////// là 1 cách kế thừa trong js
+		this.name = "Anh";
+		const a = {
+			name: "Hoang",
+			getName() {
+				console.log(this.name);
+			}
+		}
+		var b = a.getName // không có (): dấu gọi hàm
+		b();// this ở đây không phải là trong object khai báo mà lấy chính window trả ra: Anh
+		// muốn b() trả ra Hoang t cần gán b = a.getName.bind(a);
+		// fn.bind(_object, _parameter1, _parameter2) : _object lấy object muốn sử dụng để dọi function, _parameter lấy các biến truyền vào funtion đó 
+		// đơn giản là lấy ra 1 function của 1 object ra ngoài mà chưa thực thi luôn thì nó nhận this là window, muốn đổi đói tượng this tham chiếu sang 1 object khác thì sử dụng bind()
+		// bind() ràng buộc this cho 1 function, k thay đổi this của function đó mà trả ra 1 function mới có this mới
+	+ fn.call(): là sử dụng bind rồi gọi hàm ngay lập tức vidu: object.f.call(a) tương đương var b = object.f.bind(a); b(), dùng trong OOP, sử dụng để thêm 1 số phương thức cho các đối tương như thêm phương thức forEach() cho arguments
+...
+==============================================================================================================================================
+CÁC PHƯƠNG THỨC CỦA MẢNG
+-reduce
+-map
+-find
+-indexOf
+-include
+-filter
+-some
+-every
+...

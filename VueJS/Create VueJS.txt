@@ -1,0 +1,33 @@
+CREATE VUEJS PROJECT
+ npm init
+ npm install -g @vue/cli
+ vue create [tên_project]
+ npm run build  : file src build vào thư mục dist, chạy ở file public
+=====================================================================
+Thành phần của framework Vue
+package.json là package manager chứa thông tin project
+- name, version
+- scripts : đoạn mã lệnh chạy cùng npm
+- dependencies, devDependencies -vesion
+dist: thư mục được build ra thành code thuần html, css, js của vue: npm run build
+public: thư mục chạy: npm run serve để mở server
+src: chưa file nguồn để viết code
+- assets chứa hình ảnh
+- components: chưa các componenet là các thành phần của trang web
+- main.js file gốc, load vue framework, tạo Vue object, render vào element div d root
+-babel.config.js: gói build
+---------------------------------------------------------------------
+cấu trúc 1 components: 3 thành phần
+-template chứa html
+-script chứa js
+-style chứa css
+----------------------------------------------------------------------
+require, export, import, module export
++ JS chung: require, module export
++ES6: export, import
+----------------------------------------------------------------------
+event: vue:on:click = @click
+
+----------------------------------------------------------------------
+binding: {{}} vue:bind:key = class
+

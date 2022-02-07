@@ -1,0 +1,49 @@
+﻿1. Fluid layouts
+- Cho phép trang web thích ứng với chiều rộng của viewport
+- Sử dụng đơn vị % hoặc vh, vw cho các elements để đáp ứng viewport
+- Sử dụng max-width thay vì width
+2. Responsive units
+- Sử dụng đơn vị rem thay vì px cho hầu hết các chiều dài
+- Làm cho dễ dàng scale các entries của layout tăng giảm 1 cách tự động
+- Trick: setting 1rem to 10px
+3. FLEXIBLE IMAGES
+- Theo mặc định, images không tự động scale khi chúng ta thay đổi viewport, cần fix
+- Luôn luôn sử dụng % cho images linh hoạt, kết hợp với thuộc tính max-width
+4. MEDIA QUERIES
+- Giữ cho responsive websites sống
+- Cho phép thay đổi CSS styles trên chiều rộng viewport nhất định (breakpoints)
+
+2 chiến lược xây dựng website
+- DESKTOP_FIRST
+ bắt đầu viết css cho large screen
+ dùng media queries thu hẹp design cho smaller screens
+- MOBILE_FIRST
+ ngược lại với desktop_first
+
+=========================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

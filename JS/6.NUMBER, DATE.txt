@@ -1,0 +1,130 @@
+﻿JS
+
+console.log(0.1); //0,10000000004
+console.log(0.1 + 0.2 === 0.3); //false
+
+Number('_string'): chuyển string sang number
++'_string': chuyển string sang number
+Number.parseInt(): chuyển int
+Number.parseFloat(): chuyển float
+Number.isNaN(): ktra NaN
+Number.isFinite(): ktra giá trị là số
+
+Math.sqrt(number): //căn bậc 2
+console.log(Math.sqrt(25)) === console.log(25 ** (1 / 2)); //5
+console.log(8 ** (1 / 3)); //2
+
+Math.max(5, 18, 3, 14, 1, 2); trả về max
+Math.min(5, 18, 3, 14, 1, 2); trả về min
+Math.PI ; trả về số Pi
+Math.random(); trả về kết quả ngẫu nhiên từ 0 -> 0,999999
+Math.trunc(number); lại bỏ phần thập phân
+
+//random 1->5
+Math.trunc(Math.random() * 6) + 1);
+
+Math.round(number); làm tròn đến số nguyên gần nhất
+Math.ceil(number); làm tròn lên, , giống .trunc() khi số âm
+Math.floor(number); làm tròn xuống, giống .trunc() khi số dương
+math.abs(number); lấy giá trị tuyệt đối
+
+
+//decimal
+(2,3456).toFixed(2); // 2,35 làm tròn đến n số sau dấu . => trả về kiểu STRING
+ 
+------------------------------------------------------------------
+DATE TIME
+
+//create date
+const now = new Date(); // lấy ngày hiện tại
+Date('Aug 02 2020 18:05:41');
+Date('Dec 24, 15');
+Date(2037, 10, 31);
+Date(0); // trả về ngày 1/1/1970
+Date.now(); lấy thời gian hiện tại
+
+// get Year, month, day, time
+const date = new Date(2037, 10, 19, 15, 23);
+date.getFullYear(); // lấy năm
+date.getMonth(); // lấy tháng, tháng từ 0 -> 11
+date.getDate(); // lấy ngày trong tháng
+date.getDay(); // lấy thứ trong tuần, sun = 0, mon = 1
+date.getHours(); // lấy giờ
+date.getMinutes(); // lấy phút
+date.getSeconds(); // lấy giây
+date.toISOString(); 2037-11-19T15:23:00.000Z  là string
+date.getTime(); lấy ra số miliseconds từ 1/1/1970 đến ngày hiện tại
+
+
+date.setFullYear(2040); // thay đổi năm thành 2040
+
+'string'.padStart(2, 0); 
+//nếu có ít hơn 2 ký tự sẽ điền số 0 bên trái 
+// dùng để định dạng hiển thi ngày tháng
+
+const dateString = `${date.getDate()}`.padStart(2, 0);
+// 2 -> 02, 5 -> 05
+
+
+//convert date -> number (miliseconds)
+console.log(Number(date)); // trả ra số milis từ 1/1/1970
+console.log(+date); // same
+
+- thực hiện các phép toán cộng trừ với date trả về số miliseconds 
+
+//formatDate
+const formatDate = function (date) {
+  const calcDaysPassed = (date1, date2) =>
+    Math.round(Math.abs(date2 - date1) / (1000 * 60 * 60 * 24));
+
+  const daysPassed = calcDaysPassed(new Date(), date);
+  console.log(daysPassed);
+
+  if (daysPassed === 0) return "Today";
+  if (daysPassed === 1) return "Yesterday";
+  if (daysPassed <= 7) return `${daysPassed} days ago`;
+
+  // const day = `${date.getDate()}`.padStart(2, 0);
+  // const month = `${date.getMonth() + 1}`.padStart(2, 0);
+  // const year = date.getFullYear();
+  // return `${day}/${month}/${year}`;
+  return new Intl.DateTimeFormat('vi').format(date);
+};
+
+
+// định dạng ngày theo địa phương
+date = Intl.DateTimeFormat('vi').format(new Date()); thời gian hiện tại ở mỹ
+
+// thay đổi định dạng date
+const options = {
+  hour: 'numeric',
+  minute: 'numeric',
+  day: 'numeric',
+  month: 'long',
+}
+date = Intl.DateTimeFormat('vi', options).format(new Date());
+// August 12, 8:43 AM
+
+'numeric': số
+'long': chữ
+'2-digit': 2 chữ số
+hour, minute, day, month, year, weekday
+
+
+// định dạng số theo địa phương
+
+new Intl.NumberFormat('vi').format(_number));
+ options: style: độ c, loại tiền, độ dài, vận tốc, ...
+
+// cập nhật thời gian từng giây theo thời gian thực
+
+const timer = setInterval(function() {
+  console.log(Intl.DateTimeFormat('vi').format(new Date()));
+}, 1000)
+
+clearInterval(timer); // ngừng đếm giờ
+
+
+-> 1 hành động settimer thực tế
+- rest timer mỗi khi thực hiện 1 hành động mới
+- xóa timer cũ, không để 2-3-4,... timer hoặt động cùng lúc

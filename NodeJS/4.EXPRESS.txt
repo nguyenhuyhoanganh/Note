@@ -1,0 +1,64 @@
+﻿EXPRESS
+- framework nodejs phổ biến nhất
+- express giúp định tuyến phức tạp
+- handing các request và response
+- serversi de rendering, ...
+==========================================
+Middleware và request-response cycle
+
+Middleware có thể thao tác với object reqquest-response
+ express.json() để có quyền truy cập vào body request trong request object
+: là fn thực thi giữa lúc nhận request và giử response
+ => với express: everything is middleware (event routers)
+- bodyparser : express.json(), logging, setting headers, router
+ tất cả các middleware đưucọ sửu dụng trong application là middleware stack
+  thứ tự các middleware trong stack xác định theo thứ tự được định nghĩa trong code, xuất hiện trước được thực thi trước
+ => thứu tự code rất quan trọng trong express
+
+request-response cycle lag chu kỳ khi nhận đưucọ 1 request là hoàn thành giử trả lại response
+ bắt đầu request đến sau đó thực thi tất cả middleware trong stack middleware step by step và cuối cùng là giử phản hồi để kết thúc 1 chu trình 
+=> là 1 quá trình tuyến tính 
+
+param middleware là middleware chỉ chạy đối với 1 số tham số nhất định ở url
+
+==================================================================
+EVIRONMENT VARIABLES
+>npm i dotenv
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

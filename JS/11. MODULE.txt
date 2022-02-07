@@ -1,0 +1,76 @@
+﻿MODULE, AWAIT IN MODULE, COMMAND LINE
+- đoạn mã có thể tái sử dụng, gói gọn các chi tiết triển khai của 1 phần trong project
+
+                           ES6 Module        ||     Script
+top-level variables||   Scoped to module     ||     global
+default mode       ||      Strict mode       || "Sloppy" mode
+top-level this     ||       undefined        ||     window 
+imports and exports||          YES           ||       NO
+HTML linking       || <script type="module"> ||     <script>
+File downloading   ||      Asynchronous      ||   Synchronous
+
+- export chỉ hoạt động ở top-level code
+// import
+- import { addToCart, totalPrice as price, tq } from './shoppingCart.js';
+- import * as ShoppingCart from './shoppingCart.js';
+  ShoppingCart.addToCart('bread', 5);
+- import add, { cart } from './shoppingCart.js';
+
+//export
+- export const cart = [];
+- export { totalPrice, totalQuantity as tq };
+- export default function (product, quantity) {
+    cart.push({ product, quantity });
+    console.log(`${quantity} ${product} added to cart`);
+ }
+==============================================================================================
+Top-Level Await (ES2022)
+
+- hoạt động trong các tệp model không cần phải chứ trong async fn
+-> block code khi chạy (top-level)
+Ex:
+const getLastPost = async function () {
+  const res = await fetch('https://jsonplaceholder.typicode.com/posts');
+  const data = await res.json();
+  return { title: data.at(-1).title, text: data.at(-1).body };
+};
+const lastPost = await getLastPost();
+console.log(lastPost);
+
+==============================================================================================
+COMMONJS: hoạt động với node js
+
+// Export
+export.addTocart = function (product, quantity) {
+  cart.push({ product, quantity });
+  console.log(
+    `${quantity} ${product} added to cart (sipping cost is ${shippingCost})`
+  );
+};
+// Import
+const { addTocart } = require('./shoppingCart.js');
+
+=======================================================================================================
+COMMAND LINE
+
+- dir: xem các file trong folder đưucọ mở ở vscode
+- cd: di chuyển sang file khác
+- cd .. : lùi ra ngoài folder
+- cd ../.. : lùi 2 folder
+- cd _tên_folder trong dir : di chuyển đến folder, tab hỗ trợ điền tên folder
+- clear : xóa màn hình console
+- md <tên thư mục 1> <tên thư mục 2> ... <tên thư mục n> : tạo folder
+- edit _tên_file : tạo 1 file trong thư mục
+- copy <tên file nguồn> <tên file đích> : copy file
+- move <tên file nguồn> <tên thư mục đích> : di chuyển file
+- move _tên_file ../ : di chuyển đến thư mục mẹ
+- del <tên file 1> <tên file 2> <tên file 3> ... <tên file n> : xóa file
+- rd <tên thư mục 1> <tên thư mục 2> ... <tên thư mục n> -Force : xóa thư mục
+- type > <tên file> : tạo mới file tùy định dạng
+- echo <nội dung> >  <file txt> : taọ file có nội dung
+
+
+- ctrl C: dừng thực thi
+- up : copy dòng trên
+
+=======================================================================================================

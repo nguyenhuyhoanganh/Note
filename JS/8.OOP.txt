@@ -1,0 +1,391 @@
+﻿OOP: mô hình lập trình dựa trên khái niệm đối tượng
+Objects
+data : properties
+function: Method
+=> đóng gói tất cả dữ liệu và hành vi tương ứng
+
+- Abstraction (trừu tượng) : bỏ qua những chi tiết không quan trọng, => có góc nhìn tổng quan về bất cứ thứ gì đang triển khai 
+thay vì tập trung các chi tiết không thực sự quan trong với việc triền khai 
+- Encapsulation (đóng gói) : giữ 1 số tài sản và phương thức private bên trong lớp, để chúng không được phép truy cập từ bên ngoài lớp, vẫn có 1 số được hiển thị public (API)
+ngăn chặn thao tác với các thuộc tính bên trong gây ra bug
+cho phép thực hiện tahy đổi nội bộ mà không cần phá mã từ ngoài
+- Inheritance (kế thừa): làm cho tất cả các thuộc tính và phương thức của 1 lớp nhất định có sãn trong lớp con, sử dụng lại code chung cho cả 2 lớp, lớp con có các phương thức và thuộc tính riêng
+- Polymorphism (đa hình): lớp con có thể ghi đè phương thức được kế thừa từ lớp cha, cùng tên phương thức nhưng được thực thi khác bằng cách tạo 1 phương thức cùng tên nagy ở lớp con với code khác
+------------------------------------------------------------------------------------------------------------------------------
+====================================================================================================================================
+OOP JS: kế thừa nguyên mẫu/ ủy quyền
+Prototype:
+- Object được liên kết với Prototype nhất định
+- Prototype chứa phương thức của tất cả object liên kết với prototype đó
+- Prototypal inheritance (kế thừa nguyên mẫu) cho phép object có thể truy cập và sử dụng các phương thức của prototype
+
+OOP   : Class => Instance
+OOP JS: Prototype <= Object
+
+OPP JS: 
+- object chỉ đơn giản là 1 instance kế thừa từ 1 class
+- object ủy thác hành vi tới prototype
+Classiccal OPP: 
+- class kế thừa từ class
+- để các phương thức thực sự được sao chép từ class đến object
+
+3 cách triển khai OOP trong JS
+- Constructor function
+ - tạo objects từ 1 function
+ - cách các objects như Arrays, Maps, Sets được thực hiện
+ - cách OOP hoạt động trong JS từ đầu
+- ES6 Classes
+ - hoạt động tương tự constructor fn với cú pháp đẹp hơn
+ - không phải class trong OOP classiccal
+- Object.create()
+
+=====================================================================================================================================
+// Constructor fn
+// khác nhau giữa constructor fn và regular fn là sử dụng từ khóa new để khai bao 1 object thể hiện cho constructor fn đó
+
+// Constructor Functions and the new Operator
+const Person = function (firstName, birthYear) {
+  // Instance properties
+  this.firstName = firstName;
+  this.birthYear = birthYear; 
+
+  // Never to this!
+  // this.calcAge = function () {
+  //   console.log(2037 - this.birthYear);
+  // };
+
+};
+const jonas = new Person('Jonas', 1991);
+console.log(jonas);
+
+// 1. New {} is created
+// 2. function is called, this = {}
+// 3. {} linked to prototype
+// 4. function automatically return {}
+
+const matilda = new Person('Matilda', 2017);
+const jack = new Person('Jack', 1975);
+console.log(jonas instanceof Person);
+
+// Có thể thêm phương thức trong nguyên mẫu bằng cách gán qua đặt 1 thuộc tính của this bằng 1 fn nhưng không nên vì mỗi khi khởi tạo 1 object sẽ sao lại fn đó
+// Cách thêm phương thức vào đối tượng
+// Prototypes
+console.log(Person.prototype);
+Person.prototype.calcAge = function () {
+  console.log(2037 - this.birthYear);
+};
+jonas.calcAge();
+console.log(jonas.__proto__); //lấy ra prototype của các object được khởi tạo bằng hàm khởi tạo person
+console.log(jonas.__proto__ === Person.prototype); // Person.prototype không phải prototype của person, mà là prototype của các object khởi tạo bằng person
+console.log(Person.prototype.isPrototypeOf(jonas));
+
+// object được tạo ra sẽ không chứa phương thức caclAge, nhưng object vẫn có quyền truy cập phương thức do kế thừa nguyên mẫu
+// static method: không được các object kế thừa từ nguyên mẫu, chỉ nguyên mẫu gọi đc
+Person.hey = function () {
+  console.log('Hey there 👋');
+  console.log(this); // this chính là hàm khởi tạo
+};
+Person.hey();
+=====================================================================================================================================
+Classes ES6, Getter, Setter, Static method
+
+// ES6 Classes
+// Class expression
+// const PersonCl = class {}
+// Class declaration
+class PersonCl {
+  constructor(fullName, birthYear) {
+    this.fullName = fullName;
+    this.birthYear = birthYear;
+  }
+  // Instance methods
+  // Methods will be added to .prototype property
+  calcAge() {
+    console.log(2037 - this.birthYear);
+  }
+  greet() {
+    console.log(`Hey ${this.fullName}`);
+  }
+  get age() {
+    return 2037 - this.birthYear;
+  }
+  // Set a property that already exists
+  set fullName(name) {
+    if (name.includes(' ')) this._fullName = name;
+    else alert(`${name} is not a full name!`);
+  }
+  get fullName() {
+    return this._fullName;
+  }
+  // Static method
+  static hey() {
+    console.log('Hey there 👋');
+    console.log(this);
+  }
+}
+const jessica = new PersonCl('Jessica Davis', 1996);
+console.log(jessica);
+jessica.calcAge();
+console.log(jessica.age);
+console.log(jessica.__proto__ === PersonCl.prototype);
+// PersonCl.prototype.greet = function () {
+//   console.log(`Hey ${this.firstName}`);
+// };
+jessica.greet();
+// 1. Classes are NOT hoisted
+// 2. Classes are first-class citizens
+// 3. Classes are executed in strict mode
+const walter = new PersonCl('Walter White', 1965);
+// PersonCl.hey();
+
+- Instance method:phương thức dành cho tất cả object kế thừa từ nguyên mẫu tồn tại trong __proto__
+- Static method: phương thức dành riêng cho nguyên mẫu, không được kế thừa
+
+=====================================================================================================================================
+Object.create()
+vẫn có ý tưởng về kế thừa nguyên mẫu, không có thuộc tính nguyên mẫu liên quan
+không có hàm khởi tạo, không có toán tử new
+=> đặt nguyên mẫu cho 1 object theo cách thủ công là bất kỳ object khác
+
+Object.create(PersionProto); tạo 1 object mới với nguyên mẫu là object truyền vào
+- Tạo 1 object làm nguyên mẫu cho tất cả object còn lại
+const PersonProto = {
+  calcAge() {
+    console.log(2037-this.birthYear);
+  },
+  init(firstName, birthYear) {
+    this.firstName = firstName;
+    this.birthYear = birthYear;
+  },
+}
+
+const steven = Object.create(PersionProto);
+// steven bây h là 1 object rỗng được liên kết với object PersonProto là nguyên mẫu
+steven.name = 'Steven';
+steven.birthYear = 2002;
+steven.calcAge() // trả về 35
+console.log(steven.__proto__ === PersonProto); // true
+
+const sarah = Object.create(PersonProto);
+sarah.init('Sarah', 1979);
+sarah.calcAge();
+=====================================================================================================================================
+Kế thừa: giúp chó classes child có các method riêng nhưng vẫn sử dụng đưuọc lại method từ classes parent
+// Inheritance Between "Classes": Constructor Functions
+const Person = function (firstName, birthYear) {
+  this.firstName = firstName;
+  this.birthYear = birthYear;
+};
+Person.prototype.calcAge = function () {
+  console.log(2037 - this.birthYear);
+};
+const Student = function (firstName, birthYear, course) {
+  */ giúp object tạo tự student kế thừa thuộc tính của person/*
+  Person.call(this, firstName, birthYear);
+  
+  this.course = course;
+};
+
+*/ giúp object tạo tự student kế thừa method của person.prototype/*
+// Linking prototypes
+Student.prototype = Object.create(Person.prototype);
+
+Student.prototype.introduce = function () {
+  console.log(`My name is ${this.firstName} and I study ${this.course}`);
+};
+const mike = new Student('Mike', 2020, 'Computer Science');
+mike.introduce();
+mike.calcAge();
+console.log(mike.__proto__);
+console.log(mike.__proto__.__proto__);
+console.log(mike instanceof Student);
+console.log(mike instanceof Person);
+console.log(mike instanceof Object);
+Student.prototype.constructor = Student;
+console.dir(Student.prototype.constructor);
+
+=====================================================================================================================================
+// Inheritance Between "Classes": ES6 Classes
+class PersonCl {
+  constructor(fullName, birthYear) {
+    this.fullName = fullName;
+    this.birthYear = birthYear;
+  }
+  // Instance methods
+  calcAge() {
+    console.log(2037 - this.birthYear);
+  }
+  greet() {
+    console.log(`Hey ${this.fullName}`);
+  }
+  get age() {
+    return 2037 - this.birthYear;
+  }
+  set fullName(name) {
+    if (name.includes(' ')) this._fullName = name;
+    else alert(`${name} is not a full name!`);
+  }
+  get fullName() {
+    return this._fullName;
+  }
+  // Static method
+  static hey() {
+    console.log('Hey there 👋');
+  }
+}
+class StudentCl extends PersonCl {
+  constructor(fullName, birthYear, course) {
+    // Always needs to happen first!
+    super(fullName, birthYear);
+    this.course = course;
+  }
+  introduce() {
+    console.log(`My name is ${this.fullName} and I study ${this.course}`);
+  }
+  calcAge() {
+    console.log(
+      `I'm ${
+        2037 - this.birthYear
+      } years old, but as a student I feel more like ${
+        2037 - this.birthYear + 10
+      }`
+    );
+  }
+}
+const martha = new StudentCl('Martha Jones', 2012, 'Computer Science');
+martha.introduce();
+martha.calcAge();
+
+=====================================================================================================================================
+///////////////////////////////////////
+// Inheritance Between "Classes": Object.create
+const PersonProto = {
+  calcAge() {
+    console.log(2037 - this.birthYear);
+  },
+  init(firstName, birthYear) {
+    this.firstName = firstName;
+    this.birthYear = birthYear;
+  },
+};
+const steven = Object.create(PersonProto);
+const StudentProto = Object.create(PersonProto);
+StudentProto.init = function (firstName, birthYear, course) {
+  PersonProto.init.call(this, firstName, birthYear);
+  this.course = course;
+};
+StudentProto.introduce = function () {
+  console.log(`My name is ${this.firstName} and I study ${this.course}`);
+};
+const jay = Object.create(StudentProto);
+jay.init('Jay', 2010, 'Computer Science');
+jay.introduce();
+jay.calcAge();
+
+=====================================================================================================================================
+riêng tư, đóng gói dữ liệu
+
+///////////////////////////////////////
+// Encapsulation: Protected Properties and Methods
+// Encapsulation: Private Class Fields and Methods
+// 1) Public fields
+// 2) Private fields
+// 3) Public methods
+// 4) Private methods
+// (there is also the static version)
+class Account {
+  // 1) Public fields (instances)
+  locale = navigator.language;
+  // 2) Private fields (instances)
+  #movements = [];
+  #pin;
+  constructor(owner, currency, pin) {
+    this.owner = owner;
+    this.currency = currency;
+    this.#pin = pin;
+    // Protected property
+    // this._movements = [];
+    // this.locale = navigator.language;
+    console.log(`Thanks for opening an account, ${owner}`);
+  }
+  // 3) Public methods
+  // Public interface
+  getMovements() {
+    return this.#movements;
+  }
+  deposit(val) {
+    this.#movements.push(val);
+    return this;
+  }
+  withdraw(val) {
+    this.deposit(-val);
+    return this;
+  }
+  requestLoan(val) {
+    // if (this.#approveLoan(val)) {
+    if (this._approveLoan(val)) {
+      this.deposit(val);
+      console.log(`Loan approved`);
+      return this;
+    }
+  }
+  static helper() {
+    console.log('Helper');
+  }
+  // 4) Private methods
+  // #approveLoan(val) {
+  _approveLoan(val) {
+    return true;
+  }
+}
+const acc1 = new Account('Jonas', 'EUR', 1111);
+// acc1._movements.push(250);
+// acc1._movements.push(-140);
+// acc1.approveLoan(1000);
+acc1.deposit(250);
+acc1.withdraw(140);
+acc1.requestLoan(1000);
+console.log(acc1.getMovements());
+console.log(acc1);
+Account.helper();
+// console.log(acc1.#movements);
+// console.log(acc1.#pin);
+// console.log(acc1.#approveLoan(100));
+// Chaining
+acc1.deposit(300).deposit(500).withdraw(35).requestLoan(25000).withdraw(4000);
+console.log(acc1.getMovements());
+
+=====================================================================================================
+
+các object đến từ localstorage hay api không kế thừa các method từ nguyên mẫu
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

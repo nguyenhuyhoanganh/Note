@@ -1,0 +1,499 @@
+﻿> mongo.exe : mở mongo shell
+> use natours-test : sử dụng db, nếu chưa có db sẽ tạo mới db
+> db.tours.insertOne({ name: "The Forest Hiker", price: 297, rating: 4.7 }) 
+: tạo collection tours, insert javascript object, mongo tự động convert qua dữ liệu kiểu BSON
+> db.tours.insertMany([{ name: "The Sea Explorer", price: 497, rating: 4.8 }, { name: "The Snow Adventurer", price: 997, rating: 4.9, difficulty: "easy" }]) 
+: để insert nhiều document
+> db.tours.find() : kiểm tra collection tours có những documents nào
+> show dbs : cho thấy tất cả dữ liệu trong database
+ monggo tự động tạo thêm các database admin, config, local
+> show collections : hiển thi các collections trong db đang sử dụng
+> quit() : thoát mongo shell
+
+TÌM KIẾM
+> db.tours.find({ name: "The Forest Hiker" }) : tìm kiếm documents theo field nào đó trong collections 
+- sử dụng toán tử truy vấn trong mongodb
+> db.tours.find({ price: {$lte: 500} }) : tìm kiếm giá NHỎ HƠN HOẶC BẰNG 500
+> db.tours.find({ price: {$lt: 500}, rating: {$gte: 4.8} }) : tìm kiếm giá NHỎ HƠN 500 và rating LỚN HƠN HOẶC BẰNG 4.8
+> db.tours.find({ $or: [ {price: {$lt: 500}}, {rating: {$gte: 4.8}} ] }) : tìm kiếm giá NHỎ HƠN 500 "HOẶC" rating LỚN HƠN HOẶC BẰNG 4.8
+> db.tours.find({ $or: [ {price: {$lt: 500}}, {rating: {$gte: 4.8}} ] }, {name: 1}) : tìm kiếm chỉ trả về field name ngoài id
+
+CẬP NHẬT
+> db.tours.updateOne({ name: "The Snow Adventurer" }, { $set: {price: 597} }) : CẬP NHẬT price cho document có field name = "The Snow Adventurer", *CHỈ DOCUMENT ĐẦU TIÊN TÌM THẤY ĐƯỢC CẬP NHẬT*, nếu không có field price sẽ thêm 1 field mới và set giá trị cho nó
+> db.tours.updateMany({ price: {$gt: 500}, rating: {$gte: 4.8} }, { $set : {premium: true} }) : CẬP NHẬT NHIỀU DOCUMNET
+
+THAY THẾ
+> db.tours.replaceMany() : tương tự update, nhưng thay thế tất cả các field
+> db.tours.replaceOne() : thay thế 1 document đầu tiên tìm thấy
+
+XÓA
+> db.tours.deleteMany({ rating: {$lt: 4.8} }) : xóa tất cả documnet có field rating nhỏ hơn 4.8
+> db.tours.deleteMany({}) : xóa tất cả document
+
+ mongodb://cluster0-shard-00-02.zsnjr.mongodb.net:27017,cluster0-shard-00-01.zsnjr.mongodb.net:27017,cluster0-shard-00-00.zsnjr.mongodb.net:27017/myFirstDatabase?authSource=admin&compressors=disabled&gssapiServiceName=mongodb&replicaSet=atlas-11ofqq-shard-0&ssl=true
+==================================================================================================================================================================
+MONGOOSE
+> npm i mongoose@5
+/////////////////////////////////////////////////////////////////////
+//config.env 
+ DATABASE=mongodb+srv://hoanganh:<PASSWORD>@cluster0.zsnjr.mongodb.net/natours?retryWrites=true&w=majority
+ DATABASE_PASSWORD=v8mVD5YTJpRnZqxe
+//server.js
+const DB = process.env.DATABASE.replace(
+  '<PASSWORD>',
+  process.env.DATABASE_PASSWORD
+);
+mongoose
+  .connect(DB, {
+    useNewUrlParser: true,
+    useCreateIndex: true,
+    useFindAndModify: false,
+    useUnifiedTopology: true
+  })
+  .then(() => console.log('DB connection successful!'));
+==================================================================================================================================================================
+/////////////////////////////////////////////////////////////////////
+- là 1 thư viện mô hình dữu liệu object cho mongodb và nodejs, cung cấp mức độ trừu tượng cao hơn, giống như 1 mối quan hệ giữa express và nodejs (express là lớp trừu tượng so với node thông thường)
+- schema là nơi lập mô hình dữu liệu, cho phép mô tả cấu trúc dữ liệu, default value và  validation
+- từ schema tạo ra được model(1 trình bao bọc xung quanh schema), cho phép thực sự giao tiếp với database để thêm, sửa, xóa và đọc document
+
+const tourSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: [true, 'A tour must have a name'],
+    unique: true,
+    trim: true
+  },
+  price: {
+    type: Number,
+    required: [true, 'A tour must have a price']
+  },
+  duration: {
+    type: Number,
+    required: [true, 'A tour must have a duration']
+  },
+  startDates: [Date],
+  creatAt: {
+    type: Date,
+    default: Date.now(),
+    select: false // không cho phép select
+  }
+});
+const Tour = mongoose.model('Tour', tourSchema);
+
+VIRTUAL PROPERTIES: là 1 số fields xác định trong Schema nhưng không thực sự lưu vào database
+-> để tạo các fields dẫn xuất từ 1 số fields khác
+
+tourSchema.virtual('durationWeek').get(function() {
+  return this.duration / 7;
+}); // virtual properties sẽ được thêm mỗi khi dùng phương thức GET
+
+// thêm option thứ 2 vào mongoose.Schema() để hiển thị ra 
+{
+  toJSON: { virtuals: true }, // virtual properties xuất ra dưới dạng JSON
+  toObject: { virtuals: true } // dữ liệu được xuất như 1 Object
+}
+==================================================================================================================================================================
+//////////////////////////////////////////////////////////////////
+TRUY VẤN MONGOOSE
+
+// 1) mongodb query
+// const tours = await Tour.find({
+//   duration: 5,
+//   difficulty: 'easy'
+// });
+// 2) mongoose method
+// const tours = await Tour.find()
+//   .where('duration')
+//   .lt(5)
+//   .where('difficulty')
+//   .equals('easy');
+
+exports.getAllTours = async (req, res) => {
+  try {
+    // FILTER QUERY
+    // request.query
+    // ?duration=5&difficulty=easy : { duration: '5', difficulty: 'easy' }
+    // ?duration[gte]=5&difficulty=easy : { duration: { gte: '5' }, difficulty: 'easy' }
+    // 1A) Filtering
+    const queryObj = { ...req.query };
+    const excludedFields = ['page', 'sort', 'limit', 'fields'];
+    excludedFields.forEach(el => delete queryObj[el]);
+    // 1B) Advanced filtering
+    let queryStr = JSON.stringify(queryObj); // chuyển object về thành chuỗi string
+    queryStr = queryStr.replace(/\b(gte|gt|lte|lt)\b/g, match => `$${match}`);
+    // gte => $gte, lte => $lte, lt => $lt
+
+    let query = Tour.find(JSON.parse(queryStr));
+
+    // 2) SORTING
+    // &sort=price : sắp xếp theo giá tăng dần
+    // &sort=-price : sắp xếp theo giá giảm dần
+    // &sort=price,ratingsAverage : sắp xếp theo giá, rồi theo rating
+    if (req.query.sort) {
+      const sortBy = req.query.sort.split(',').join(' ');
+      console.log(sortBy);
+      // "price,ratingsAverage" => "price ratingsAverage"
+      // sort('price ratingsAverage') : sort theo nhiều tiêu chí
+      query = query.sort(sortBy);
+    } else {
+      query = query.sort('-creatAt');
+    }
+
+    // 3) FIELD LIMITING
+    // lọc chọn các fields để hiển thị : &fields=name,price,duration,ratingsAverage
+    if (req.query.fields) {
+      const fields = req.query.fields.split(',').join(' ');
+      query = query.select(fields);
+    } else {
+      query = query.select('-__v');
+    }
+
+    // 4) PAGINATION
+    // &page=2&limit=10 : 11 -> 21, skip = 10
+    const page = +req.query.page || 1;
+    const limit = +req.query.limit || 100;
+    const skip = (page - 1) * limit;
+
+    query = query.skip(skip).limit(limit);
+
+    if (req.query.page) {
+      const numTours = Tour.countDocuments();
+      if (skip >= numTours) throw new Error('This page dose not exist');
+    }
+
+    // 5) EXCUTE QUERY
+    const tours = await query;
+
+    res.status(200).json({
+      status: 'success',
+      results: tours.length,
+      data: { tours }
+    });
+  } catch (err) {
+    res.status(404).json({
+      status: 'fail',
+      message: err
+    });
+  }
+};
+==================================================================================================================================================================
+//////////////////////////////////////////////////////////////////
+THÊM SỬA XÓA
+
+const newTour = await Tour.create(req.body);
+
+const tour = await Tour.findById(req.params.id);
+
+const tour = await Tour.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true
+    });
+
+await Tour.findByIdAndDelete(req.params.id);
+==================================================================================================================================================================
+//////////////////////////////////////////////////////////////////
+AGGREGATION PIPELINE
+
+const stats = await Tour.aggregate([
+      {
+        $match: { ratingsAverage: { $gte: 4.5 } }
+        // lọc qua các tour có ratingsAverage >= 4,5
+      },
+      {
+        $group: {
+          _id: { $toUpper: '$difficulty' }, // nhóm theo tên độ khó, đặt id của từng group = ký tự viết hoa tên đọ khó
+          // tính toán thông tin của từng group
+          numTours: { $sum: 1 }, // +1 khi lọc qua mỗi document => lấy ra số lượng
+          numRatings: { $sum: '$ratingsQuantity' },
+          avgRating: { $avg: '$ratingsAverage' },
+          avgPrice: { $avg: '$price' },
+          minPrice: { $min: '$price' },
+          maxPrice: { $max: '$price' }
+        }
+      },
+      {
+        $sort: { avgPrice: 1 } // sắp xếp theo tên field tính toán được trong $group, 1 là tăng dần
+      }
+      // {
+      //   $match: { _id: { $ne: 'EASY' } } // lọc _id khác EASY
+      // }
+      // lọc qua 1 lần nữa các  field trong group mới
+    ]);
+
+const year = +req.params.year; // 2021
+const plan = await Tour.aggregate([
+      {
+        $unwind: '$startDates'
+        // phân giải cấu trúc 1 fiels kiểu array trong từng document
+        // lọc qua từng document tương ứng với từng phần tử của array  : mảng các startDates của document
+      },
+      {
+        $match: {
+          startDates: {
+            $gte: new Date(`${year}-01-01`),
+            $lte: new Date(`${year}-12-31`)
+          }
+          // lọc ngày bắt đầu và ngày bắt đầu và nggayf kết thúc năm trong năm hiện tại
+        }
+      },
+      {
+        $group: {
+          _id: { $month: '$startDates' },
+          // nhóm theo từng tháng, $month: lấy ra tháng của ngày đưa vào
+          numTourStarts: { $sum: 1 }, // đếm số lượng tour theo tháng
+          tours: { $push: '$name' } // lấy ra tên tour đẩy vào mảng tours
+        }
+      },
+      {
+        $addFields: { month: '$_id' } // thêm fields month: theo _id
+      },
+      {
+        $project: {
+          _id: 0 // không hiển thị fields _id, mặc định hiển thị là 1
+        }
+      },
+      {
+        $sort: { numTourStarts: -1 } // sắp xếp giảm dần theo số lượng tour trong 1 tháng
+      },
+      {
+        $limit: 12 // giới hạn 12 document
+      }
+    ]);
+
+==================================================================================================================================================================
+MONGOOSE MIDDLEWARE (HOOKS): giống như express
+Xác định hàm chạy trc 1 event nhất định
+- DOCUMNET MIDDLEWARE: hoạt động trên 1 document đang được xử lý, xác định trên schema
+
+// DOCUMENT MIDDLEWARE: runs before .save() and .create(), not insertMany
+tourSchema.pre('save', function(next) {
+  this.slug = slugify(this.name, { lower: true });
+  next(); // cần được gọi ra nếu có 2 middlewares chèn vào trc 1 event
+});
+
+.post('save', function (doc, next) {}) // chạy khi save xong, không còn truy cập được this keyword, thay vào đó có thêm 1 variable là document, lấy ra được document vừa mới thực hiện event
+
+Gồm những middlewares: 'remove', 'validate', 'save', 'init'
+
+- QUERY MIDDLEWARE: thực thi trước và sau khi có 1 query
+
+// QUERY MIDDLEWARE
+// tourSchema.pre('find', function(next) {
+tourSchema.pre(/^find/, function(next) {
+  // /^find/ cho phép lọc qua .find(), .findById(), .findOneAndDelete ... tất cả query bắt đầu bằng find
+  this.find({ secretTour: { $ne: true } });
+  // this trỏ đến query hiện tại, không phải document
+  // lọc những secretTour = true, không cho hiển thị trước khi trả về kết quả truy vấn
+  this.start = Date.now();
+  next();
+});
+
+tourSchema.post(/^find/, function(docs, next) {
+  console.log(`Query took ${Date.now() - this.start} milliseconds!`);
+  // tính thời gian query
+  next();
+});
+
+- AGGREGATE MIDDLEWARE: thực thi trước và sau khi .aggregate()
+
+tourSchema.pre('aggregate', function(next) {
+  this.pipeline().unshift({ $match: { secretTour: { $ne: true } } });
+  // ẩn secretTour = true
+  // this.pipeline() trả về array truyền vào aggregate function
+  // .unshift() // thêm 1 phần tử vào đầu array
+  console.log(this.pipeline());
+  next();
+});
+
+- MODEL MIDDLEWARE
+==================================================================================================================================================================
+DATA VALIDATION
+required: [true, 'A tour must have a name'],
+
+- String
+unique: true,
+maxlength: [40, 'A tour name must have less or equal then 40 characters'],
+minlength: [10, 'A tour name must have more or equal then 10 characters'],
+
+enum: {
+  values: ['easy', 'medium', 'difficult'],
+  message: 'Difficulty is either: easy, medium, difficult'
+  }
+
+- Number, Date
+min: [1, 'Rating must be above 1.0'],
+max: [5, 'Rating must be below 5.0']
+
+
+CUSTOM VALIDATION
+
+priceDiscount: {
+  type: Number,
+  validate: {
+    validator: function(val) {
+    // this only points to current doc on NEW document creation
+      return val < this.price;
+      },
+    message: 'Discount price ({VALUE}) should be below regular price'
+    }
+  }
+
+
+> npm i validator
+const validator = require('validator');
+
+ validate: [validator.isAlpha, 'Tour name must only contain characters']
+
+==================================================================================================================================================================
+DEBUGGING Node.js with ndb
+> npm i ndb --save-dev
+"debug": "ndb server.js"
+> npm run debug
+==================================================================================================================================================================
+ERROR HANDLING
+-OPERATIONAL ERRORS
+ dự đoán chắc chắn sẽ xảy trong tương lai, phụ thuộc vào người dùng, hệ thống, mạng
+-PROGAMMING ERRORS
+ bug do developers, 
+ - cố gắng đọc thuộc tính undefined
+ - sử dụng request.query thay request.body
+ - sử dụng await không đi kèm async
+ - ....
+========== handle global err
+// app.js //
+app.all('*', (req, res, next) => {
+  // const err = new Error(`Can't find ${req.originalUrl} on this server!`);
+  // err.status = 'fail';
+  // err.statusCode = 404;
+  // next(err);
+
+  next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
+  // đưa error vào next() để khi qua các middlerware khác đến khi tời được middleware handle error, sẽ giữ đc err truyền vào
+});
+
+app.use((err, req, res, next) => {
+  console.log(err.stack); // hiển thị stack trace
+
+  err.statusCode = err.statusCode || 500;
+  err.status = err.status || 'error';
+
+  res.status(err.statusCode).json({
+    status: err.status,
+    message: err.message
+  });
+});
+
+// appError.js //
+class AppError extends Error {
+  constructor(message, statusCode) {
+    super(message);
+
+    this.statusCode = statusCode;
+    this.status = `${statusCode}`.startsWith('4') ? 'fail' : 'error';
+    this.isOperational = true;
+
+    Error.captureStackTrace(this, this.constructor);
+  }
+}
+
+module.exports = AppError; 
+
+
+======== handle async err =========
+
+// handle async err:
+// 1. async fn trả về 1 promise bị reject khi có err
+// 2. bắt err bằng cách promise.catch()
+const  catchAsync = fn => {
+  fn(req, res, next).catch(err => next(err));
+}
+
+exports.createTour = catchAsync(async (req, res, next) => {
+  const newTour = await Tour.create(req.body);
+  res.status(201).json({
+    status: 'success',
+    data: { newTour }
+  });
+})
+
+// fn được đưa vào làm tham số là các fn xử lý trong controller
+// vđ 1: callback fn đưa vào catchAsync không biết req, res, next là gì
+// vđ 2: exports.createTour thực sự phải là fn chứ không phải kết quả của việc gọi fn, callback fn không nên được gọi, thay vào đó là ngồi đợi cho đến khi express thực sự gọi nó ngay khi có request đến router cần controller này xử lý
+=> làm cho catchAsync() trả về 1 function, function này sẽ được gán cho exports.createTour
+
+const catchAsync = fn => {
+  return (req, res, next) => {
+    // fn(req, res, next).catch(err => next(err));
+    fn(req, res, next).catch(next);
+  };
+};
+
+
+
+"errors": {
+            "name": {
+                "name": "ValidatorError",
+                "message": "A tour name must have more or equal then 10 characters",
+                "properties": {
+                    "message": "A tour name must have more or equal then 10 characters",
+                    "type": "minlength",
+                    "minlength": 10,
+                    "path": "name",
+                    "value": "Test"
+                },
+                "kind": "minlength",
+                "path": "name",
+                "value": "Test"
+            }
+        },
+        "_message": "Tour validation failed",
+        "name": "ValidationError",
+        "message": "Tour validation failed: name: A tour name must have more or equal then 10 characters"
+==================================================================================================================================================================
+3 Ngoại lệ thường gặp ở mongoose
+
+// 3 loại err của mongoose
+const handleCastErrorDB = err => {
+  const message = `Invalid ${err.path}: ${err.value}.`;
+  // path: là tên field , value là giá trị truyền vào route
+  return new AppError(message, 400);
+};
+
+const handleDuplicateFieldsDB = err => {
+  const value = err.errmsg.match(/(["'])(\\?.)*?\1/)[0];
+  // lấy ra chuỗi trùng trong cặp ngoặc kép
+  //console.log(value);
+  const message = `Duplicate field value: ${value}. Please use another value!`;
+  return new AppError(message, 400);
+};
+const handleValidationErrorDB = err => {
+  const errors = Object.values(err.errors).map(el => el.message);
+  // Object.value() để lặp qua các properties của object
+  const message = `Invalid input data. ${errors.join('. ')}`;
+  return new AppError(message, 400);
+};
+==================================================================================================================================================================
+bắt rejected promise và ngoại lệ bên ngoài middleware
+
+// bắt các lỗi đồng bộ, cần thực thi đầu
+process.on('uncaughtException', err => {
+  console.log('UNCAUGHT EXCEPTION! 💥 Shutting down...');
+  console.log(err.name, err.message);
+  process.exit(1);
+});
+
+// bắt tất cả promise bị reject
+process.on('unhandledRejection', err => {
+  console.log('UNHANDLED REJECTION! 💥 Shutting down...');
+  console.log(err.name, err.message);
+  server.close(() => {
+    process.exit(1);
+  }); // cho phép server xử lý hết các request bất đồng bộ dang dở và sau khi hoàn thành sẽ ngắt server
+});
+
+// những lỗi đồng bộ hay bất đồng bộ xảy ra tại middleware sẽ không bị bắt tại đây và được đưa vào errorController
+
+
+
+

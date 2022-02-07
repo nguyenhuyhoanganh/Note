@@ -1,0 +1,355 @@
+﻿DOM // không thuộc JS, là 1 phần của API Web
+
+document.querySelector('CSS_Selector')
+// trả về 1 element đầu tiên có selector
+ 
+document.querySelectorAll('CSS_Selector')
+// trả về Nodelist chứa tất cả element có selector
+// Nodelisst tương tự array, không sử dụng được 1 số method của array
+
+document.getElemnetById('IdName')
+// trả về element theo đúng id
+
+document.createElement('_nameElement')
+// tạo 1 element
+
+document.body.append
+
+//////////////////////////////////////////////////////////////////////
+Phương thức của element được JS cung cấp
+
+.textContent : lấy ra content của element, thay đổi content
+.value : lấy ra value của element là thẻ input
+.addEventListener('_event', callBackfn(e){}) : lắng nghe sữ kiện xảy ra với element để thực hiện callbackfn
+  // callbackfn nhận vào 1 event để xử lý evnet đó
+.style._nameProperty : lấy ra property trong style của element và thay đổi nó
+.classList : lấy ra mảng class của element (DOMTokenList)
+  .add('className', 'className1', ...) : thêm class
+  .remove('className', 'className1', ...) : xóa class
+  .toggle('className') : nếu class đã có thì xóa đi, ngược lại thì thêm vào
+  .toggle('className', conditional) : nếu conditional trả về true thì thêm vào, ngược lại thì không
+  .replace('className1', 'className2') : thay thế className1 bằng className2
+  .contains('className') : ktra class có không, trả về true, false
+.src : lấy ra nguồn của thẻ có thuộc tính src, thay đổi src
+.insertAdjacentHTML(position, text);
+  - 'beforebegin' : trước element
+  - 'afterbegin'  : ngay trong elemnt, trước element con đầu tiên
+  - 'beforeend'   : ngay trong element, sau element con cuối cùng
+  - 'afterend'    : sau elemnt
+.innerHTML : lấy ra nội dung HTML, thay đổi nó
+.blur(); hủy focus
+.children
+.childNode
+.parentNode
+.cloneNode()
+
+////////////////////////////////////////////////////////////////////////////
+Tên event
+
+click : khi click
+keydown : khi ấn phím xuống
+keypress : xảy ra liên tục khi giữ phím
+keyup : khi nhấc phím lên
+mouseenter: khi di chuột vào element và các element con chỉ kích hoạt event lần đến khi ra ngoài phạm vi element
+mouseover: khi di chuột vào element con, hay chính element đó đều kích hoạt event 1 lần (nổi bọt)
+mouseout >< mouseover
+mouseenter >< mouseleave
+mousemove: khi di chuyển chuột trong element là kích hoạt event
+
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////
+Xử lý event
+e.preventDefault(): ngăn chặn hành động mặc định của element: loadform, giử data, ...
+
+-----------------------------------------------------------------------------------------------
+//Selecting elements
+document.documentElemnt: trả về toàn bộ html
+document.head: trả về phần head
+document.body: trả về phần body
+
+document.querySelector('_css_selector'): trả về element đầu tiên có trùng với css_selector
+document.querySelectorAll('_css_selector'): trả về NodeList tất cả các element có trùng với css_selector
+
+document.getElementById('_id_name'): trả về element có trùng id_name
+
+documnet.getElementsByTagName('_tag_name'): trả về HTMLCollection tất cả element có trùng tag_name
+document.getElementsByClassName('_class_name'): trả về HTMLCollection tất cả element có trùng class_name
+* khác nhau giữa NodeList và HTMLCollection
+ - HTMLCollection: sẽ tự động cập nhật lại khi DOM thay đổi (live collection)
+ - NodeList: tạo ra tại thời điểm nào thì vẫn luôn giữ nguyên, không ảnh hường khi thao tác thêm xóa DOM
+----------------------------------------------------------------------------------------------
+===================================================================================================
+//Creating and inserting elements
+1 .insertAdjacentHTML
+element.insertAdjacentHTML(position, text); thêm element tùy vị trí so với element gốc
+ positon:
+ - 'beforebegin' : trước element
+ - 'afterbegin'  : ngay trong elemnt, trước element con đầu tiên
+ - 'beforeend'   : ngay trong element, sau element con cuối cùng
+ - 'afterend'    : sau element
+ text:
+ - ex: '<div id="two">two</div>'
+
+2 document.createElement
+const el = document.createElement('_tag_name'): tạo ra element có trùng tag_name, element này chưa xuất hiện trên web
+// thêm nội dung el
+el.classList.add('');
+el.textContent = '';
+el.innerHtml = '';
+// thêm element => firstChild của header
+const header = documnet.querySelector('.header');
+header.prepend(el);
+// thêm elemnt => lastChild của header
+header.append(el);
+// thêm elemnt => after của header
+header.after(el);
+// thêm elemnt => before của header
+header.before(el);
+// element chỉ thêm được ở 1 nơi trên document
+// muốn cùng lúc thêm ở 2 nơi cần clone 
+el.cloneNode(true): trả ra 1 elemnt mới
+------------------------------------------------------------------------------------------------
+//Delete elements
+el.remove(); // ES6
+el.parentElement.removeChild(el); // ES5
+=================================================================================================
+------------------------------------------------------------------------------------
+//Styles
+.style //set nội tuyến (inline, hiển thị sẵn trên file html)
+ .backgroundColor ='#37383d'
+ .width = '100%'
+ ...
+
+console.log(el.style.width); //chỉ lấy ra thuộc tính nếu đã set nội tuyến
+// muốn lấy style từ css (external), cũng trả về style không khai báo trong css mà được web tự động render
+console.log(getComputedStyle(el).color);
+
+//tăng 10px vào height so với height cũ
+el.style.height = Number.parseFloat(getComputedStyle(el).height, 10) + 10 + 'px';
+
+//thay đổi biến trong :root file CSS : chuyển giao diện tối, chuyển cỡ chữ, ...
+document.documentElement.style.setProperty('--color-primary', '#37383d');
+------------------------------------------------------------------------------------------------
+//Atributes: id, class -> className, src, href, alt, ...
+const logo = document.querySelector('.nav__logo');
+console.log(logo.alt);
+...
+logo.alt = 'Beautiful logo';
+
+// Non-standard : thuộc tính không tiêu chuẩn
+console.log(logo.getAttribute('disigner'));
+logo.setAttribute('company', 'bankist');
+
+console.log(logo.src); // trả về http://127.0.0.1:8080/img/logo.png
+console.log(logo.getAttribute('src')); //trả về img/logo.npng
+
+//Data attributes: data-version-number="3.0", special attribute được lưu trữ trong object dataset
+console.log(logo.dataset.versionNumber); 
+
+//Classes
+logo.classList.add('')
+logo.classList.remove('')
+logo.classList.toggle('')
+logo.classList.contains('')
+//override all the existing class
+logo.className = 'hoanganh';
+=======================================================================================================
+-----------------------------------------------------------------------------------------------
+//Scrolling
+el.target // trả về elment đang được target
+el.getBoundingClinetRect(); // trả về object DOMRect có vị trí, kích thước, khoảng cách với viewport của element
+
+el.target.getBoundingClinetRect(); 
+// lấy vị trí, kích thước hiện tại so với viewport của element đang được target
+
+console.log('Current scroll (X/Y)', window.pageXOffset, window.pageYOffset);
+//lấy ra vị trí đang scroll
+
+console.log('height/width viewport', documnet.document.clientHeight, document.documnetElement.clientWidth)
+//lấy chiều cao, độ rộng viewport
+
+//Scrolling A -> B 
+
+A.addEventListener('click', function (e) {
+  e.preventDefault();
+  /** ES5
+  const s1coords = B.getboundingClientRect();
+  //scroll đến vị trí tuyệt đối của B
+  window.scrollTo(s1coords.left + window.pageXOffset, s1coords.top + window.pageYOffset);
+  //scroll thêm behavior
+  window.scrollTo({
+    left: s1coords.left + window.pageXOffset,
+    top: s1coords.top + window.pageYOffset,
+    behavior: 'smooth',
+  });
+  */ 
+
+  //ES6
+  B.scrollIntoView({behavior: 'smooth'});   
+})
+==================================================================================================
+//Event handler
+
+el.addEventListener('click', callbackfn);
+el.onclick = function() {}
+
+- addEventListener cho thêm nhiều event cho 1 element
+- onevent chỉ thêm 1 cái, cái sau ghi đè cái trc
+- addEventListener cho phép xóa event khi không cần
+
+el.removeEventListener('click', callbackfn);
+
+//event được truyền bá từ elemnt con -> element cha
+e.stopPropagation(); //ngừng truyền bá sự kiến 
+
+
+e.target // element đang được target, không lấy sang element cha chứa element target
+e.currentTarget // === this
+=============================================================================================================
+//DOM Traversing
+
+// Going downwards: child
+- lấy ra những element có selector trùng bên trong el
+el.querySelector('');
+el.querySelectorAll('');
+- trả về NodeList: các thành phần con trực tiếp: text, element, comment,...
+el.childNodes
+- trả về HTMLCollection các element con trực tiếp
+el.children
+- lấy ra element con trực tiếp đầu tiên và cuối cùng
+el.firstElementChild.style.color = 'white';
+el.lastElementChild.style.color = 'black';
+
+// Going upwards: parents
+- lấy element cha trực tiếp
+el.parentNode // lấy node: textm comment, element, ...
+el.parentElement // lấy element
+
+- lấy element cha không trực tiếp, element cha, ông, ... gần nhất có tên trùng với css_selector
+el.closest('_css_selector')
+// nếu lấy đúng tên css_selector của el => trả về chính el, nếu không tìm đc css_selector cha nào => trả về null
+// tương tự .querySelector nhưng ngược lại
+
+// Going sideways: siblings, anh chị em kề nhau
+- lấy element sibling trước
+el.previousElementSibling
+- lấy element sibling sau
+el.nextElementSibling
+
+- lấy node sibling trước sau
+el.previousSibling
+el.nextSibling
+
+- lấy ra tất cả sibling
+el.parentElement.children
+------------------------------------------------------------------
+//sticky js 
+thông thường : gọi callback khi theo dõi event scroll của window => không cho hiệu năng
+
+//dùng api, khó hiểu vkl
+The Intersection Observer API
+- dùng gắn nav lên đầu viewport,
+- dùng Revealing Elements on Scroll: hiển thị từng section khi scroll đến: đẹp vl
+// quan sát 1 element giao nhau 1 element khác
+
+const obsCallback = function (entries, observer) {
+  entries.forEach(entry => {
+    console.log(entry);
+  });
+};// truyền vào 2 argument, entries là 1 mảng các đối tượng chứa các thuộc tính mà khi 2 element vượt threshold trả về
+// observer là chính object observer được tạo để gắn .observe(el)
+const obsOptions = {
+  root: null, // element mục tiêu, muốn giao nhau với element gốc, = null là viewport
+  threshold: [0, 0.2], // tỷ lệ phần trăm khi giao nhau để bắt đầu thực thi callbackfn
+  rootMargin: '90px' //tăng độ rộng của element lên 90px, => gọi callback khi đạt ngưỡng + 90px
+};
+const observer = new IntersectionObserver(obsCallback, obsOptions);
+observer.observe(el);
+// đặt threshold: 0.1
+// thực thi khi phần hiển thi của el trong viewport đạt 10%
+// đi kèm isIntersecting: true nếu phần hiển thị > 10%
+// isIntersecting: false nếu phần hiển thị < 10 %
+
+// trong callbackfn(entries) : entries là 1 mảng các ngưỡng khi đi qua
+entries.target // lấy ra element đang giao với root
+entries.target.classList : lấy ra classLisst của el đó, thay đổi ,...
+entries.target.id : lấy ra id, thay đổi
+...
+
+observer.unobserve(el) // hủy quan sát
+// hủy quan sát trong callback sau khi thực thi
+observer.unobserve(entries.target);
+
+-------------------------------------------------------------------------------
+Lazy Loading Images: tối ưu hiệu năng web, load ảnh khi scroll tới ảnh
+web tải với ảnh phân giải thấp, khi scroll đến ánh
+thay src bằng data-src để load ảnh phân giải cao
+----------------------------------------------------------------------------------
+========================================================================================
+*** thêm event khi thay đổi hash ở link #
+//HTML
+<a herf="#6w347hsdfy78ewisdf9e">link 1</a>
+<a herf="#6w347hsdfy78ewihsd8r">link 2</a>
+
+//JS
+const renderContext = fasync function() {
+  const id = window.location.hash;
+  console.log(id)// in ra #6w347hsdfy78ewisdf9e
+  id = id.slice(1)// lấy ra id bỏ qua #
+  if (!id) return;// khi không có id  
+
+  const res = await fetch(`url/linhta/linhtinh/id`);
+  const data = await res.json();
+  console.log(data);
+}
+window.addEventListener('hashchange', renderContext); // thực hiện fetch khi thay đổi đường dẫn #
+window.addEventListener('load', renderContext);// thực hiện fetch khi load page
+
+========================================================================================
+UPDATE template not render all view
+- lấy ra template cũ
+   const newMarkup = this.generateMarkup;
+- tạo ra 1 DOM ảo
+   const newDOM = document.createRage().createContextualFragment(newMarkup);
+// .createRange() : tạo ra 1 phạm vi
+// .createContextualFragment(_String) : tạo phân đoạn ngữ cảnh
+// tạo ra 1 dom ảo, không tồn tại trên page
+// dom này có các function đi kèm như dom thực => thay đổi
+
+    const newElements = Array.from(newDOM.querySelectorAll('*'));
+    const curElements = Array.from(this._parentElement.querySelectorAll('*'));
+// lấy ra các elemnt trong dom cũ và dom mới
+
+    newElements.forEach((newEl, i) => {
+      const curEl = curElements[i];
+      // console.log(curEl, newEl.isEqualNode(curEl));
+
+      // Updates changed TEXT
+      if (
+        !newEl.isEqualNode(curEl) &&
+        newEl.firstChild?.nodeValue.trim() !== ''
+      ) {
+        // console.log('💥', newEl.firstChild.nodeValue.trim());
+        curEl.textContent = newEl.textContent;
+      }
+
+      // Updates changed ATTRIBUES
+      if (!newEl.isEqualNode(curEl))
+        Array.from(newEl.attributes).forEach(attr =>
+          curEl.setAttribute(attr.name, attr.value)
+        );
+    });
+// so sánh 2 dom và update
+
+
+
+
+
+
+
+
+

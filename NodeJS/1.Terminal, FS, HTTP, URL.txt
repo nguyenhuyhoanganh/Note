@@ -1,0 +1,196 @@
+﻿========================================================================
+viết code JS trên terminal của vs code
+> node
+js sẽ thực thi từng dòng trả về ngay kết quả trên terminal
+> .exit  hoặc ctrl D 
+// thoát thực thi js trên terminal
+tab tab
+// hiển thị tất cả biến cụ bộ có sãn trong node js
+// 1 số thuộc về riêng node khác với browser như https, fs, cryto, ... là các node module
+
+> _tên_module. tab tab : String. tab tab
+// hiển thị tất cả phương tức và thuộc tính của module
+
+> node index.js
+// thực thi file index.js
+
+ctrl + C để break 1 ctring node đang chạy: server
+
+=============================================================================
+FS MODULE
+giúp đọc ghi dữ liệu cho node js
+const fs = require('fs') // trả về 1 object tên fs
+
+const textIn = fs.readFileSync('_đường_dẫn_tệp', '_bộ_mã_hóa_ký_tự: utf-8')
+// đọc tệp đồng bộ
+
+const textOut = 'created by HoangAnh'; 
+fs.writeFileSync('_đường_dẫn_tệp', textOut);
+// nếu đường dẫn k có file tự động tạo file mới
+
+
+const textIn = fs.readFile('_đường_dẫn_tệp', '_bộ_mã_hóa_ký_tự: utf-8', callBackfn(err, data))
+// đọc tệp không đồng bộ
+
+const textIn = fs.writeFile('_đường_dẫn_tệp', data ,'_bộ_mã_hóa_ký_tự: utf-8', callBackfn(err))
+// ghi file bất đồng bộ
+
+${__dirname} : đại diện cho đường dẫn đến thư mục hiện tại
+===================================================================================
+HTTP MODULE
+cung cấp khả năng kết nối mạng, nhận request và phản hồi respone
+const http = require('http');
+
+// tạo server
+const server = http.createServer((request, response) => {
+  console.log(request.url);
+  // trả về url của request
+  // : / là url của request 
+  // : /favicon.ico callback gọi lần 2 để lấy icon của web
+  if (pathname === '/' || pathname === '/overview') {
+    res.writeHead(200, {
+      'Content-type': 'text/html'
+    });
+  response.end('<h1>hello from server</h1>');
+  // cách đơn giản nhất để giử 1 phản hồi
+  } else {
+    res.writeHead(404, {
+      'Content-type': 'text/html',
+      // của html là text/html, của json là application/json
+      'my-own-header': 'hello-world'
+    });
+    res.end('<h1>Page not found!</h1>');
+  }
+})
+// mỗi lần có 1 request đến server, callback sẽ đc gọi
+// biến request trong callback chứa tất cả nội dung request
+// bao gồm: url; headers: host, connection, ... ; ...
+// respone cung cấp nhiều tools để giử phản hồi
+
+// lắng nghe request
+server.listen(8000, '127.0.0.1', () => {
+ console.log('listening to request on port 8000');
+})
+
+// nhận vào callbackfn đc chạy ngay khi server sẵn sàng nhận request
+===================================================================================
+ROUTING
+const url = require('url');
+// giúp phân tích cú pháp các tham số trong url, chuyển các them số thành object
+// request.url chỉ trả lại chuỗi string url
+
+const { query, pathname } = url.parse(request.url, true);
+// trả về 1 object url gồm port, hostname, search, query,...
+// trong đó thuộc tính query là 1 object đã  phân tích cũ pháp query từ url
+// pathname là tên pathname của url, có thể dùng so sánh để thực hiện respone
+===================================================================================
+IMPORT, EXPORT MODULE NODEJS
+mọi file trong node js đều được coi là 1 module
+
+export: root > modules > a.js
+module.exports = () => {
+  console.log('Say hello');
+}
+ 
+import:
+const a = require('./modules/a')
+===================================================================================
+NPM
+> npm init 
+- tạo ra tệp package.json: tệp cấu hình của project
+
+* 2 loại packages có thế install
+//dependencies: chứa code dùng để đưa vào project
+slugify  :package tạo url dễ đọc
+> npm install slugify
+const slugify = require('slugify');
+ 
+//development dependencies: công cụ hỗ trợ phát triển project như webpack, test, debug, ...
+nodemon: giúp tự động khởi động lại server khi save
+> npm install nodemon --save-dev
+ 
+> nodemon index.js : sử dụng với comandline để chạy server
+// cài đặt package global: sửa dụng đưuọc cho mọi project trên máy
+// cài bt chỉ là cái local
+> npm i nodemon --global 
+> nodemon index.js : sử dụng với comandline để chạy server chỉ áp dụng cho cài đặt global
+
+* scripts:chỉ định 1 tập lệnh cho npm, thay thế các lệnh comandline, giúp thực thi các lệnh comandline của devDepensencies( được cài đặt local) 
+
+"scripts": {
+    "start": "nodemon index.js"
+}, 
+
+> npm start 
+======VERSION Package=======
+_major_version._minor-version._patch_version
+
+_patch_version: chỉ số lần vá lỗi
+_minor-version: version nhỏ, giới thiệu 1 số tính năng mới, tất cả thay đổi trong version mới sex luôn tương thích ngược vs version cũ, không phá vỡ code
+_major_version: version lớn, thay đổi mã code, có thể không tương thích với code cũ
+
+// tiền tố trước version hỗ trợ upadate
+^: chấp nhận bản vá và các version nhỏ
+~: chỉ chấp nhận các bản vá lỗi
+*: chấp nhận tất cả version
+
+> npm outdated : kiểm tra xem có package nào lỗi thời
+// trả về 1 bảng các package lỗi thời
+
+> npm i slugify@1.1.0 : cài đặt package với version nhất định
+
+> npm update slugify : update package theo tiền tố chỉ định
+
+npm uninstall express : xóa package
+
+=====node_modules
+chứa toán bộ dependencies đã install
+// không bao giờ chia sẽ thư mục node_modules rất nặng
+// có thể dễ dàng lấy từ npm
+> npm install : tại lại mọi dependencies trên npm theo package.json
+
+package-lock.json: bảo gồm các dependencies của dependencies đã install
+===================================================================================
+config eslint, prettier
+>npm i eslint prettier eslint-config-prettier eslint-plugin-prettier eslint-config-airbnb eslint-plugin-node eslint-plugin-import eslint-plugin-jsx-a11y eslint-plugin-react --save-dev
+
+===================================================================================
+> npm i express-rate-limit: giới hạn truy cập:
+
+const limiter = rateLimit({
+  max: 100,
+  windowMs: 60 * 60 * 1000,
+  // 100 request trong 1 giờ
+  message: 'Too many requests from this IP, please try again in an hour!'
+});
+app.use('/api', limiter);
+
+===================================================================================
+> npm i helmet: bảo vệ header
+> npm i xss-clean: chống xss: làm sạch đoạn mã script
+> npm i express-mongo-sanitize: chống no sql injection
+> npm i hpp: làm sạch query với các cụm từ truy vấn lặp
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

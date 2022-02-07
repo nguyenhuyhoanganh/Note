@@ -1,0 +1,298 @@
+﻿Component
+- export 1 component sang components khác luôn cần gán lại className, attributes, từng ứng dùng ở parent components  
+- sử dụng component trong mã JSX luôn viết hoa ký tự đầu thì react mới nhận biết được đó là 1 component nhận content từ parent component sử dụng nó
+================================================================================================
+props: tham số truyền và các function export component
+  props là 1 object, các thuộc tính trùng với tên các attribute được đặt vào chính components export trong khi sử dụng ở parent component
+  props có thể lưu 1 function, object, array, number, string, ...
+**  thường dùng props lưu function của parent component, sử dụng để thực thi component đó trong child component (do dữ liệu nhận được ở từng child component như input) => đẩy dữ liệu ngược từ child component sang parent component giúp chuyển dữ liệu qua lại với nhau (TWO_WAY_BINDING)
+  props.children: đưa vào giữa cặp thẻ <></> của component giúp componn
+================================================================================================
+JSX: mã HTML được trả về từ mỗi component, cho phép kết hợp js với html để hiển thị giao diện
+  -JSX được trả về từ function export của mỗi component
+  -JSX cần được bao bọc trong 1 element 'root'
+     do: JSX trả về <=> React.createElement('_nameTagEl', {_objectAttribute}, React.createElement(), React.createElement(), ...)
+     các React.createElement() trong React.createElement() root là child element trong root element
+     return chỉ trả về 1 value => cần phải có 1 RCreateEl root bao bọc tất cả RCreateEl child => JSX cũng cần 1
+  -Các attribute đặc biệt trong JSX:
+      class = className
+      for = htmlFor
+      onClick, onChange, ... tương tự cú pháp css để addEvent trên từng element, kết hợp mã js trong {}
+  -Sử dụng cặp {} để viết cú pháp js trong JSX giúp chuyển dữ liệu
+  -Sử dụng props đưa dữ liệu từ parent component sang các child component 
+
+  -Thay vì sử dụng root gốc bao bọc toàn bộ JSX, có thể return và 1 mảng các element, react sẽ tự động ghép các element trong mảng thành 1 component
+  -Với việc trả về 1 mảng code JSX, react luôn yêu cầu mỗi element trong mảng có 1 key duy nhất (render mảng li trong ul, cần đặt key cho từng li), đặt key giúp react không cần render lại toàn bộ mảng khi mảng thay đổi, mà chỉ render thêm phần tử mới của mảng
+
+  -Sử dụng 1 component trống để wrap lại, làm element root thay cho thẻ div tránh các cặp thẻ div lồng nhau nhiều lần
+     const Wrapper = props => {
+       return props.children;
+     };
+     export default Wrapper
+  -React đã hỗ trợ sẵn 1 component wrap, không cần phải tự viết:           <React.Fragment></React.Fragment>  , cần import Reat from 'react' 
+    hoặc <Fragment></Fragment> , cần import { Fragment } from 'react'
+
+  - ReactDOM.render(<Component />, _domElement);
+    render giao diện trong 1 _domElement của index.html
+  - ReactDOM.createPortal(<Component />, _domElement);
+    lấy các child component render ra ngoài component root, _domElement sẽ được xác định bằng cách thêm các thẻ HTML ngoài div.root ở index.html, và là nơi hiển thị các component đó. các child component này vẫn tham chiếu được props của parent component chứa nó trong mã JSX tuy nhiên khi render sẽ không nằm trong parent component mà nằm ngoài root component: dùng có backdrop, modal, ...
+- 
+
+================================================================================================
+useState(): lưu trạng thái của 1 variables, thực hiện render lại giao diện có liên quan đến variables đó khi nó thay đổi (do react chỉ render giao diện 1 lần đầu tiên, không thực hiện lại khi thay đổi dữ liệu trong các components => luôn cần useState để render lại giao diện)
+-nhận vào 1 value
+  - '': thường sử dụng để lưu giá trị cho input
+  - null: thường sử dụng lưu object
+  - []: thường sử dụng lưu mảng
+  - props._attributeName: lưu giá trị các attribute được truyền vào từu parent component
+-trả về mảng 2 phần tử
+   1: state lưu giá trị của thứ được truyền vào, và sẽ thay đổi theo thời gian
+   2: 1 fn để thay đổi state, đưa giá trị mới của state vào function sẽ thay đổi state thành giá trị mới đó
+
+ex: const [state, setState] = useState('A');4
+    const changeState= () => {
+      setState(B); // thay đổi state từ A -> B
+    }
+
+-sử dụng biến state đặt làm value cho các attribute của các element trong JSX, react sẽ nhận biết các thay đổi của state để render lại giao diện
+
+-có thể đưa trực tiếp giá trị muốn thay đổi của state vào trong setState() nhưng giá trị đó sẽ không thay đổi luôn state lúc đó mà sẽ đợi đến lúc thực hiện xong hẳn 1 thay đổi( có thể là render lại view) thì state mới thực sử lưu giá trị được truyền vào setState()    
+-dùng các tối ưu hơn để lưu state:
+ setState((prevState) => { return <giá trị nào đó dựa vào giá trị state ngay trước nó> }
+  prevState: là giá trị state trước khi thay đổi
+
+ex: component form
+const Input = (props) => { 
+  const [enteredInput, setEnteredInput] = useState('');
+  
+  const submitHandler = (event) => {
+    event.preventDefault(); // chặn form submit mặc định
+    if(enteredInput.trim().length === 0) return; // kiểm tra input rỗng
+    props.onSubmitForm(enteredInput); // đưa dữ liệu input lên parent component
+    setEnteredInput(''); // đặt lại state của input thành rỗng, chưa phản ánh lên giao diện ngay
+  }
+
+  const inputChangeHandler = (e) => {
+    setEnteredInput(e.target.value); // đặt lại state mỗi khi thay đổi input
+  }
+
+  return (
+    <form onSubmit={submitHandler}>  
+      <label htmlFor="value">Input value</label>
+      <input
+        id="value" // liên kết với label
+        type="text" 
+        value={enteredInput} // giúp phản ánh lại dữ liệu khi state thay đổi
+        // ở đây dùng cho setEnteredInput('') để hiển thị value rỗng trên giao diện
+        onChange={inputChangeHandler} // gọi inputChangeHandler khi input change
+      />
+      <button type="submit">Submit</button>
+    </form>
+  );
+};
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+** lưu handler và state ở parent component và thực thi gọi handler qua props.handler ở child component để thay đổi state ở parent component (component child quản lý dữ liệu ở parent)
+** đẩy dữ liệu qua props lên parent component (component parent quản lý dữ liệu ở child)
+** => chuyển dữ liệu giữa 2 child component    
+///////////////////////////////////////////////////////////////////////////////////////////////
+================================================================================================
+style react
+-CSS inline JSX: style={{ fontSize: 120 }} , gói các css trong 1 class, nếu thuộc tính có 2 kí tự thì có thể dùng 2 cách viết: fontSize: 120 hoặc 'font-size': 120
+-Sử dụng css bình thường, import vào component tương ứng: css sẽ ở phạm vi global => đảm bảo css của từng component không được trùng tên nhau
+
+-npm i styled-components : tạo 1 component bằng chính library, đính trực tiếp style vào component
+  - const _NameComponent = styled._elementTagName`css_code`;
+      _NameComponent: là tên component muốn export để
+      _elementTagName: tag name các element bình thường mà HTML hỗ trợ (button, div, ul, input, ...)
+      css_code: là code css cho cả component đó
+           nếu style trực tiếp cho component => không cần selector, viết trực tiếp sau cặp ``
+           nếu style cho các child element của component => thay selector bằng ký tự &, viết liền kề trong cặp ``
+  - _NameComponent này sẽ tự động được trả về là 1 component trong react, luôn luôn hỗ trợ thêm element giữa các cặp <></> như <>{props.children}</>
+  - Component này có thể sử dụng để export như 1 component bình thường (chỉ hỗ trợ style, không thêm event, attribute) , có thể sử dụng làm 1 child element trong 1 component lớn (viết chung 1 file, sẽ được dùng như cú pháp JSX hỗ trợ thêm event, attribute như cú element trong JSX)
+  - Hỗ trợ viết JS bằng cặp {} ở trong css_code để đặt các style động, JS này sẽ truy cập được props như 1 component bình thường, chỉ dùng để lấy dữ liệu truyền vào và dựa vào đó để đặt style động
+
+-Sử dụng css module:
+  - Đặt tên file css có đuôi .module.css
+  import classes from '_namefilecss.module.css'
+  - Thêm style vào trực tiếp JSX: className='classes._nameclass'
+  - React sẽ tự động chuyển đổi class từng component thành class duy nhất, không trùng với component khác (cho dù 2 component cùng tên class ở trong code)
+ 
+================================================================================================
+useRef() : 
+-Thao tác của useRef() trên DOM: cho phép truy cập các yếu tố DOM khác nhau và làm việc với nó
+   ở DOM cần làm việc đặt thuộc tính ref={_nameRef}
+ex:
+const inputRef = useRef();
+// inputRef sẽ lưu trữ 1 DOM, bằng cách thêm attribute ref={inputRef} vào DOM cần theo dõi
+// từ đó inputRef có thể thao tác thay đổi DOM, hoặc lấy ra giá trị của DOM
+// inputRef.current.value : lấy ra giá trị của input DOM mà nó theo dõi, thay thế cho việc sử dung useState() để theo dõi onChange mỗi khi input thay đổi trong khi chỉ cần giá trị của input khi submit
+
+================================================================================================
+useEffect()
+
+userEffect(() => { ... }, [ dependencies ]);
+userEffect nhận vào 2 tham số
+   1: 1 function sẽ được thực thi ngay khi các dependencies thay đổi
+   2: 1 mảng các dependencies, để useEffect theo dõi sự thay đổi đó
+
+-Sử dụng useState() làm render lại liên tục giao diện và thực thi lại toàn bộ các component function mỗi khi state thay đổi => thực thi nhiều lần 1 đoạn mã
+-useEffect() sẽ tránh hạn chế của useState(), khi chỉ thực thi lại nếu các dependencies thay đổi, đưa vào 1 mảng dependencies rỗng thì useEffect chỉ thực thi lần đầu tiên
+-Nếu không đưa tham số thứ 2 vào useEffect => logic trong useEffect sẽ thực thi lại mỗi khi render lại trang web
+ex: sử dụng localstorage để check login
+   - nếu sử dụng useState: const [isLoggedIn, setIsLoggedIn] = useState(false); 
+   - kiểm tra localStorage.getItem('isLoggedIn') xem có bằng 1 không
+   - nếu bằng 1 thì setIsLoggedIn(true)
+   => tạo ra vòng lặp vô hạn vì khi setIsLoggedIn(true) là thay đổi state 1 lần => lại render lại và lại tiếp tục kiểm tra lại
+-đưa các state hoặc các props vào làm dependencies cũng hạn chế cho việc chạy lại logic thay vì chạy lại logic sau mỗi lần setState lại của useState()
+-công việc chính của useEffect vẫn là sử lý các tác dụng phụ như http request
+
+-muốn check formIsValid mỗi khi người dùng ngừng gõ: sử dụng setTimeOut 
+useEffect(() => {
+    const identifier = setTimeout(() => {
+      console.log('Checking form validity!');
+      setFormIsValid(emailIsValid && passwordIsValid);
+    }, 500);
+
+    return () => {
+      console.log('CLEANUP');
+      clearTimeout(identifier);
+    };
+  }, [emailIsValid, passwordIsValid]);
+// ở đây emailIsValid và passwordIsValid check và thay đổi mỗi khi nhập 1 ký tự vào input
+// kiểm tra ngừng nhập ký tự 500ms => thực hiện 1 lần kiểm tra formIsValid
+// tránh kiểm tra formVaild liên tục, funtion trong useEffect chấp nhận trả về 1 function mới clearTimeOut
+
+*tương tụ với việc giử quá nhiều HTTP request check email có tồn tại hay không để login*
+  -function đưa vào làm tham số đầu tiên của useEffect cho phép trả về 1 funtion, function trả về này sẽ thực thi trước mỗi lần  thực thi lại useEffect(), nếu đưa dependencies là 1 mảng rỗng => logic đầu tiên thực hiện 1 lần khi reload page, khi component chứa useEffect bị loại bỏ, chuyển qua component khác thì function trả về của function đầu tiên thực thi
+  
+================================================================================================
+useReducer() giúp quản lý state giống useState(), sử dụng hữu ích trong các trường hợp phức tạp hơn, sử dụng thay useState khi có các state phụ thuộc vào nhau, state này cập nhật dựa trên sự cập nhật của state khác
+const [state, dispatchFn] = useReducer(reducerFn, initialState, initFn);
+- state vẫn lưu state snapshot của component render lại/chu kỳ đánh giá lại 
+- dispatchFn thay vì chuyển 1 giá trị để thay đổi state như useState nó sẽ được đưa vào 1 hành động được tiêu thụ bởi reducerFn
+- reducerFn là 1 function sẽ được kích hoạt tự động mỗi khi 1 hành động được giử đi từ dispatchFn(), nó sẽ nhận state snapshot mới nhất và giử lại state mới, cập nhật state
+  : (prevState, action) => newState
+- initialState và initFn là state đầu tiên và function đầu tiên sẽ thiết lập trong trạng thái ban đầu
+
+ex: check form input, mỗi khi blur khỏi form sẽ kiểm tra valid, mỗi khi thay đổi input sẽ kiểm tra valid
+const emailReducer = (state, action) => {
+  if (action.type === 'USER_INPUT') {
+    return { value: action.val, isValid: action.val.includes('@') };
+  }
+  if (action.type === 'INPUT_BLUR') {
+    return { value: state.value, isValid: state.value.includes('@') };
+  }
+  return { value: '', isValid: false };
+};
+
+const Component (props) => {
+  const [emailState, dispatchEmail] = useReducer(emailReducer, {
+    value: '',
+    isValid: null,
+  });
+  const [formIsValid, setFormIsValid] = useState(false);
+
+  const emailChangeHandler = (event) => {
+    dispatchEmail({type: 'USER_INPUT', val: event.target.value});
+
+    setFormIsValid(
+      event.target.value.includes('@');
+    );
+  };
+
+  const validateEmailHandler = () => {
+    dispatchEmail({type: 'INPUT_BLUR'});
+  };
+
+  const submitHandler = (event) => {
+    event.preventDefault();
+    props.onLogin(emailState.value);
+  };
+
+  return (
+    <Card className={classes.login}>
+      <form onSubmit={submitHandler}>
+        <div
+          className={`${classes.control} ${
+            emailState.isValid === false ? classes.invalid : ''
+          }`}
+        >
+          <label htmlFor="email">E-Mail</label>
+          <input
+            type="email"
+            id="email"
+            value={emailState.value}
+            onChange={emailChangeHandler}
+            onBlur={validateEmailHandler}
+          />
+        </div>
+        <Button type="submit" className={classes.btn} disabled={!formIsValid}>
+          Login
+        </Button>
+      </form>
+    </Card>
+  );
+};
+
+export default Component
+================================================================================================
+React comtext(quản lý state storage)
+tránh chuyển tiếp dữ liệu qua lần lượt các component lên parent component để 2 component child khác nhánh có dữ liệu của nhau (tránh props chain)
+=> giúp chuyển dữ liệu từ component này đến bất cứ component nào khác
+
+
+-React.createContext(); thường đưa vào 1 object là state để lưu trữ, trả về 1 component chứa state đó, đưa vào 1 giá trị defaul sẽ cho phép truy cập trực tiếp qua .Consumer
+
+// auth-context.js //
+import React from 'react';
+
+const AuthContext = React.createContext({
+  isLoggedIn: false
+});
+
+export default AuthContext;
+
+-sử dụng component mà React.createContext trả về để wrap lại component cần thao tác với state sử dụng .Provider
+
+// component.js //
+import AuthContext from './store/auth-context';
+... JSX
+<AuthContext.Provider 
+  value={{
+    isLoggedIn: isLoggedIn,// isLoggedIn sau là 1 state khai báo = useState() ở component này
+  }}
+  >
+  <Component></Component>
+</AuthContext.Provider>
+
+-tất cả các child component bao bọc trong nó sẽ được truy cập vào context 
+ - sử dụng .Consumer : wrap các component cần sử dụng context (đã được bọc trong .Provider ở component khác) bằng .Consumer 
+     trong <.Consumer></.Consumer> thực hiện {(ctx) => { return JSX;// sử dụng ctx._property } }
+     ctx trong function bọc trong .Consumer là object truyền vào file context ở React.createContext; 
+
+ - sử dụng react hook(useContext)
+
+-Đưa 1 giá trị mặc định vào React.createContext cho phép sử dụng .Consumer truy cập lấy ra giá trị default đó ngay tại bất cứ component nào mà không cần bao bọc .Provider trong component cha chứa nó.
+-Tuy nhiên về mặt kỹ thuật, giá trị đưa vào React.createContext() cần là 1 giá trị có thể thay đổi và giá trị này chỉ thay đổi dựa vào .Provider
+-Do bao bọc tại component cha bằng .Provider nên LUÔN cần đưa 1 prop: value vào .Provider, value này có các thuộc tính chứa trong context đã khai báo, cho phép thay đổi các thuộc tính đó bằng các state, các funtion đã khai báo bên ngoài component
+-Khi thay đổi value trong .Provider sẽ cho truyền value đi giữa các .Consumer
+================================================================================================
+useContext()
+
+-khai báo trong các component bao bọc bởi .Provider
+  const ctx = useContext(_Context_Import); // thay thế .Consumer
+-sử dụng ctx trong mã JSX cho phép truy cập props value của .Provider
+
+useContext không tối ưu => việc thay đổi state liên tục nên sử dụng props, redux
+
+================================================================================================
+ref : tham số thứ 2 truyền vào function component sau props
+tạo ràng buộc vào parent component : giúp sửu dụng ref ở custom component
+sử dụng ref phải bọc component đó bằng: React.forwardRef((props, ref) => {return JSX})
+=> có thể đặt prop ref vào component trong JSX của parent component để ràng buộc gọi các chức năng của component đó trong parent component thông qua biến đưa vào prop ref
+
+useImperativeHandle() sử dụng chung với ref => giúp xuất các chức năng tùy chỉnh DOM của component child sang parent của nó : sử dụng ref với custom component
+
+useImperativeHandle(ref, () => {return {// trả về 1 object có các thuộc tính là các function thao tác trên DOM dựa vào ref} })
+                                   

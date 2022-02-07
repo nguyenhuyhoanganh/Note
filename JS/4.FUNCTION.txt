@@ -1,0 +1,236 @@
+﻿////////Function Declarations////////
+
+function calc (a, b) {return a + b};
+
+////////Function Expressions///////
+
+const calc2 = function (a, b) {return a + b};
+
+Khác nhau giữa Declarations và Expressions
+- Declaration có thể gọi fn trước khi khai báo chức năng của fn
+- Expression không cho pháp gọi fn trước khi fn được xác định
+
+////////Arrow functions///////
+
+const calc3 = (a, b) => a + b;
+const hello = () => console.log('Hello world');
+const plusOne = a => a + 1;
+const multiplyAndShow = (a, b) => { return console.log(a * b);}; //block with return or with multiple lines
+
+
+///Function calling other function
+// gọi fn bên trong thân 1 fn khác
+
+
+//////Higher-Order Function///////
+
+- nhận vào functions như đối số và return ra 1 function
+  :receive callbackfn: có thể truyền vào nhiều fn khác nhau
+const callbackfn = x => console.log(x);
+const higherOrderFn = (fullName, callbackfn) => callbackfn(fullName);
+higherOrderFn(hoanganh);//hoanganh
+- return fn
+//Solution 1
+const greet = function (greeting) {
+  return function (name) {
+    console.log(`${greeting} ${name}`);
+  } 
+}
+const greeterHey = greet('Hey');
+greeterHey('HoangAnh'); // Hey HoangAnh
+
+//Solution 2
+const greet = greeting => name => console.log(`${greeting} ${name}`);
+greet('Hello')('HoangAnh'); Hello HoangAnh
+
+
+//////IIFE///////
+thực thi 1 lần ngay lập tức, không lưu lại fn
+
+(funtion () {console.log('this will never run again');})();
+// đóng gói các biển bên trong fn, các biến thành private, bên ngoài không truy cập vào đc
+//ES6 không cần nữa vì đã thay thế var bằng const, let
+
+///////CLOSURES//////
+// làm cho hàm nhớ tất cả các biến đã tồn tại tại nơi sinh của hàm
+// biến EV trong closures được ưu tiên hơn biến global nếu 2 biến cùng tên
+
+- A function has access to the variable enviroment (VE) of the excution context in which it was created
+- Closures : VE attached to the function, exactly as it was at the time ad palce the function was created
+
+const secureBooking = function () {
+  let passengerCount = 0;
+  return function () {
+    passengerCount++;
+    console.log(`${passengerCount} passengers`);
+  };
+};
+const booker = secureBooking();
+booker();
+booker();
+booker();
+console.dir(booker);
+-----------------------------------------------------------------
+/ More Closure Examples
+// Example 1
+let f;
+const g = function () {
+  const a = 23;
+  f = function () {
+    console.log(a * 2);
+  };
+};
+const h = function () {
+  const b = 777;
+  f = function () {
+    console.log(b * 2);
+  };
+};
+g();
+f();
+console.dir(f);
+// Re-assigning f function
+h();
+f();
+console.dir(f);
+
+// Example 2
+const boardPassengers = function (n, wait) {
+  const perGroup = n / 3;
+  setTimeout(function () {
+    console.log(`We are now boarding all ${n} passengers`);
+    console.log(`There are 3 groups, each with ${perGroup} passengers`);
+  }, wait * 1000);
+  console.log(`Will start boarding in ${wait} seconds`);
+};
+const perGroup = 1000;
+boardPassengers(180, 3);
+--------------------------------------------------------------------------
+
+
+////////////////////////////////////////////////////////////////////
+- Default values
+const callName = function (firstName = 'Hoang', lastName = 'Anh') {
+  console.log(`${firstName} ${lastName}`);
+}
+callName('Trinh', 'Son'); //Trinh Son
+callName(); //Hoang Anh
+callName('Ngoc'); // Ngoc Anh
+callName(undefined, 'Hau'); // Hoang Hau
+
+-Passing Arguments Works: Value vs. Reference
+//Objects, Arrays, Sets, Maps truyền vào 1 function khi thay đổi bên trong sẽ thay đổi giá trị của nó bên ngoài
+//Number, String, Boolean, ... thì không
+
+///////////////////////////////////////////////////////////////////////////
+.call(), .apply(), .bind()
+ 
+ fn.call(_Object, ...)
+=> gắn 1 fn làm method, 'this' trỏ đến Object đầu tiền truyền vào
+- sau Object, call nhận vào các đối số tương tự như fn ban đầu
+ fn.apply(_Object, ...)
+- sau Object, apply nhận vào 1 mảng các đối số tương tự như fn ban đầu
+
+ const fnOfObject = fn.bind(_Object, ...) 
+- bind gắn luôn Object vào 1 fn tạo ra 1 fn mới
+
+
+var person1 = {firstName: 'Jon', lastName: 'Kuperman'};
+var person2 = {firstName: 'Kelly', lastName: 'King'};
+
+function say(greeting1, greeting2) {
+ console.log(greeting1 + ',' + greeting2 + ' ' + this.firstName + ' ' + this.lastName);
+}
+
+say.call(person1, 'Hello', 'Good morning'); // => Hello,Good morning Jon Kuperman
+say.call(person2, 'Hello', 'Good morning'); // => Hello,Good morning Kelly King
+
+function say(greeting0, greeting1) {
+ console.log(greeting0 + ',' + greeting1 + ' ' + this.firstName + ' ' + this.lastName);
+}
+
+var sayHelloJon = say.bind(person1, 'Hello', 'Good morning');
+var sayHelloKelly = say.bind(person2, 'Hello', 'Good morning');
+
+sayHelloJon(); // => Hello,Good morning Jon Kuperman
+sayHelloKelly(); // => Hello,Good morning Kelly King
+
+-----------------------------------------------------------------------------------------------
+// The call and apply Methods
+
+const lufthansa = {
+  airline: 'Lufthansa',
+  iataCode: 'LH',
+  bookings: [],
+  // book: function() {}
+  book(flightNum, name) {
+    console.log(
+      `${name} booked a seat on ${this.airline} flight ${this.iataCode}${flightNum}`
+    );
+    this.bookings.push({ flight: `${this.iataCode}${flightNum}`, name });
+  },
+};
+lufthansa.book(239, 'Jonas Schmedtmann');
+lufthansa.book(635, 'John Smith');
+const eurowings = {
+  airline: 'Eurowings',
+  iataCode: 'EW',
+  bookings: [],
+};
+const book = lufthansa.book;
+// Does NOT work
+// book(23, 'Sarah Williams');
+// Call method
+book.call(eurowings, 23, 'Sarah Williams');
+console.log(eurowings);
+book.call(lufthansa, 239, 'Mary Cooper');
+console.log(lufthansa);
+const swiss = {
+  airline: 'Swiss Air Lines',
+  iataCode: 'LX',
+  bookings: [],
+};
+book.call(swiss, 583, 'Mary Cooper');
+// Apply method
+const flightData = [583, 'George Cooper'];
+book.apply(swiss, flightData);
+console.log(swiss);
+book.call(swiss, ...flightData);
+
+// The bind Method
+
+// book.call(eurowings, 23, 'Sarah Williams');
+const bookEW = book.bind(eurowings);
+const bookLH = book.bind(lufthansa);
+const bookLX = book.bind(swiss);
+bookEW(23, 'Steven Williams');
+const bookEW23 = book.bind(eurowings, 23);
+bookEW23('Jonas Schmedtmann');
+bookEW23('Martha Cooper');
+// With Event Listeners
+lufthansa.planes = 300;
+lufthansa.buyPlane = function () {
+  console.log(this);
+  this.planes++;
+  console.log(this.planes);
+};
+// lufthansa.buyPlane();
+document
+  .querySelector('.buy')
+  .addEventListener('click', lufthansa.buyPlane.bind(lufthansa));
+// Partial application
+const addTax = (rate, value) => value + value * rate;
+console.log(addTax(0.1, 200));
+const addVAT = addTax.bind(null, 0.23);
+// addVAT = value => value + value * 0.23;
+console.log(addVAT(100));
+console.log(addVAT(23));
+const addTaxRate = function (rate) {
+  return function (value) {
+    return value + value * rate;
+  };
+};
+const addVAT2 = addTaxRate(0.23);
+console.log(addVAT2(100));
+console.log(addVAT2(23));
+-----------------------------------------------------------------------------------------------

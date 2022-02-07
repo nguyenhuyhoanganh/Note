@@ -1,0 +1,191 @@
+﻿//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+==================================================================================================================
+FLOATS: thả nổi element ra khỏi flow
+  float: left; :thả nối element trôi sang trái
+  float: right; :thả nối element trôi sang phải
+
+- Element bị xóa khỏi flow bình thường
+- Text và các inline elements sẽ bao bọc xung quanh float element, chấp nhận các thuộc tính margin, pading của float element
+- Container sẽ không tự động điều chỉnh height theo các float element (nếu chỉ chứa các float element height = 0)
+- Block element (không chứa text) xung quanh float element sẽ bị float element chồng lên, không chấp nhận các thuộc tính margin, padding của nhau
+- Float element trong container sẽ được đặt theo content của container
+  - margin, padding của float element đẩy element ra xa khỏi mép content của container, không làm container to ra
+  - margin, padding của container đẩy mép của content xa ra => gián tiếp đẩy float element xa ra
+  - thay đổi box-sizing: border-box; sẽ định vị lại element từ border thay vì content
+- Float element xếp cạnh nhau chấp nhận margin, padding của nhau => float element chơi riêng với nhau
+- Margin, padding của element bình thường (xếp cạnh element float) không đẩy element khỏi float element => element non-float chơi riêng với nhau   
+
+* Clear flow: container chấp nhận điều chỉnh height theo float element
+
+- Sử dụng element: 
+  - thêm 1 element cuối cùng trong container <div class='clear'></div>
+  - .clear { clear: both; }
+    /*Đặt clear: right; nếu chỉ muốn chặn các float right element, tương tụ với clear: left;. Nếu muốn chặn cả left, right đặt clear: both;*/
+- Sử dụng pseudo element (clearfix hack)
+  - thêm class='clearfix' vào container
+
+  - .clearfix { content: ''; clear: both; display: block;}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+==================================================================================================================
+BOX-SIZNG: BORDER-BOX
+- Hành vi mặc định của box-model khi thêm chỉ số về padding, border làm phình to kích cỡ của element: box-sizing: content-box, đặt width, height mặc định là kích cỡ của content
+   - element witdh = rightborder + rightpadding + witdh + leftpadding + leftborder
+   - element height = topborder + toppadding + height + bottompadding + bottomborder
+
+  box-sizing: border-box; đặt width, height bằng kích cỡ border + padding + content
+  => element width = width
+     element height = height
+  => padding và border thu hẹp chiều rộng và cao của content 
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+==================================================================================================================
+FLEX_BOX:
+  .container {
+    display: flex;
+  }
+
+- các child element ở container trở thành flex item
+- flex item tự động xếp lần lượt theo chiều ngang
+- căn giữa theo chiều dọc, tạo các cột có chiều cao bằng nhau
+
+-Flex container:
+  Main axis: trục ngang trái sang phải
+  Cross axis: trục dọc trên xuống dưới
+
+CSS:
+-Flex Container
+  gap: 0 | <length>
+    -tạo khoảng trống giữa các items, không sử dụng margin trên từng flex items
+  justify-content: flex-start | flex-end | center | space-between | space-around | space-evenly
+    -sắp xếp các items theo main axis (chiều ngang)
+  align-items: stretch | flex-start | flex-end | center | baseline
+    -sắp xếp các items theo cross axis (chiều dọc) 
+  flex-direction: row | row-reverse | column | column-reverse
+    -định nghĩa chiều cho main axis
+  flex-wrap: nowrap | wrap | wrap-reverse
+    -cho phép items chuyển xuống dòng mới khi chúng quá lớn
+  align-content: stretch | flex-start | flex-end | center | space-between | space-around
+    -chỉ áp dụng khi có nhiều line (flex-wrap: wrap)
+    -giống chức năng justify-content
+
+-Flex items
+  align-seft: auto | stretch | flex-start | flex-end | center | baseline
+    -ghi đè thuộc tính align-items cho các flex-items riêng lẻ
+  flex-grow: 0 | <interger>
+    -cho phép 1 element lớn lên theo cấp số, phủ hết phần diện tích còn lại theo main axis (0 là không, 1+ là cho phép)
+    -các flex-items cùng chỉ số grow sẽ lớn bằng nhau phủ kín container
+  flex-shrink: 1 | <interger>
+    -cho phép các element co lại (0 là không, 1+ là cho phép)
+  flex-basis: auto | <length>
+    -xác định chiều rộng của 1 item, thay thế cho thuộc tính min-width, thường đặt %
+    -độ rộng tự căn chỉnh sao cho các flex-items vẫn thuộc container (cho phép thu nhỏ so với chỉ số basis do default: flex-shink: 1), độ rộng luôn lớn tối thiểu chứa đủ content trong các flex-items (cho phép phóng to so với chỉ số basis) 
+  flex: 0 1 auto | <int> <int> <len>
+    -short hand cho flex-grow, -shrink, -basis
+  order: 0 | <interger>
+    -thay đổi thứ tự items. -1 đẩy items lên trước, 1 làm cho items ra sau
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+==================================================================================================================
+CSS Grid:
+  .container {
+    display: grid;   
+    grid-template-columns: <length> <length> ...;
+    grid-template-rows: <length> <length> ...;
+    gap: lenght;
+  }
+ - các grid item được dàn trải từ trái sang phải, trên xuống dưới trong container
+ - số column = số chỉ số <length> của thuộc tính grid-template-column
+ - chiều cao các grid-items mặc định lấp đầy 1 row, chiều cao 1 row mặc định bằng grid-item có chiều cao lớn nhất
+ - grid-template-rows: chỉ đinh độ cao từng hàng
+ - gap: chỉ định khoảng cách giữa các cột và hàng trong container (khoảng cách giữa các grid-items)
+   - column-gap: chỉ định khoảng cách giữa các cột
+   - row-grap: chỉ định khoảng cách giữa các hàng
+
+-Grid container:
+  Row axis: trục ngang, trái sang phải
+  Column axis: trục dọc, trến xuống dưới
+  /* không cho phép tahy đổi row axis và column axis*/
+  Grid lines: các đường lưới bao quanh các grid-items
+    có 3 row axis thì có 4 grid lines cho row
+    tương tư với column axis
+    => sử dụng để đặt chính xác 1 grid-item tùy vào ô trên grid-lines
+  Grid cell: các ô được xác định bởi grid-lines, chứa các gird-items
+  Gutters(gaps): khoảng cách giữa các grid-items
+  Grid track: là 1 hàng hoặc 1 cột, với 3 row, 2 column có 3 row tracks và 2 column tracks
+
+CSS
+-Grid container
+  grid-template-rows: <track size>*
+  grid-template-columns: <track size>*
+    -để thiết lập số hàng, cột của grid, mỗi track nhận vào 1 đơn vị chiều dài
+    -sử dụng đơn vị 'fr' để grid-items tự động căn chỉnh độ dài 
+    -có 1 grid-item sử dụng fr trên track, grid-item đó sẽ tự động lấp đầy khoảng trống của container
+    -có nhiều grid-items sử dụng fr trên 1 track, các grid-items đó sẽ tự phân chia theo tỷ số fr và lấp đầy container
+    -đặt auto cho 1 grid-item sẽ đặt kích thước grid-item vừa đủ để bao chọn content của item đó
+    -grid-template-columns: repeat(4, 1fr); :đặt 4 column độ rộng 1fr
+    -sử dụng đơn vị fr trong thuộc tính grid-template-rows, mặc định chiều cao các cells là chiều cao của cell cao nhất, đặt height cho container, chiều cao các rows theo tỷ lệ và lấp kín container
+  row-gap: 0 | <length>
+  column-gap: 0 | <length>
+  gap: 0 | <length>
+    -tạo khoảng trống giữa các tracks, THAY THẾ MARGIN
+  justify-items: stretch | start | center | end
+  align-items: stretch | start | center | end
+    -căn chỉnh các grid-items trong cell
+    -do mặc đinh là stretch nên các items tự động dãn ra chiếm toàn bộ cell 
+  justify-content: start | center | end | space-between | ...
+  align-content: start | center | end | ...
+    -căn chỉnh toàn bộ grid bên trong grid-container, áp dụng khi container lớn hơn grid
+    -phân phối các tracks (GIỐNG HỆT FLEX)
+
+-Grid items
+  grid-column: <start line> / <end line> | span <number>
+  grid-row: <start line> / <end line> | span <number>
+    -cho phép đặt 1 grid-item vào một ô cụ thể, dựa trên số line, từ khóa span được sử dụng để mở rộng 1 frid-item chiếm nhiều ô hơn
+  justify-seft: stretch | start | center | end
+  align-seft: stretch | start | center | end
+    -ghi đè thuộc tính justify-content/align-content cho từng items
+
+ex: sử dụng các thuộc tính grid-column, grid-row
+  // sử dụng dev-tool để xác định line cho 1 grid-container 
+  .gird-item--1 {
+    grid-column: 2 / 4; theo chiều ngang, bắt đầu từ line 2 kết thúc ở line 4, chiếm 2 cell 
+    grid-row: 3 / 4; theo chiều dọc, bắt đầu ở line 3 kết thúc ở line 4
+    /*xác định được vị trí của item dòng 2 cột 3*/
+  }
+  - grid-column: 2 / 4; === grid-column: 2 / span 2; : bắt đầu từ dòng thứ 2 và chiếm 2 ô
+
+  - grid-items chỉ chiếm 1 ô => grid-column: 5 / 6; === grid-column: 5; 
+  - sử dụng số ÂM để xác định grid-items từ bên phải (xem grid-lines ở dev-tool)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

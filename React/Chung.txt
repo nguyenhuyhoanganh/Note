@@ -1,0 +1,38 @@
+﻿Tạo project react với terminal
+- npx create-react-app my-app
+- cd my-app
+- npm start
+=======================================
+- JSX: JavaScript XML cú pháp đặc biệt được giới thiệu bởi react, cho phép viết html trong js code, html này được trả về bởi mỗi component
+
+- App.js là root component được render bởi reactDom trong index.js
+
+- Các component khác sẽ được import vào App.js
+- Các component đặt tên với ký tự đầu viết hoa
+- Trong các component là 1 function trùng với tên file, function này trả về JSX và được export sang các component khác, kết thúc ở App.js
+- Sử dụng component trong component khác bằng các import và sử dụng đúng tên component import (ký tự đầu viết hoa) gói 1 thẻ như 1 html element và đặt trong JSX
+- component gói thành 1 html element bắt buộc vào có ký tự đầu viết hoa => react dom sẽ quét và trả về html tương ứng
+- JSX trả về ở mỗi component chỉ được có 1 root element bao bọc các element, không cho phép trả về nhiều element cùng cấp
+- Thêm class CSS vào JSX với khai báo className="" thay vì chỉ class
+=======================================
+useState()
+viết như 1 attribute trong jsx
+onClick={clickHandler} 
+clickHandler là 1 function xử lý event click
+không thêm cặp () vì sẽ thực thi function ngay lập tức
+- vì react thực thi tất cả các function component 1 lần duy nhất để render ra giao diện nên khi thêm 1 event vào các element trên react sẽ không tahy đổi lại giao diện ban đầu, thay vào đó cần sử dụng useState
+
+import {useState} from 'react'
+
+useState(); // được gọi trong function của các component react
+useState(): là 1 hooks của react
+          : args: props._attributeName
+          : trả về 1 mảng 2 giá trị
+            : giá trị đầu tiên là chính props._attributeName được truyền vào và sẽ được cập nhật mỗi lần khi react render lại view đã cập nhật (cập nhật vào lần thực hiện thay đổi kế tiếp)
+            : giá trị thứ 2 là 1 function, function này cho phép thay đổi props._attributeName và cập nhật lại giao diện react mỗi lần được gọi
+
+nhận giá trị của ô input, không đưa attributeName vào useState(), thay vào đó đưa vào 1 chuỗi rỗng ''
+
+react hỗ trợ twoway bidding: đối với giá trị đầu vào, không chỉ lắng nghe thay đổi mà, mà cũng có thể chuyển 1 giá trị mới vào đầu vào
+
+bằng cách đặt value="giá trị thứ 1 của mảng trả về useState()"

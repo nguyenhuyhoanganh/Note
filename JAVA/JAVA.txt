@@ -1,0 +1,36 @@
+﻿SPRING
+- POJOs: đối tượng java thuần túy khác với EJB trong J2EE
+- Dependency injection: tạo kết nối lỏng lẻo giữa các object
+- AOP: lập trình hướng khía cạnh: thêm dịch vụ toán ứng dụng cho object nhất định
+- Giảm thiểu code JAVA
+==================================================================================
+Core Container: Beans => Core => SpEL, Context
+ => quản lý cách beans được tạo ra, cấu hình lại tập tin thiết lập tính độc lập và ngữ cảnh để giữ beans trong bộ nhớ
+
+AOP: cho phép tạo dịch vụ ứng dụng: logging, security, transactions, etc...
+ => áp dụng các dịch vụ này cho từng object theo kiểu khai báo, không cần sửa đổi code
+ AOP => Aspects => Instrumentation => Mesaging
+
+Data Access Layer: để giao tiếp với sql, nosql
+ JDBC => ORM => Transactions => OXM => JMS
+
+Web Layer: Servlet => WebSocket => Web => Portlet
+
+===================================================================================
+IoC : đảo ngược quyền kiểm soát: là quá trình thiết kế bên ngoài, xây dựng và quản lý các objects
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

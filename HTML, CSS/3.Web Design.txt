@@ -1,0 +1,293 @@
+﻿//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+==================================================================================================================
+WEB DESIGN
+  -TYPOGRAPHY
+  -COLORS
+  -IMAGES/ILLUSTRATIONS
+  -ICONS
+  -SHADOWS
+  -BORDER-RADIUS
+  -WHITESPACE
+  -VISUAL HIERARCHY
+  -USER EXPERIENCE
+  -COMPONENTS/LAYOUT
+- WEBSITE PERSONALITES
+ 1. Serious/Elegant: Nghiêm túc/Thanh lịch
+      - Kiểu chữ serif mỏng, 
+      - Màu golden hoặc pastel thẫm
+      - Hình ảnh lớn, chất lượng cao
+ 2. Minimalist/Simple: Tối giản/Đơn giản
+      - Focus vào text content
+      - Sử dụng text small/medium-sized, sans-serif đen
+      - Nhiều lines, ít hình ảnh, icons, icons sử dụng sẽ rất nhỏ
+ 3. Plain/Neutral: Trơn/Trung tính
+      - Sử dụng trong các trang web lớn, lâu đời
+      - Kiểu chữ nhỏ, trung tính
+      - Layout rất cấu trúc
+ 4. Bold/Confident: Táo bạo/Tự tin
+      - Nổi bật chữ to và đậm
+      - Khối màu sáng, lớn
+ 5. Calm/Peaceful: Êm đềm/Thanh bình
+      - Sử dụng cho việc chăm sóc sản phẩm và dịch vụ
+      - Truyền đạt ý tưởng quan tâm đến người tiêu dùng
+      - Màu phấn nhẹ, Tiêu đề serif mềm mại
+      - Kết hợp hình ảnh phù hợp với kiểu chữ, màu chữ
+ 6. Startup/Upbeat: Khởi nghiệp/Lạc quan
+      - Sử dụng trong nhiều công ty startup
+      - Phông chữ sna-serif hiện đại
+      - Kết hợp text và background xám nhạt
+      - Nhiều componet bỏ tròn 
+ 7. Playful/Fun: Vui tươi/Vui vẻ
+      - Nhiều màu sắc, thiết kế tròn
+      - Nhiều biểu tượng, hình minh họa vẽ tay, hình ảnh động
+      - Nội dung truyền tải tính cách vui tươi nhộn nhịn
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+==================================================================================================================
+WEB DESIGN RULES
+
+#1: Typography
+- Serif và Sans-serif
+  Serif: kiểu chữ có chân
+    - Sử dụng để tạo giao diện cổ điển
+    - Truyền tải sự đáng tin cậy
+    - Tốt khi dùng trong những văn bản dài như bài báo, tạp chí
+  Sans-serif: kiểu chữ không chân
+    - Gọn gàng, đơn gian    
+    - Cung cấp giao diện hiện đại          
+    - Dễ dàng được chọn cho việc bắt đầu thiết kế
+- Rules
+  1. sử dụng các kiểu chữ phổ biến (có sãn trên gg font hoặc font squirrel)
+   - Sans-serif:
+    - Inter 
+    - Open Sans
+    - Roboto
+    - Montserrat
+    - Work Sans
+    - Lato
+   - Serif:
+    - Merriweather
+    - Aleo
+    - Playfair Display
+    - Cormorant
+    - Cardo
+    - Lora
+  2. chỉ sử dụng 1 đến 2 kiểu chữ trên 1 trang 
+  3. chọn kiểu chữ phù hợp với tính cách của trang web
+  4. Khi chọn cỡ chữ, cố gắng giới hạn lựa chọn, sử dụng type scale tools, tránh liên tục suy nghĩ về việc đưa ra các giá trị kích thước font khác nhau 
+  5. Normal text nên sử dụng font size giữa 16px đến 32px
+  6. Long text như blog post, thử font size ở 20px hoặc lớn hơn
+  7. Headlines có thể chọn font-size từ 50px, font-weight từ 600 trở lên
+  8. không sử dụng font-weight dưới 400
+  9. sử dụng ít hơn 75 ký tự trên 1 dòng
+  10. cố gắng sử dụng line-height từ 1.5 đến 2 cho normal text, 1.1 -> 1.5 cho big text như header
+   - văn bản cang nhỏ càng dài thì line height càng lớn
+  11. nếu headlines trông thiếu tự nhiên có thể giảm khoảng cách giữa các chữ: letter-spacing, default = 0, đặt cho letter-spacing 1 con số âm
+  12. sử dụng chữ viết hoa cho các titles ngắn, font-size nhỏ, font-weight đậm và tăng letter-spacing
+  13. không nên điều chỉnh lề văn bản (justify text)
+  14. không căn giữa text trong 1 khối text, trừ khi đó là 1 khối rất nhỏ 
+==================================================================================================================
+#2: Colors
+- Rules
+  1. Đảm bảo màu sắc phù hợp tính cách trang web
+   - Red là màu thu hút sự chú ý nhất, tượng trưng cho đam mê, quyền lực, sự phấn khích
+   - Orange tương tự red nhưng bớt hung hăng hơn, tương trung cho hạnh phúc, vui vẻ, sáng tạo
+   - Yellow niềm vui, tươi sáng, thông minh
+   - Green sự phát triển, tự nhiên, sức khỏe, sự hài hòa
+   - Blue được sử dụng nhiều nhất trong web design, hòa bình, đáng tin cậy, sự chuyên nghiệp
+   - Purple thông thái, giàu có, magic
+   - Brown thiên nhiên, thoải mái, bền bỉ
+   - Black quyền lực, nhưng cũng sang trọng, tối giản, đau buồn, phiền muộn
+  2. Sử dụng tone màu tốt, không chọn random tone hoạc màu được CSS đặt tên
+   - Open color, Tailwindcss, Flat ui colors
+  3. Cần ít nhất 2 loại màu trong 1 bảng màu, 1 main color để làm màu chủ đạo và 1 grey color để làm màu chữ (không hẵn grey, là 1 phiên bản màu rất tối của 1 màu khác)
+  4. Với nhiều kinh nghiệm, có thể thêm nhiều màu hơn: accent color (ít sử dụng dùng để tạo điểm nhấn)
+  5. Luôn cần phiên bản màu sáng hơn và tối hơn của 3 loại màu này (đặc biệt là grey color cần cho những văn bản khác nhau ở nhiều nơi trên page)
+      - Tints: phiên bản màu sáng hơn
+      - Shades: phiên bản màu tối hơn
+      - Sử dụng công cụ Tint and shade generator, coolors, palleton.com
+  6. Sử dụng main color để thu hút đến những elements quan trong nhất trên page: button, logo
+  7. Sử dụng màu sắc để thêm một số điểm nhấn thú vị, cũng làm tona fbooj component nổi bật so với page: border, under-line text, high-line text, icons, text
+  8. Sử dụng màu làm nổi bật hình ảnh và minh họa
+  9. Trên màu nền tối, có thể sử dụng tint của nền cho màu chữ
+  10. Text không nên đen hoàn toàn, tăng độ sáng của text nếu thấy page nặng nề, thiếu hấp dẫn
+  11. Đừng bao giờ làm cho text quá nhạt, luôn sử dụng tools để kiểm tra độ tương phản giữa text và background
+   - COOLORS cung cấp tỷ lệ màu tương phản, cần lớn hơn 4.5 cho normal text và trên 3 cho large text (18px +)
+==================================================================================================================
+#3: Images and Illustrations
+- Rules
+  1. Có thể sử dụng 4 loại sản phẩm khác nhau: product photos, storytelling photos, illustrations, patterns
+   - product photos: minh họa về cơ bản sản phẩm đang cố bán trên website
+   - storytelling photos: truyền tải thông điệp trang web, có thể cho ai đó đang sử dụng sản phẩm hoặc có liên quan đến sản phẩm
+   - illustrations: được thực hiện bằng nhiều phong cách khác nhau, như 1 cách storytelling trừu tượng, cũng có thể thêm nhiều phong cách cá nhân độc đáo cho trang web, làm nổi bật tính cách trang web
+   - patterns: xuất hiện như 1 phần của section hoặc cũng xuất hiện đang sau image để thêm 1 số chi tiết hình ảnh thú vị, không nên lạm dụng
+  2. Sử dụng hình ảnh để hỗ trợ thông điệp và câu chuyện của trang web
+  3. Ưu tiên sử dụng hình ảnh gốc, nếu không thể hãy sử dụng hình ảnh trong giống hình ảnh nguyên bản thực tế, không sử dụng hình ảnh chung chung, xuất hiện thường xuyên
+   - toolbox: Usplash, Pexels, DrawKit, UnDraw
+  4. Cố gắng đưa ra những người thực trong hình ảnh để kích hoạt cảm xúc người dùng, không phải một số mô hình giả được sản xuất quá mức
+  5. Nếu cần thiết có thể cắt hình ảnh để phù hợp với thông điệp cần truyền tải
+  6. Kết hợp hình ảnh, illustrations và patterns để tạo ra các chi tiết thú vụ
+
+- Handle text on images
+  7. Làm tối hoặc sáng hình ảnh (hoàn toàn, 1 phần sử dụng gradient) để đễ đọc text 
+  8. Định vị text vào một phần hình ảnh trung tính (ít màu sắc)
+  9. Đặt text vào 1 box nổi trên hình ảnh, thêm 1 số opacity vào box
+
+- Technical details
+  10. Với màn hình có độ phân giải cao như màn hình điện thoại, màn hình laptop cao cấp, cần định kích thước hình ảnh sao cho lớn gấp đôi so với kích thước thực tế, những gì muốn hiển thị trong layout: với hình ảnh được hiển thị 300x300 trên page cần hình ảnh 600x600
+  11. Luôn nén hình ảnh để có kích thước file thấp nhật để đạt hiểu suất tải tốt hơn cho trang web
+    - sử dụng Squoosh để nén hình ảnh
+  12. Khi sử dụng nhiều hình ảnh sidebyside, cần chắc chắn chúng có cùng kích thước
+
+==================================================================================================================
+#4: Icons
+- Rules
+  1. Sử dụng 1 icon pack tốt: Phosphor icons, ionicons, icons8
+  2. Chỉ sử dụng các icons trong 1 pack, không trộn lần icon từ các pakcs khác nhau
+  3. Chỉ nên sử dụng SVG icons hoặc icon fonts. Không sử dụng định dạng bitmap image (.jpg, .png)
+  4. Điều chính icon theo tính cách của web, Roundness, weight và filled/outlined phụ thuộc vào kiểu chữ
+  5. Sử dụng icons để dùng cấp hỗ trợ trực quan cho text
+  6. Phổ biến nhất là sử dụng icons cho product feature blocks: icon trên cùng, thêm 1 số tiêu đề nhỏ và mô tả, giúp mô tả tính năng của 1 sản phẩm hoặc 1 dịch vụ nhất định, nếu sửu dụng tốt thì người dùng thậm chí không cần đọc text
+  7. Icons được sử dụng cùng action, và gắn label cho chúng như trên menu, button (ngoại trừ trường hợp không có không gian trống hoặc icon không thực sự rõ ràng)
+  8. Sử dụng icon như gạch đầu dòng
+- Use icons well
+  9. giữ cho icon trung lập, sử dụng cùng màu với text, nếu muốn thu hút nhiều sự chú ý, có thể sử dụng các màu khác nhau cho các icons
+  10. Không gây nhầm lẫn cho người dùng, sử dụng icon phù hợp với text hoặc action
+  11. Không sửu dụng icon lớn hơn thứ chúng được thiết kế cho, nối cần hãy bao bọc chúng trong 1 shape
+
+==================================================================================================================
+#5: Shadows: giúp tìm mối quan hệ giữa các thành phần của thiết kế, hoặc sử dụng để thêm các chi tiết hình ảnh thú vị, làm element nổi bật so với phần còn lại 
+
+- Shadow tạo thêm chiều thứ 3 vào design: 2  4  12  24
+- Rules
+  1. Không thực sự cần sửu dụng shadow nếu không phù hợp tính cách trang web
+   - serious/elegant design: less shadows
+   - playful/fun designL more shadows
+  2. Sử dụng shadows với liều lượng nhỏ, không sử dụng cho mọi element
+  3. Làm shadows sáng hơn, không làm quá tối
+  4. Sử dụng small shadows làm nối bật small elements đê thu hút sự chú ý (những element quan trọng)
+  5. Sử dụng normal shadows cho những vùng lớn để làm nổi bật hơn nữa so với các element nhỏ trên
+   - 1 section muốn nổi bật hẳn lên khỏi page
+   - dùng cho các card: product card
+  6. Sử dụng large shadows: cho navigation và popup window
+  7. Có thể sử dụng shadow cho action như hover, click
+  8. sử dụng glows (bóng đổ màu) làm các element phát sáng
+
+==================================================================================================================
+#6: Border-radius
+- Rules
+  1. serious/ elegant: less border-radius, playful/fun: more border-radius
+  2. tùy thuộc vào độ tròn của kiểu chữ chọn border-radius phù hợp
+  3. sử dụng border-radius cho:
+   - button, sửu dụng smaller radius vừa đủ loại bỏ các cạnh cứng ở các góc
+   - images
+   - around icons
+   - standout sections
+==================================================================================================================
+#7: Whitespace :khoảng cách giữa các element, giúp phân biệt các bố cục trong toàn layout cái nào liên quan đến nhau, giúp người dùng dễ dang điều hướng
+ 
+- Rules
+  1. Sử dụng rất nhiều whitespace giữa các sections
+  2. Sử dụng nhiều whitespace giữa các group of elements
+  3. Cần nhiều whitespace cho chiều dọc hơn chiều ngang
+  4. Sử dụng whitespace giữa các element nhỏ
+  5. Trong group of elements cố gắng sử dụng whitespace thay vì lines
+  6. Nếu có big text hoặc big icons, sẽ cần nhiều whitespace
+  8. luôn sử dụng bội số của 16px cho tất cả spacing: padding, margin, ngoại trừ các khoảng whitespace nhỏ sử dụng 2, 4, 8, 12px
+
+==================================================================================================================
+#8: Visual Hierarchy: thiết lập xem element nào của 1 design là cái quan trọng nhất để thu hút sự chú ý đến những cái quan trọng nhất đó
+  => xác định hướng cho người dùng
+- Rules
+  1. Vị trí elements quan trong nhất đật gần với phần trên cũng của page, nơi nó được chú ý nhiều nhất
+    - Sự chú ý sẽ chảy từ trên xuống
+  2. Hình ảnh  thu hút rất nhiều sự chú ý, nên sửu dụng 1 cách có ý thức
+    - Nếu thực sự muốn người dùng chú ý vào text, xem xét không sử dụng hình ảnh hoặc sử dụng hình ảnh nhỏ
+  3. Sử dụng thật nhiều whitespace để tách biệt element muốn người dùng focus vào
+  4. Với text elemen sửu dụng kết hợp font-size, font-weight, color và whitespace để cung cấp các mức độ quan trong khác nhau
+    - Tăng kích thước tiêu đề, tăng font-weight với những phần quan trọng, làm sáng màu ở details để cho bớt quan trọng so với tittle
+  5. Những elements nên được nhấn mạnh: titles, sub-titles, links, buttons, data points, icons
+    - đồng thời giảm sựu nhấn mạnh của label, secondary/additional information
+  6. Với các group of elemets hoặc big content, làm nổi bật bằng background-color, shadows và border-radius
+  7. Muốn nhấn mạnh component A so với B chỉ cần giảm sự nhấn mạnh của component B
+  8. Components cần nhấn mạnh: Testimonials, call-to-action sections, highlight sections, preview cards, forms, pricing tables, important rows/columns in tables, etc...
+
+==================================================================================================================
+#9: User Experience (UX)
+- Rules
+ 1.Không thiết kế bố cục phức tạp, sử dụng lại những mấu có sẵn
+ 2.Làm cho các action trở lên nổi bật nhất và thu gọi văn bản chỉ mang tính mô tả
+ 3.Chỉ sử dụng văn bản màu xanh và gạch chân cho các liên kết
+ 4.Hoạt ảnh phải có mục đích và nhanh chóng
+ 5.Trong 1 form căn chỉnh các label và field theo hàng dọc để dễ dàng quét hơn
+ 6.Cung cấp phản hồi cho tất cả hành động để biết thành công hay thất bại
+ 7.Đặt các button thực thi action ở nơi nó tạo ra hiệu ứng
+ 8.Viết tiêu đề mô tả trên main page, tập trung từ kháo mô tả nhất
+ 9.Chỉ sửu dụng thông tin liên quan 1 cách hiệu quả, cắt bỏ những thừa thãi làm cho nội dung rõ ràng 100%
+ 10.Sử dụng tù ngữ đơn giản cho văn bản thức tế, tránh từ ngữ kỹ thuật tỏ vẻ thông minh
+ 11.Nếu có văn bản dài, hãy sử dụng với tiêu đề phụ, hình ảnh, dấu ngoặc kép, ...
+
+==================================================================================================================
+The Website-Personalities-Framework
+
+
+==================================================================================================================
+#10 Elements and Components
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

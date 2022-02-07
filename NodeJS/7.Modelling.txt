@@ -1,0 +1,33 @@
+﻿kết nối các model phản ánh quan hệ trong thế giới thực
+1: các kiểu quan hệ khác nhau giữa dữ liệu
+ 1-1: 1 field - 1 value
+ 1-n: 1 document - n document :dựa và số lượng tương đối của n chia ra 3 loại
+   1 - few: some
+   1 - many: hundreds, thousands, ...
+   1 - ton: millions
+ n-n: many - many
+2: tham chiếu/ chuẩn hóa với nhúng/ không chuẩn hóa
+ tham chiếu/ chuẩn hóa: đưa mảng id vào 1 field
+  - child referencing: đưa id vào parent
+  => dễ dàng truy vấn đến đúng documnet cần lấy ra
+  => thực hiện nhiều truy vấn hơn
+ nhúng/ không chuẩn hóa: đưa mảng object vào 1 field: nhúng  documnets vào main documnets
+  => cần truy vấn ít hơn đến db => tăng hiệu suất
+  => không thể tự truy vấn vào documets được nhúng
+3: khuôn khổ xác định xem nên nhúng hay nên tham chiếu với document khác
+  1) xem xét mối quan hệ giữa các tập dữ liệu
+     - Nhúng nếu kiểu quan hệ là 1-few, 1-many
+     - Tham chiếu nếu kiểu quan hệ là 1-many, 1-ton, many-many
+  2) xác định kiểu truy cập dữ liệu của tập dữ liệu muốn nhúng hoặc tham chiếu
+     - Nhúng nếu kiểu dữu liệu chủ yếu được đọc, không có cập nhật nhiều, tỷ lệ đọc/ghi cao
+     - Tham chiếu nếu dữu liệu được cập nhật nhiều, tỷ lệ đọc/ghi thấp
+  3) xem xét xem có bao nhiêu data liên quan, cách chúng ta muốn truy vấn dữ liệu từ db
+     - Nhúng nếu 2 tập dữu liệu bản chất thuộc về nhau
+     - Tham chiếu nếu thường xuyên cần truy vấn cả 2 tập dữu liệu riêng
+4: các kiểu tham chiếu: (1-n, n-n)
+ - child referencing: giữ các tham chiếu tới các document con có liên quan bên trong document mẹ, lưu trữ các tham chiếu trong 1 mảng => mảng tham chiếu có thể trở lên rất lớn nếu có nhiều document con, làm cho cha mẹ và con cái gắn chặt chẽ với nhau, không phải luôn là ý hay => 1-few
+ - parent referencing: giữ các them chiếu đến document mẹ trong từng document con, parent sẽ không biết gì về các child documents, không biết có bao nhiêu child document => tạo ra sự độc lập => 1-many, 1-ton
+ - two-way referencing: chỉ có trên quan hệ many-many, 2 bên giữ tham chiếu đến nhau
+
+*(mongodb, 1 document không được quá 16mb => mảng trong 1 documnet không được phát triển vô hạn)
+

@@ -25,6 +25,31 @@ param middleware là middleware chỉ chạy đối với 1 số tham số nhấ
 EVIRONMENT VARIABLES
 >npm i dotenv
 
+=====================TƯ TƯỞNG MIDDLEWARE==================
+-middleware bao bọc 1 function, đảm bảo trả về đúng giá trị của funtion đó, đồng thời thực thi thêm 1 số logic xử lý bên ngoài logic của function đưa vào middleware
+
+handle = (funtion, A, B) => {
+  return funtion(A, B);
+}
+
+// sử dụng middleware:
+handle(function, A, B) === handle (middleware(funtion), A, B)
+
+// giải thích
+funtion(A, B) return C
+=> middleware(funtion) return C
+
+middleware(funtion) {
+  return (A, B) => {
+    ... logic
+    const C = funticon(A, B);
+    ... logic
+    return C
+  } 
+}
+
+=> không gọi trực tiếp middleware ở bên ngoài được do không thể chuyển giá trị A, B vào funtion
+=> cần bao bọc middleware trong 1 funtion để nhận vào A, B
 
 
 

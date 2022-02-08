@@ -31,10 +31,19 @@ React-DOM : giúp từ React tạo ra DOM
   - Vẫn đảm bảo gói component này trong các parent sử dụng nó  (mã react) => vẫn sử dụng đưucọ ngữ cảnh của react
   ex: Sử dụng để hiển thị các modal, backdrop
 
-
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 HOC: Higher Order Component: sử dựng bao bọc lấy component funtion
--React.memo()
--React.forwardRef()
+-React.memo() : ghi nhớ props component để quyết định có render lại component đó hay không (tránh re-render lại các component child không cần thiết khi component parent re-render)
+  - so sánh các props với trạng thái trước của component xem có gì thay đổi không mới quyết định re-render lại component-child
+
+-React.forwardRef(), kết hợp useRef() để gắn phụ thuộc 1 biến ở parent với 1 biến, 1 dom , ... trong component child của nó 
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Render props:
+https://reactjs.org/docs/render-props.html
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Hooks: -> 2.React Hooks
 ================================================================================================
 COMPONENT/PROPS=================================================================================
 Component

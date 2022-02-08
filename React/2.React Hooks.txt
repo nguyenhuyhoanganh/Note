@@ -1,9 +1,10 @@
 ﻿Re-render/Mounted & Unmounted
-- Re-render: render lại toàn page (khi 1 state thay đổi)
+- Re-render: render lại component (khi 1 state sử dụng trong component đó thay đổi) => dẫn đến render cả các component child trong nó
 - Mounted: render ra component mới khi so khớp với 1 state trong JSX của parent component
-   : render ra parent, gắn child vào parent là mounted, mounted xong mới render child tiếp trong parent
+   : render ra parent, gắn child vào parent là mounted, mounted xong mới render child tiếp trong parent 
+   : việc component xuất hiện trong JSX
 - Unmounted: hủy render component mới trong parent component
-
+   : component biến mất khỏi JSX
 ////////////////////////////////////////////////
 Ex: JSX mounted trong function component
 
@@ -149,7 +150,7 @@ const refObj = useRef(_initValue);
   giá trị của refObj.current là _initValue trong lần mounted đầu tiên
 -Sử dụng refObj.current để lưu biến ngoài phạm vi của các handlerEvent, giúp biến luôn trỏ đến 1 vùng nhớ (không khởi tạo lại biến) khi re-render giao diện 
   => thao tác sửa đổi biến ở nhiều handlerEvent khác nhau (mỗi handlerEvent thực thi đồng thời re-render giao diện và đặt giá trị mới cho biến useRef đó) => luôn lưu giá trị cũ mỗi lần re-render
-
+////////////////////////////////////////////////////////////
 -Sử dụng useRef để lưu 1 state trước của lần render trước
   const [state, setState] = useState(60);
   const prevState = useRef()
@@ -192,26 +193,244 @@ const refObj = useRef(_initValue);
   => giúp lưu DOM element của child component, thao tác với DOM element đó tại parent element
   
 ================================================================================================
-================================================================================================
+USE-REDUCER=====================================================================================
 useReducer()
+-Giúp quản lý state giống useState()
+-Sử dụng hữu ích trong các trường hợp phức tạp hơn, sử dụng thay useState khi có các state phụ thuộc vào nhau, state này cập nhật dựa trên sự cập nhật của state khác, state có nhiều object, nhiều mảng con bên trong
 
+const [state, dispatchFn] = useReducer(reducerFn, initialState, initFn);
+- reducerFn: funtion thực thi thay đổi state
+  const reducer = (state, dispatchValue) => {... return _newState }
+    - reducerFn nhận vào state hiện tại và 1 dispatchValue (giá trị truyền vào dispatchFn)
+    - dựa trên giá trị truyền vào của dispatchFn, reducerFn sẽ trả về giá trị mới cho state
+- initialState: giá trị khởi tạo cho state khi component lần đầu được mounted
+- initFn: là function sẽ nhận vào initialState và thay đổi trả lại state cho lần mounted đầu tiên
+- dispatchFn: nhận vào 1 giá trị, giá trị này được truyền qua cho reducerFn, gọi reducerFn thực thi trả về 1 state mới
+- thường không cần sử dụng initFn đưa vào useReducer()
+/////////////////////////////////////////////////////////////////////
+Ex:
+const emailReducer = (state, action) => {
+  if (action.type === 'USER_INPUT') {
+    return { value: action.val, isValid: action.val.includes('@') };
+  }
+  if (action.type === 'INPUT_BLUR') {
+    return { value: state.value, isValid: state.value.includes('@') };
+  }
+  return { value: '', isValid: false };
+};
+
+const Component (props) => {
+  const [emailState, dispatchEmail] = useReducer(emailReducer, {
+    value: '',
+    isValid: null,
+  });
+  const [formIsValid, setFormIsValid] = useState(false);
+
+  const emailChangeHandler = (event) => {
+    dispatchEmail({type: 'USER_INPUT', val: event.target.value});
+
+    setFormIsValid(
+      event.target.value.includes('@');
+    );
+  };
+
+  const validateEmailHandler = () => {
+    dispatchEmail({type: 'INPUT_BLUR'});
+  };
+
+  const submitHandler = (event) => {
+    event.preventDefault();
+    props.onLogin(emailState.value);
+  };
+
+  return (
+    <Card className={classes.login}>
+      <form onSubmit={submitHandler}>
+        <div
+          className={`${classes.control} ${
+            emailState.isValid === false ? classes.invalid : ''
+          }`}
+        >
+          <label htmlFor="email">E-Mail</label>
+          <input
+            type="email"
+            id="email"
+            value={emailState.value}
+            onChange={emailChangeHandler}
+            onBlur={validateEmailHandler}
+          />
+        </div>
+        <Button type="submit" className={classes.btn} disabled={!formIsValid}>
+          Login
+        </Button>
+      </form>
+    </Card>
+  );
+};
+
+export default Component
+================================================================================================
+USE-CALLBACK====================================================================================
+useCallback() - React.memo() 
+-Tránh TẠO RA các function MỚI không kiểm soát trong fn component khiến cho component re-render không kiểm soát dừ đã áp dụng React.memo()
+  -đưa handleChangeState của parent vào component child => dẫn đến tiếp tục re-render component child mỗi lần có event thực thi handleChangeState mặc dù đã wrap component child bởi React.memo()
+    => do đưa 1 function là prop truyền vào component child, funtion, object, array là kiểu reference types => khi so sánh giữa prop của lần render trước với hiện tại không so sánh trực tiếp funtion mà so sánh tham chiếu đến nó, mỗi lần re-render parent lại tạo ra 1 funtion với tham chiếu mới rồi gán với child => '===' trả về false => tiếp tục render component child
+
+const handle = useCallback(callbackfn, []);
+  -callbackfn được đưa vào useCallback(), useCallback sẽ trả về tham chiếu của function đó lưu ra bên ngoài component và trả về biến handle 
+   => biến handle sẽ lưu giá trị tham chiếu ở mọi lần remder => giá trị của prop là fn sẽ không thay đổi khi đưa handle vào => không re-render lại component child
+  -[] là 1 mảng các dependencies, useCallback() sẽ theo dõi sự thay đổi của từng dep trong mảng deps để tạo 1 fntion mởi, trả về tham chiếu mới
+    => tương tự useEffect, với 1 mảng deps rỗng: [], useCallback() chỉ thực thi lần đầu khi mounted component
 
 ================================================================================================
+USE-MEMO========================================================================================
+useMemo()
+-Tránh THỰC THI lại 1 function trong component fn mỗi khi re-render component, thay vì chỉ cần function thực thi khi thực hiện 1 event nhất định trong component
+
+const result = useMemo(callbackfn, []);
+  - giống useCallback() hoặc useEffect(), useMemo() nhận vào 1 callbackfn và thực thi fn đó mỗi khi 1 trong các dep thay đổi
+  - mảng deps rỗng: [], useMemo chỉ thực hiện lần đầu tiên khi được mounted
+  - thường đưa các tham số cần truyền vào callbackfn làm các deps
+
 ================================================================================================
-useContext()
+USE-CONTEXT=====================================================================================
+useContext() 
+- đơn giản hóa việc đưa dữ liệu qua các component, không cần truyền dữ liệu gián tiếp qua props 
+của component trung gian
 
+-const Context = React.creatContext();
+  - React.creatContext() tạo ra 1 context, cho phép lưu trữ data, thường dùng để lưu state để truyền qua các componet
+    - React.creatContext() có thể nhận vào 1 giá trị default, thường đưa vào 1 object gồm các properties là các state cần được lưu trữ hỗ trợ vscode gợi ý code, giá trị default ban đầu có thể truy xuất ở trong Context.Consumer
+  - Context : được trả về bởi React.creatContext(), trong đó:
+     - Context.Provider : là 1 react component sử dụng trong component cha để wrap lấy nhóm các component cần truyền các giá trị được lưu trong Context
+       - giá trị trong context sẽ truyền qua được các component child, child của child, ...
+       - giá trị ban đầu được khởi tạo là giá trị default đưa vào React.creatContext(), để lưu state cần truyền vào trong các component bọc bởi Context.Provider, sử dụng prop: value={state} trong Context.Provider
+          <Context.Provider value={state}>
+            <ComponentA>
+            <ComponentB>
+            <ComponentC>
+          </Context.Provider>
+     - Context.Consumer : là 1 react component sử dụng trong mã JSX của component cần nhận dữ liệu trong context, wrap 1 chuỗi code JS nhận dữ liệu trả về JSX
+       - giá trị Context.Consumer nhận được là giá trị được đưa vào prop value của Context.Provider, nếu các parent component của component (có JSX được bọc bởi Context.Consumer)
+không sử dụng Context.Provider thì giá trị nó nhận được là giá trị default đưa vào React.creatContext()
+       - sử dụng giá trị context nhận được bằng cách:         
+         <Context.Consumer>{(ctx) => { return JSX; }</Context.Consumer>
 
+- sử dụng useContext() thay thế cho Context.Consumer
+  const ctx = useContext(_nameContext);
+    _nameContext là tên gái trị trả về của React.creatContext()
+    ctx: chứa dữ liệu được đưa vào prop value của Context.Provider hoặc giá trị default của React.creatContext()
+  - sử dụng useContext không tối ứu cho việc thay đổi state quá nhiều => việc giử state giữa các component chỉ qua 1 hoặc 2 component trung gian vẫn ưu tiên sử dụng props , hoặc thay thế hẳn bằng redux
+///////////////////////////////////////////////////////////////
+Ex: tạo global state
+/* src/store/Context.js */
+  import React, { useState, useContext } from 'react';
+  
+  export Context = React.createContext();
+  
+  export Provider = (props) => {
+    const [state, setState] = useState(true);
+    
+    handleState = (state) => {
+      return !state;
+    }
+    const value = {
+      state,
+      handleState
+    }
+   
+    return (
+      <Context.Provider value={value}>
+        {props.children}
+      </Context.Provider>
+    ) 
+  }
 
+/* src/index.js */
+  import { Provider } from './store/Context.js';
+  
+  ....
+  
+  ReactDOM.render(
+    <Provider>
+      <App />
+    </Provider>, 
+    document.getElementById('root')
+  );
 
+  .... 
 
+/* src/App.js */
+  import ComponentA from './component/ComponentA';
+  ...
+  return (<><ComponentA></>);
+  ...
+/* src/component/ComponentA.js  */
+  import { useContext } from 'react';
+  import { Context } from '.././store/Context.js';
 
+  const ComponentA = () => {
+    const ctx = useContext(Context);
+    
+    return { 
+      <div>
+        <button onClick={ctx.handleState}>{ctx.state ? 'On' : 'Off'}</button>
+      </div> 
+    };    
+  }
+  
 
 ================================================================================================
-================================================================================================
-useImperativeHandle()
+USE-IMPERATIVAHANDLE============================================================================
+useImperativeHandle(): giúp tùy chỉnh ref của 1 funtion component
+-Thao tác đi cùng với useRef() và React.forwardRef()
+-Sử dụng React.forwardRef(), cùng useRef()
 
+////////////////////////////////
+    ParentComponent:
+      const refComponent = useRef();
+      // thao tác với refComponent.current để sửa đổi element trong ChildComponen
+      JSX: 
+       <ChildComponent ref={refComponent} />
+   
+    ChildComponent:
+      const ChildComponent = React.forwardRef((props, ref) => {
+        return (
+          <h1 ref={ref}>Hello</h1>
+        )
+      })
 
+-Nếu chỉ sử dụng .forwardRef() cùng useRef() khiến cho component parent thao tác chỉnh sửa trực tiếp element bên trong child
+-Sử dụng useImperativeHandle() giúp giới hạn các thao tác parent có thể sửa trên element của child component (~ tính đóng gói)
 
+///////////////////////////////
+    ParentComponent:
+      const refComponent = useRef();
+      // từ refComponent.current chỉ có thể gọi 1 số method useImperativeHandle() cho phép
+      JSX: 
+       <ChildComponent ref={refComponent} />
+   
+    ChildComponent:
+      const ChildComponent = React.forwardRef((props, ref) => {
+        const h1Ref = useRef();
+
+        useImperativeHandle(ref, () => {
+          change(value) {
+            h1Ref.current.innerHTML = value;
+          },
+        })
+         
+        return (
+          <h1 ref={h1Ref}>Hello</h1>
+        )
+      })
+
+-useImperativeHandle(ref,{});
+ - đối số thứ 1 truyền vào useImperativeHandle() là ref nhận được từ parent component
+ - đối số thứ 2 là 1 object, object này chính là object ref.current ở parent component
+   - đưa các funtion thực hiện sửa đổi element vào object giúp giới hạn các thao tác của parent với element đó
+-dùng useRef() trong componet child tạo ra ref liên kết với element cho phép parent thao tác, không pulic hoàn toàn cho parent sử dụng
+ 
 
 
 

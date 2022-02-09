@@ -1,10 +1,11 @@
 ﻿Re-render/Mounted & Unmounted
-- Re-render: render lại component (khi 1 state sử dụng trong component đó thay đổi) => dẫn đến render cả các component child trong nó
-- Mounted: render ra component mới khi so khớp với 1 state trong JSX của parent component
-   : render ra parent, gắn child vào parent là mounted, mounted xong mới render child tiếp trong parent 
-   : việc component xuất hiện trong JSX
-- Unmounted: hủy render component mới trong parent component
-   : component biến mất khỏi JSX
+- Re-render: theo dõi state và thực thi lại component fn đó, (ReactDOM không thay đổi toàn bộ component mà chỉ thay đổi 1 phần thuộc về component đó), re-render cũng dẫn đến các component fn child thực thi lại nếu nó được gọi trong fn component bị re-render   
+- Mounted: khi component fn được xuất hiện trong DOM thật, ReactDOM tạo ra cả component đó lần đầu (hoặc tạo lại sau khi nó bị loại bỏ khỏi DOM thật), render component fn đó lần đầu cũng là mounted
+- Unmounted: loại bỏ component đó khỏi DOM thật, các state đính kèm component đó cũng bị xóa, component đó vẫn có trong JSX tuy nhiên trên trên trình duyệt không hiển thị component này nữa
+**
+- DOM mà React sử dụng JSX để render ra là DOM ảo và được ReactDOM tạo ra DOM thật trên website
+- mỗi khi re-render ReactDOM so sánh DOM thật cũ với DOM thật mới vừa được tạo ra và chỉ thực thi sửa phần khác nhau của 2 phiên bản DOM này trên trình duyệt, phần giống nhau, các element giống nhau giữa 2 phiên bản DOM vẫn luôn được giữ nguyên
+- JSX render array là 1 ngoại lệ của ReactDOM => cồn thêm props key để đảm bảo chỉ render lại element mới bị thay đỗi trong cả array thay vì render lại toàn bộ cả array 
 ////////////////////////////////////////////////
 Ex: JSX mounted trong function component
 
@@ -23,6 +24,9 @@ const ParentComponent = () => {
 };
 
 export default ParentComponent;
+
+check show === true => mounted
+check show === false => unmounted
 ================================================================================================
 USE-STATE=======================================================================================
 useState() : khi muốn re-render giao diện mỗi khi dữ liệu thay đổi (thao tác state)
@@ -40,6 +44,19 @@ const [state, setState] = useState(initState);
 *Two-way binding ràng buộc 2 chiều, làm việc với form
   -One-way binding (React): sửa dữ liệu trên giao diện giúp thay đổi state
 -Two-way binding đảm bảo khi sửa dữ liệu giao diện hay sửa đổi state sẽ thay đổi cả bên còn lại
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+** tương tác giữa state và component
+  - cả 2 đều được React quản lý, React quản lý state và gắn nó vào component  
+  - khi thực thi lại component fn, state được tạo ra trước đó không mất đi hoặc được khởi tạo lại bới vì react hooks tạo ra state như useState, useReducer đến từ React chứ không phải từ component
+  - state được tạo ra khi lần đầu thực thi component chứa được gắn state đó và React chỉ thực sự loại bỏ state khi component đó bị loại bỏ khởi DOM thật
+  - state không không ngay lập tức thay đổi ngay khi thực thi xong setState(), thay vào đó sẽ được React lên lịch để thực hiện thay đổi dữ liệu, và xem xét các logic có ưu tiên cao hơn để thực thi trước ví dụ như khi validate form, React thực thi validate trước khi thực sự setState hiển thị lên prop value của input
+    => React chỉ đảm bảo thực thi thay đổi state trước khi re-run component fn vì state thực sự thay đổi thì mới cần re-run
+    => có nhiều lịch setState() cho cùng 1 state trước quá trình re-run component fn cần sử dụng fn: prevState => {... newState} trong setState() để đảm bảo thực thi setState() được tuần tự
+  - có nhiều state được update trong 1 event, không có sử dụng callback hay promise để thực thi tuần tự setState() của state này trước, state kia sau 
+    => các setState() được thực thi asynchonus, react đợi các state này thực thi hết 1 lần mới gọi re-run component fn
+    => không re-run luôn component sau khi state này cập nhật và lại re-run lần nữa sau khi state khác cập nhật trong khi 2 state được cập nhật trong cùng 1 event 
+    => các state thay đổi sẽ được lên lịch trong cùng 1 process
 ////////////////////////////////////////////////
 - INPUT TEXT 
     component fn:  
@@ -271,27 +288,34 @@ const Component (props) => {
 export default Component
 ================================================================================================
 USE-CALLBACK====================================================================================
-useCallback() - React.memo() 
--Tránh TẠO RA các function MỚI không kiểm soát trong fn component khiến cho component re-render không kiểm soát dừ đã áp dụng React.memo()
+useCallback() - React.memo() : để lưu trữ fn thực thi setState(), callbakfn không return
+-Tránh TẠO RA các function MỚI không kiểm soát trong fn component khiến cho component re-render không kiểm soát dù đã áp dụng React.memo()
   -đưa handleChangeState của parent vào component child => dẫn đến tiếp tục re-render component child mỗi lần có event thực thi handleChangeState mặc dù đã wrap component child bởi React.memo()
-    => do đưa 1 function là prop truyền vào component child, funtion, object, array là kiểu reference types => khi so sánh giữa prop của lần render trước với hiện tại không so sánh trực tiếp funtion mà so sánh tham chiếu đến nó, mỗi lần re-render parent lại tạo ra 1 funtion với tham chiếu mới rồi gán với child => '===' trả về false => tiếp tục render component child
+    => do đưa 1 function là prop truyền vào component child, funtion kiểu reference types => khi so sánh giữa prop của lần render trước với hiện tại không so sánh trực tiếp funtion mà so sánh tham chiếu đến nó, mỗi lần re-render parent lại tạo ra 1 funtion với tham chiếu mới rồi gán với child => '===' trả về false => tiếp tục render component child
 
 const handle = useCallback(callbackfn, []);
   -callbackfn được đưa vào useCallback(), useCallback sẽ trả về tham chiếu của function đó lưu ra bên ngoài component và trả về biến handle 
-   => biến handle sẽ lưu giá trị tham chiếu ở mọi lần remder => giá trị của prop là fn sẽ không thay đổi khi đưa handle vào => không re-render lại component child
+   => biến handle sẽ lưu giá trị tham chiếu ở mọi lần render => giá trị của prop là fn sẽ không thay đổi khi đưa handle vào => không re-render lại component child
   -[] là 1 mảng các dependencies, useCallback() sẽ theo dõi sự thay đổi của từng dep trong mảng deps để tạo 1 fntion mởi, trả về tham chiếu mới
     => tương tự useEffect, với 1 mảng deps rỗng: [], useCallback() chỉ thực thi lần đầu khi mounted component
 
+**Chỉ định mảng phụ thuộc của useCalllback()
+-Trong js, function là 1 closure, đưa vào function 1 biến dựa vào state, biến đó sẽ luôn không thay đổi => không tự cập nhật state qua các các lần re-render (do funtion không được khởi tạo lại bởi việc sử dụng useCallback())
+=> đưa state, props, context cần sử dụng trong fn vào làm dep của useCallback() 
+-thay đổi state trong useCallback() có thể sử dụng setState(preState => { return _newState }), nên không cần thiết đưa vào mảng deps tuy nhiên dựa vào state khác để thay đổi state thì phải đưa (state dựa vào) vào mảng deps 
 ================================================================================================
 USE-MEMO========================================================================================
 useMemo()
--Tránh THỰC THI lại 1 function trong component fn mỗi khi re-render component, thay vì chỉ cần function thực thi khi thực hiện 1 event nhất định trong component
+-Lưu trữ những giá trị trả về của 1 function != useCallback() lưu trữ funtion, cũng giúp tránh thực thi lại funtion
+-thường sử dụng useCallback() lưu trữ fn thay đổi state (tránh re-render lại componnet khác), useMemo() lưu trữ result để tránh thực thi lại 1 function trả về result đó (callbackfuntion có return)
+- có thể sử dụng useMemo để return về object hay array cũng để tránh re-render lại component child thay vì khởi tạo 1 object hay array rồi đưa trực tiếp vào prop (useCallback() chỉ làm được với function)
 
 const result = useMemo(callbackfn, []);
-  - giống useCallback() hoặc useEffect(), useMemo() nhận vào 1 callbackfn và thực thi fn đó mỗi khi 1 trong các dep thay đổi
+  - giống useCallback() hoặc useEffect(), useMemo() nhận vào 1 callbackfn và thực thi fn đó mỗi khi 1 trong các dep thay đổi, funtion này bắt buộc có return khác với useCallback(), và useMemo() lưu trữ kết quả return đó
   - mảng deps rỗng: [], useMemo chỉ thực hiện lần đầu tiên khi được mounted
-  - thường đưa các tham số cần truyền vào callbackfn làm các deps
+  - thường đưa các tham số cần dùng để thực thi funtion trong callbackfn trả về kết qủa làm dep
 
+-useMemo() ít được sử dụng vì nếu thực sự cần lưu trữ 1 value nào đó cần quá nhiều tính toán mới nên sử dụng
 ================================================================================================
 USE-CONTEXT=====================================================================================
 useContext() 

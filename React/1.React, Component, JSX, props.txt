@@ -31,6 +31,9 @@ React-DOM : giúp từ React tạo ra DOM
   - Vẫn đảm bảo gói component này trong các parent sử dụng nó  (mã react) => vẫn sử dụng đưucọ ngữ cảnh của react
   ex: Sử dụng để hiển thị các modal, backdrop
 
+**
+-React thực thi component tạo ra cây react DOM ảo chuyển đển ReactDOM để render lên DOM thật hiển thị lên website
+-khi thay đổi state, context, props dẫn đến thực thi lại fn component, ReactDOM đảm bảo trên website sẽ chỉ thực thi render chính xác DOM element có thay đổi so với DOM cũ (không render lại toàn bộ DOM)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 HOC: Higher Order Component: sử dựng bao bọc lấy component funtion
 -React.memo() : ghi nhớ props component để quyết định có render lại component đó hay không (tránh re-render lại các component child không cần thiết khi component parent re-render)

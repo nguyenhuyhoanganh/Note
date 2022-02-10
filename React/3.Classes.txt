@@ -1,0 +1,102 @@
+﻿//// chưa format lại ////
+
+-Error Boundaries cần các component xây dựng từ class
+-class component không tương tác được với hooks
+
+-render() {} phương pháp được mong đợi bởi React, react sẽ gọi nó khi 1 component đang được sử dụng trong mã JSX,
+ render() {} sử dụng return về JSX trong đó
+
+tạo 1 component class extends React.Component
+
+trong JSX của render(): props === this.props 
+
+tạo state trong constructor() { super();  this.state = {} }
+state luôn luôn là 1 object
+
+tên properties state là cố định để tạo state
+phải nhóm tất cả state vào 1 object != fn component sử dụng nhiều state  bằng cách gọi nhiều lần useState()
+
+viết các function xử lý state ở bên ngoài constructor và render
+
+class component cung cấp 1 phương thức setState() để thay đổi state
+truy cập bằng cách this.setState()
+this state này luôn nhận 1 object và giá trị của object thay thế cho state trùng tên, không ảnh hướng đến state khác
+
+setState(prevState => !prevState) 
+ === 
+this.setState((prevState) =>{ return { _nameState: !prevState } }) 
+
+sử dụng state trong JSX :
+this.state._nameState
+sử dụng funtion handle trong JSX:
+this._nameFunction.bind(this) // bind(this) để chắc chắn fn này thực thi do chính class này gọi dù ở bất cứ class nào khác
+
+- quản lý side-effect giống như useEffect()
+  - class component lifecycle từ lúc mounted đến khi unmounted
+https://programmingwithmosh.com/javascript/react-lifecycle-methods/
+
+lifecycle component method
+componentDidMount() là function react cung cấp được gọi ngay khi component vừa được mount, khi nó được đánh giá và hiển thị cho DOM
+~~ useEffect(() => {}, [])
+
+componentDidUpdate() được gọi khi component này đã được cập nhật
+~~ useEffect(() => {}, [deps...])
+
+componentWillUnmount() được gọi trước khi component loại bỏ khỏi DOM
+~~ useEffect(() => {return () => {...}}, []) được gọi trước khi Effect thực hiện lại hoặc trước khi component sắp được loại bỏ khỏi DOM
+
+các fn này nhận vào 2 tham số là: prevProps và prevState là props và state trước khi component hiện tại được cập nhật
+
+kiểm tra các deps như useEffect bằng cách so sánh
+if(prevState._nameState !== this.state._nameState) {...}
+// tương tự với props
+
+sử dụng useContext() trong class component
+- vẫn bọc App bằng Context.Provider để tạo ra context global hoặc sử dụng để bọc JSX của render() return trong bất cứ compoonent class nào, đưa props value chứa context vào đó như fn component
+
+- sử dụng trong JSX của class tiêu thụ dữ liệu context bằng Context.Comsumer rồi thực thi js ngay trong cặp <></> của Context.Consumer: (ctx) => {... return JSX}
+- C2: (không sửu dụng nhiều context trong 1 component như useContext() được):
+   khai báo context: 
+   static contextType = _nameContextImport; // static contextType là cố định
+   truy cập context bằng cách:
+   this.context._nameProperty //.context là cố định
+
+
+Diều chỉ có ở class component: Error Boundary
+-đôi khi có 1 số lỗi không thể ngăn chặn (khác bug), hoặc vận chuyển thông tin có gì đó không ổn
+
+nếu 1 error được tạo ra trong 1 component, và chúng ta không thể, không muốn xử lý nó trong component đó, mà trong parent component => không thể sử dụng try catch trong component, => không cho phép bọc try catch ngoài mã JSX 
+
+=> tạo ra 1 component để wrap : ErrorBoundary component
+React hỗ trợ 1 function : componentDidCath() {}, khi thêm vào bất cữ component nào sẽ biến component đó trở thành 1 ranh giới bắt lỗi
+funtion này sẽ kích hoạt bất cứ khi child component nào throw ra 1 error
+
+//////////////////////////////////////////////
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error) {
+    // Update state so the next render will show the fallback UI.
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    // You can also log the error to an error reporting service
+    logErrorToMyService(error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      // You can render any custom fallback UI
+      return <h1>Something went wrong.</h1>;
+    }
+
+    return this.props.children; 
+  }
+}
+
+https://reactjs.org/docs/error-boundaries.html
+https://stackoverflow.com/questions/59418029/how-to-use-spring-boot-java-to-properly-use-axios-post-from-react

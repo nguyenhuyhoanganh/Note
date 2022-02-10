@@ -104,7 +104,7 @@ const [state, setState] = useState(initState);
          ))}
 ================================================================================================
 USE-EFFECT======================================================================================
-useEffect(): sử dụng khi thao tác với state, với props để render giao diện phụ thuộc vào các dependencies đính kèm, thay thế cho useState khi call API, update DOM: scroll/ resize, listen DOM event, clean up (remove listener/unsubscribe, clear timer)
+useEffect(): sử dụng khi thao tác với state, với props để render giao diện phụ thuộc vào các dependencies đính kèm, thay thế cho useState khi call API, update DOM: scroll/ resize, listen DOM event, clean up (remove listener/unsubscribe, clear timer) ** Quản lý side effect **
 userEffect(() => { ... }, [ dependencies ]);
 
 -Nhận vào 2 arguments:
@@ -152,6 +152,10 @@ userEffect(() => { ... }, [ dependencies ]);
     => luôn tạo bộ nhớ mới chứa ảnh trong url được tạo ra
     => thay đổi file theo dõi bằng onChange ở JSX => thực thi tạo URL mới, URL cũ vẫn trong bộ nhớ => rò rỉ bộ nhớ
     => sử dụng return trong callback của useEffect() thực hiện:   URL.revokeObjectURL(file) 
+
+** - luôn đảm bảo những thứ được đưa vào từ bên ngoài component (custom hooks) mà sử dụng trong callbackfn của useEffect phải được đưa vào mảng deps: từ custom hooks, từ context, từ props (component)
+   - có thể đưa 1 state của component vào mảng deps nếu state đó được setState() trong callback fn và dùng để mounted 1 component khác (tác động đến thành phần khác ngoài component, custom hooks)
+   - có thể đưa 1 state của component vào mảng dép nếu state đó được theo dõi để sửa 1 state khác trong callback fn  
      
 *useLayoutEffect() thực thi code trong callback trước khi render (sync)
  => sử dụng khi setState ngoài useLayoutEffect vầ lại dùng useLayoutEffect theo dõi state đó, kiểm tra state và set lại nếu setState ở ngoài bị lỗi => (UI) không render lại giao diện 2 lần liền như useEffect() (async)
@@ -301,8 +305,10 @@ const handle = useCallback(callbackfn, []);
 
 **Chỉ định mảng phụ thuộc của useCalllback()
 -Trong js, function là 1 closure, đưa vào function 1 biến dựa vào state, biến đó sẽ luôn không thay đổi => không tự cập nhật state qua các các lần re-render (do funtion không được khởi tạo lại bởi việc sử dụng useCallback())
-=> đưa state, props, context cần sử dụng trong fn vào làm dep của useCallback() 
+=> đưa state (thao tác với thành phần ngoài component), props, context, các thành phần ngoài component cần sử dụng trong fn vào làm dep của useCallback() 
 -thay đổi state trong useCallback() có thể sử dụng setState(preState => { return _newState }), nên không cần thiết đưa vào mảng deps tuy nhiên dựa vào state khác để thay đổi state thì phải đưa (state dựa vào) vào mảng deps 
+
+~~ useEffect()
 ================================================================================================
 USE-MEMO========================================================================================
 useMemo()
@@ -313,7 +319,7 @@ useMemo()
 const result = useMemo(callbackfn, []);
   - giống useCallback() hoặc useEffect(), useMemo() nhận vào 1 callbackfn và thực thi fn đó mỗi khi 1 trong các dep thay đổi, funtion này bắt buộc có return khác với useCallback(), và useMemo() lưu trữ kết quả return đó
   - mảng deps rỗng: [], useMemo chỉ thực hiện lần đầu tiên khi được mounted
-  - thường đưa các tham số cần dùng để thực thi funtion trong callbackfn trả về kết qủa làm dep
+  - thường đưa các tham số cần dùng để thực thi funtion trong callbackfn trả về kết qủa làm dep ~~ useEffect()
 
 -useMemo() ít được sử dụng vì nếu thực sự cần lưu trữ 1 value nào đó cần quá nhiều tính toán mới nên sử dụng
 ================================================================================================
@@ -454,8 +460,38 @@ useImperativeHandle(): giúp tùy chỉnh ref của 1 funtion component
  - đối số thứ 2 là 1 object, object này chính là object ref.current ở parent component
    - đưa các funtion thực hiện sửa đổi element vào object giúp giới hạn các thao tác của parent với element đó
 -dùng useRef() trong componet child tạo ra ref liên kết với element cho phép parent thao tác, không pulic hoàn toàn cho parent sử dụng
- 
 
+================================================================================================
+================================================================================================
+================================================================================================
+CUSTOM HOOKS: 1 fn cho phép sử dụng react hooks  (react chỉ cho phép sử dụng react hooks ngoài custom hooks và component fn, sẽ không sử dụng Rhooks trong fn bình thường )
+- như 1 function bình thường tích hợp logic, custom hooks thao tác với state, hay tạo ra các function cho phép tái sử dụng lại code 
+- custom hooks sử dụng nhiều Rhooks trong nó, được React cho phép (React không chó phép sửu dụng Rhook trong Rhook)
+- đặt tên custom hook bắt buộc bắt đầu từ use để react biết đây không phải 1 fn mà là 1 hook
+- tham số truyền vào custom hooks có thể là các initial state, props, deps, function... nhận được từ component 
+- custom hooks không trả về mã JSX mà trả về state, function, ... 
+- state và function trả về được tạo ra bỏi logic đưa và custom hook
+- sử dụng custom hook trong 1 component sẽ thực thi lại toàn bộ logic trong hook đó, nhận lại state, function mà nó trả về và đưa vào JSX
+- component sẽ ngầm sử dụng những state được thiết lập trong custom hooks, state đó sẽ được gắn vào với component
+  => logic thay đổi state trong custom hooks cũng khiến cho component bị re-render
+  => thực thi gọi lại custom hooks mỗi khi re-render
+  => trong custom hooks những function, những object được tạo ra sẽ 1 lần nữa được tạo lại
+  => nếu custom hook return những fn, object đó => return 1 fn, object khác với fn, object của lần render trước
+
+   ///// bắt đầu sự hãm lồn //////
+  => fn trả về được đưa vào callback của useEffect (cần đưa chính fn đó vào mảng dep, đúng ngữ nghĩa của react do fn này được đưa vào từ bên ngoài component)
+  => tạo thành vòng lặp vô hạn => cần sử dụng useCallback() bọc fn được return trong custom hooks
+- fn được return từ custom hooks nếu có sử dụng objec, hay fn bên ngoài component được đưa vào hooks
+  => useCallback() cần đưa những fn, object này vào mảng deps
+  => 1 lần nữa fn, obj đưa vào mảng này luôn khác nhau sau mỗi lần re-render => tiếp tục đảm bảo bọc các fn bởi useCallback(), bọc các object bởi useMemo()
+
+   /////// cũng đéo hiểu lắm, vòng lặp vl ///////
+  => tránh sử dụng useMemo, useCallback cho object, fn đưa vào fn return (của custom hooks) bằng cách: đưa object, fn sử dụng vào phạm vi của fn return (đưa vào làm tham số fn) thay vì lấy object, fn từ phạm vi toàn hooks (tham số của hooks) 
+  => sẽ không đưa object, fn đó vào mảng deps của useCallback() nữa
+  => ngoài component, khởi tạo fn và object (những cái này đưa vào fn return) sẽ phải cùng phạm vi sử dụng fn return: là khởi tạo trong chính useEffect() bọc lấy fn return này (không phải khởi tạo ngoài component)
+  => lúc này useCallback() ban đầu bọc lấy fn return không thực thi lại fn và fn luôn lấy 1 giá trị object, 1 fn đưa vào làm tham số của nó
+   //// mảng cũng tương tự object thôi, hãm lồn như nhau ////
+  
 
 
 

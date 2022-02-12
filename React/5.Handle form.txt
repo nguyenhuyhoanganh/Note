@@ -1,0 +1,10 @@
+﻿- invalid input:
+ - hiển thị thông báo lỗi, highlight input không hợp lệ
+   - khi form submit: phản hồi chậm
+   - khi input mất focus: không thay đổi error khi chưa bỏ focus
+   - theo dõi mỗi thay đổi của người dùng trên input: cung cấp quá nhiều error không cần thiết, nên sủ dụng chỉ t rên input invalid trước đó
+ - chặn submit form
+
+ C1: onChange gắn với 1 hanle change setState để theo dõi từng từng key nhập vào input, đặt prop value bằng chính state để binding 
+ C2: sử dụng ref nhận toàn bộ giá trị input khi hoàn thành việc nhập
+https://academind.com/tutorials/reactjs-a-custom-useform-hook

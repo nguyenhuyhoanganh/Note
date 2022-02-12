@@ -1,0 +1,235 @@
+﻿Redux: hệ thống quản lý state cho cross-component hoặc app-wide 
+- local state: là state thuộc về 1 component duy nhất: lisening user input hoặc toggling to show more detail ... (sử dụng useState, useReducer)
+- cross-componnet state: state ảnh hưởng đến multiple component: open/close modal overlay, ... (sử dụng props)
+- app-wide state: state ảnh hưởng đến phần nhiều hoặc toàn bộ component: user authentication status ... (sử dụng context)
+ => redux có thể thay thế react context và props
+
+- nhược điểm react context so với redux: 
+  - thiết lập và quản lý phức tạp so với redux => multiple context lồng nhau bọc láy App component
+  - hiệu năng thấp đối với những thay đối tần số cao, dữu liệu rất nhiều
+
+- cách hoạt động redux:
+  - redux: 1 central data (state) store cho tất cả state trong toàn bộ app
+  - store thiết lập subcription đến components, bất cứ khi nào dữ liệu thay đối sẽ thông báo cho các components, component không báo giờ trực tiếp thao túng dữ liệu của store
+  - sử dụng reducer fn chịu trách nhiệm mutates (changes) store data != useReducer
+  - components dispatch action (là 1 object js mô tả action) forwarded to reducer fn
+
+- redux không phụ thuôc vào react:
+ > npm install redux
+- creat store
+const store = redux.createStore();
+// tạo ra store, lần đầu khởi tạo sẽ trả về các giá trị innit state
+- reducer fn:
+  - nhận vào 2 tham số: state cũ và acction dispatch => trả về 1 object new state
+  - cung cấp cho state truyền vào 1 default value làm giá trị khởi tạo đầu tiên của state
+  - reducer fn chỉ là 1 fn bình thường, không có side effect (không giử http request, lưu trữ localstorage, fecth data từ localstorage, ...)
+  - reducer fn được đưa trực tiếp làm tham số của store.createStore()
+- store.subscribe(_subscriberFn): đưa fn vào .subscribe để redux thực hiện fn bất cú khi nào state thay đổi
+  - store.getState() cung cấp state mới nhất cho subcriber sử dụng bên trong _subcriberFn, được kích hoạt bất cứ khi nào state thay đổi
+- store.dispatch({}): nhận vào 1 object action để giử đến reducer fn
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+- kết hợp react và redux
+ > npm react-redux
+ 
+- Tạo store: src/store/index.js
+  import { creatStore } from 'redux';
+  
+  const fnReducer = (state, action) => {
+    switch(action.type) {
+      case ACTION_TYPE
+        ...
+        break;
+      default:
+        return state;
+    } 
+  }
+  
+  const store = createStore(fnReducer);
+
+  export default store;
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+- đặt Provider 
+ import { Provider } from 'react-redux',
+ import store from './store/index';
+ // sử dụng Provider như 1 component wrap lại component mức cao nhất là App component để dung cấp store cho mọi component child của nó
+ // cũng có thể sử dụng chỉ để wrap 1 nhóm component cần sử dụng store
+ // component provider sử dụng prop store lưu trữ store
+
+ ReactDOM.render(
+  <Provider store={store}>
+    <App />
+  </Provider>, 
+  document.getElementById('root')
+ );
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+- sử dụng dữ liệu trong store
+ - react-redux cung cấp 3 custom hooks
+   - useStore: cho phép truy cập trực tiếp vào store
+   - useDispatch: cho phép giử 1 action từ component tới store
+   - useSelector: cho phép truy cập 1 phần tự chọn của store
+
+- useStore()
+  - nhận vào 1 function: funtion này nhận toàn bộ state được quản lý lưu trữ bởi store và trả về 1 phần state component cần.
+  - sử dụng useState trong component consumer (bọc trong provider) khiến component tự động thiết lập trở thành 1 subcriber của store
+
+- useDispatch(): trả về 1 fnction, đưa 1 object action vào fn để chuyển action tới reducerFn
+
+  import { useSelector, useDispatch } from 'react-redux';
+  Component fn: 
+  const dispatch = useDispatch();
+  const state = useSelector(state => state._nameState);
+  
+  const actionHandler = () => {
+    dispatch({ type: 'ACTION_TYPE' })
+  }
+ 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+- sử dụng react-redux với class component
+ - react-redux cung cấp 1 method: connect
+   - connect() trả về 1 HOC dùng để wrap lấy class component
+   - connect nhận vào 2 fntion:
+   1: const mapStateToProps = state => {
+        return {
+          _nameState: state._nameState
+        };
+      };
+    // dùng để trích xuất 1 phần state lưu trong store trở thành props của class component: this.props._nameState
+   2: const mapDispatchToProps = dispatch => {
+        return {
+          _nameAction: () => dispatch({ type: ACTION_TYPE });
+        }
+      };
+
+    // dùng để lưu trữ các dispatch vào trong props của class component: this.props._nameAction() 
+
+  => export default connect(mapStateToProps, mapDispatchToProps)(Component);
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+- sử dụng multilple state trong store, 
+  - khi trả về bởi reducer fn, state sẽ được ghi đè bởi giá trị return => đảm bảo state mới return chứa đầy đủ properties
+
+  - không thay đổi state trong reducer fn thay vào đó luôn ghi đè state bằng cách return lại 1 state mới, bời vì state là 1 object, thay đổi trực tiếp state có thể dẫn đến bug, side effect...
+    if (action.type === 'increment') {
+      state.counter ++;
+      return state
+    }
+    // không nên sử dụng
+
+https://redux.js.org/usage/structuring-reducers/immutable-update-patterns
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Redux toolkit
+ > npm install @reduxjs/toolkit
+- @reduxjs/toolkit cung cấp các method:
+  - createReducer()
+  - createSlice() : tạo ra 1 slice của state lưu trữ trong store, lưu trữ state nhất định không cần lưu trữ tổng thể state trong Reducer fn
+    - nhận vào 1 object bắt buộc có các thuộc tính :
+      name: chỉ định name của slice là duy nhất
+      initalState: giá trị khởi tạo của state cần lưu trữ
+      reducers: 1 object chứa các fn reducer, fn nhận vào state và thao tác trực tiếp với state (KHÔNG CẦN GHI ĐÈ STATE), @reduxjs/toolkit sử dụng 1 package imgur tự động nhân bản state truyền vào, không thực sự thay đổi state hiện tại, trả về 1 state mới ghi đè state hiện tại
+ 
+ import { createSlice } from '@reduxjs/toolkit'
+
+ const counterSlice = createSlice({
+   name: 'counter',
+   initalState: { counter: 0, show: true },
+   reducers: {
+     increment(state) {
+       state.counter++;
+       // không cần return state mới, ghi đè state cũ
+       // thao tác trực tiếp trên state
+       // không thực sự biến đổi state, đã có imgur lo
+     },
+     increase(state, action) {
+       state.counter = state.counter + action.payload;
+     }
+   }
+ });
+
+ const store = createStore(counterSlice.reducer);
+ // đưa Slice.reducer vào store, giúp store có quyền truy cập vào reducerfn thiết lập bởi slice
+ export default store;
+
+- để thiết lập nhiều slice cần đưa nhiều reducer được tạo ra bởi các slice vào store
+  => redux hỗ trợ method: combineReducers
+  => ngoài ra: không cần redux, @reduxjs/toolkit hỗ trợ method: configureStore
+    - configureStore tương tự createStore của redux nhưng chấp nhận nhiều reducer
+    - nhận vào 1 object, object này có 1 property bắt buộc là reducer (đại diện cho 1 main reducer của toàn bộ app)
+    - nếu có 1 reducer, trực tiếp gán reducer đó cho property reducer: 
+     const store = configureStore({
+       reducer:  counterSlice.reducer
+       }
+     })
+    - nếu có nhiều reducer, gán cho property reducer 1 object, với mỗi property của object đó là 1 reducer khác nhau:
+     const store = configureStore({
+       reducer: {
+         counter: counterSlice.reducer,
+         ...
+       }
+     })
+ 
+- dispatch action cho reducer tạo ra từ Slice
+  - _nameSlice.actions : trả về 1 object có các thuộc tính là các action (các fn khai báo trong property reducers) của slice
+    const _nameSliceActions = _nameSlice.actions
+    => export _nameSliceActions
+  - dispatch cho Slice
+    import { _nameSliceActions } from '...'
+    import { useDispatch } from 'react-redux'
+  
+    Componentfn:
+      const dispatch = useDispatch();
+    
+      const actionHandler = () => {
+        dispatch( _nameSliceActions._nameAction() );
+      }   
+  - chuyển payload qua action:
+      dispatch( _nameSliceActions._nameAction(_someValue) )
+   - đưa vào _nameAction() 1 value (có thể là object), truy cập được value đó qua action.payload (action là tham số thứ 2 truyền vào 1 fn được tạo ra bởi _Slice.reducer)
+  
+- truy state từ Slice
+ store tạo bằng configureStore() lưu trữ 1 reducer fn => truy cập như cũ
+ store lưu trữ nhiều reducer cần trỏ vào key của từng reducer trong object gán cho property reducer của bằng configureStore()
+  
+https://redux-toolkit.js.org/api/createslice
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Redux & Side effects (Asynchronous code)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

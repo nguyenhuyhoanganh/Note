@@ -251,21 +251,21 @@ const asyncfn = async function () {
 }
 ===========================================================================================================
 HANDLING ERROR ASYNC, AWAIT WITH TRY CATCH
-- bọc khối code async trong try{}, khi có bất cứ lỗi nào, khối code trong try sẽ dừng thực thi và chuyển lỗi xuống catch
+* ASYNC Function luôn trả về 1 promise
+- xử lý lỗi trong async fn bằng cách bọc khối code trong try và bắt lỗi bằng catch (fetch api fail không phải là lỗi, không đưa vào catch) 
+- khi bọc trong try catch, giá trị trả về của async fn là 1 promise fullfil, bắt bởi .then (cho dù có lỗi hay không)
+- muốn bắt lỗi bằng .catch() (promise trả về là reject) => cần throw err trong catch của try catch, lúc này err throw trong catch sẽ được bắt bởi .catch()
+- không sử dụng try bọc khối code của async fn, lúc này promise trả về của async fn trở thành như 1 promise bình thường, bắt err nếu có bởi .catch(), nếu không có err, giá trị trả về được bắt bởi .then(), nếu không có return trong async fn, .then sẽ nhận được undefined
 
 try {} catch(err) {console.error(err.message);}
-- khi fetch api mã lỗi 403, 404, ... không đưọc bắt vào catch
-=> kiểm tra trong thái của response.
+- khi fetch api mã lỗi 403, 404, ... không đưọc bắt vào catch (do fecth fn không trả về 1 promise bị reject, promise chỉ reject khi không kết nối internet)
+=> kiểm tra trong thái của response.ok
 if(!respone.ok) throw new Error('something went wrong')
-
-* ASYNC Function luôn trả về 1 promise
-=> muốn nhận 1 value trả về từ async function thực hiện nhận vào giá trị bằng phương thức .then()
 
 asyncFn.then(value => console.log(value))
 
-* nếu có 1 error xuất hiện trong khổi code => sẽ được bắt bằng catch()
-=> giá trị trả về sẽ là undefined
-=> tuy nhiên dù bị error, giá trị trả về của async function vẫn là 1 promise fulfilled
+* nếu có 1 error xuất hiện trong khổi code bọc trong try => sẽ được bắt bằng catch(err) {}
+=> tuy nhiên dù bị error, giá trị trả về của async function vẫn là 1 promise fulfilled và giá trị nhận được vào then của promise này là undefined
 => để bắt err vào catch() của promise trả về => throw new Error('err') bên trong catch của cặp try catch trên async fn
 ===========================================================================================================
 Promise.all() : nhận vào 1 mảng promise trả về 1 promise có kết quả là mảng kết quả của các promise trong mảng
@@ -508,11 +508,13 @@ const whereAmI = async function () {
 };
 whereAmI();
 
-=>>>> ASYNC function luôn trả về 1 promise
- do javascript không biết sẽ trả về những gì từ async function khi gọi nó lúc nó vẫn thức thi dưới background
- promise do async funtion trả về luôn ở trạng thái fullfill dù cho trong async function thực thi bị reject
- nếu reject thì data trả về trong promise này là undefined
- => để promise trả về từ async funtion nhận về reject cần throw err từ trong catch(err) {} của khổi lệnh try catch
+=>>>> ASYNC function luôn trả về 1 promise do javascript không biết sẽ trả về những gì từ async function khi gọi nó lúc nó vẫn thức thi dưới background
+ - promise do async function trả về, nếu ở trạng thái fullfil, giá trị nhận về trong .then() là giá trị được return, nếu không có return .then() nhận được undefined
+ - promise do async function trả về ở trạng thái reject, lỗi bắt được ở .catch()
+ - sử dụng try catch bọc lấy logic trong async 
+ => lúc này promise do async funtion trả về luôn ở trạng thái fullfill dù cho trong async function thực thi bị reject
+ => nếu reject thì data trả về trong promise này là undefined
+ => để promise trả về từ async funtion nhận về bởi .catch() cần throw err từ trong catch(err) {} của khổi lệnh try catch
 
 ////////////////////1 SỐ FUNCTION STATIC CỦA OBJCET PROMISE
 

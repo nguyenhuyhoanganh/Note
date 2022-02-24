@@ -1,5 +1,1 @@
--Html DOM: +)getElementById, getElementsByTagName, getElementsByClassName, querySelector, querySelectorAll
-	 +)style, setAttribute, getAttribute, createElement, appendChild, removeChild, replace(el, el), innerText, innerHTML, prepend
--ClassList: add, remove, toggle, replace, contain
--Selector CSS
-- 
+https://javascript.info/

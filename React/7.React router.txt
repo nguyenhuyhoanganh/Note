@@ -1,0 +1,277 @@
+﻿Reat router v5 (web)  
+ > npm install react-router-dom@5
+================================================================================================
+////////////////////////////////////////////////
+// src/index.js
+  import { BrowserRouter } from 'react-router-dom';
+
+  ReactDOM.render(
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>,
+    document.getElementById('root')
+  );
+  
+
+// src/App.js
+  import { Route } from 'react-router-dom';
+  import { Link } from 'react-router-dom';
+  JSX:
+    <header>
+      <nav>
+        <ul>
+          <li>
+            <Link to='/welcome'>Welcome</Link>
+          </li>
+          <li>
+            <Link to='/products'>Products</Link>
+          </li>
+        </ul>
+      </nav>
+    </header>
+    <main>
+      <Route path="/welcome">
+        <Welcome />
+        {// our-domain.com/welcome}
+      </Route>
+      <Route path="/products">
+        <Products />
+      </Route>
+    </main>
+//////////////////////////////////////////////// 
+- Route được import từ react-router-dom là 1 component dùng để bọc lấy phần component muốn hiển thị theo prop path được gán trên component Route
+- muốn sử dụng Route cần bọc toàn bộ App component bởi component BrowserRouter import từ react-router-dom
+- không thể sử dụng thẻ a để điểu hướng url => làm cho page reload, mất state 
+- sử dụng component Link import từ react-router-dom để thay thế thẻ a, prop to thay thể prop href của thẻ a, trên DOM thật Link sẽ tự render ra thẻ a của trình duyệt, thẻ Link này sẽ ngăn chặn trình duyệt reload page, điêu hướng đến đúng component cần hiển thị và update URL
+================================================================================================
+High light active link
+////////////////////////////////////////////////
+  import { NavLink } from 'react-router-dom';
+ 
+  JSX:
+    <NavLink activeClassName={classes.active} to='/products'>Products</NavLink>
+////////////////////////////////////////////////
+- NavLink tương tự thẻ Link
+- NavLink hỗ trợ prop activeClassName để hỗ trợ css cho active link
+================================================================================================
+Default route
+////////////////////////////////////////////////
+ path='/products'
+ to='/products'
+ // our-domain.com/welcome 
+////////////////////////////////////////////////
+Dynamic route 
+////////////////////////////////////////////////
+ path='/product-detail:productId'
+ // our-domain.com/product-detail/68423812
+
+ import { useParams } from 'react-router-dom';
+ Component:
+   const params = useParams();
+////////////////////////////////////////////////
+- react-router-dom cung cấp  1 custom hooks: useParams
+- const params = useParams();
+ - hooks này trả về 1 object: params chứa tất cả segments đưa vào path
+   path='/product-detail:productId' 
+   // our-domain.com/product-detail/68423812
+   => params.productId = 68423812
+
+- các phần component có route với path trùng với url hiện tại sẽ hiển thị tất cả, thay vì chỉ phần component có route với path trùng khớp hoàn toàn với url đang được trỏ đến
+  // our-domain.com/products/68423812
+  => hiển thị tất cả:
+   path='products', path='products/68423812',...
+////////////////////////////////////////////////
+  import { Route, Switch } from 'react-router-dom';
+
+  JSX:
+    <Switch>
+      <Route path="/products" exact>
+        <Products />
+      </Route>
+      <Route path="/products:productId">
+        <Products />
+      </Route>
+    </Switch>
+////////////////////////////////////////////////
+- Switch là 1 component của rrd dùng để wrap roàn bộ Route, sẽ tránh mutiple page (load tất cả page có path của trùng với url), load page đầu tiên có path trùng với url
+  path1: '/products'
+  path2: '/products/68423812'
+  url: 'our-domain.com/products/68423812'
+  khi không dùng Switch, cả 2 Route đều render
+  khi dung Switch, Route có path1 render
+  đặt prop exact với Route có path1 => Route có path2 render
+- đưa prop exact vào component Route giúp rrd match chính xác path với url, hữu ích khi làm việc với nested route
+- dùng Switch chung với exact để không cần đặt exact ở mọi Route 
+================================================================================================
+Nested route: trường hợp có Route trong 1 Route khác
+- đặt component Route trong 1 component Route
+- đặt component Route trong 1 component được export ra ngoài và bọc bởi component Route
+=> Route được đặt bên trong bắt buộc phải được có path khởi đầu bằng path của Route bên ngoài
+=> khi sử dụng path của Route trong, tất cả nội dung của Route ngoài cũng được hiển thị
+
+- useRouteMatch(): là 1 custom component được cung cấp bởi rrd
+  { params, path, url } = useRouteMatch();
+    path, url mang giá trị path và url của page hiện tại
+    params: là object các param
+      //path='/products/:productId'
+      //url='our-domain.com/products/68423812'
+    => parmas = { productId: '68423812' }
+    sử dụng Link trong component render page hiện tại có thể kết hợp với url: to={`${url}/component`}
+    sử dụng Route trong component render page hiện tại có thể kết hớp với path: path={`${path}/:topicId`}
+    => render ra component match với Route nested
+    // 'topics' => 'topics/component'
+================================================================================================
+Redirect user
+- khi muốn chuyển hướng user nhập url sang page có url khác: '/' => '/welcome'
+////////////////////////////////////////////////
+  import { Route, Switch, Redirect} from 'react-router-dom';
+
+  JSX:
+  <Swicth>
+    <Route path="/" exact>
+      <Redirect to='/welcome' />
+    </Route>
+    <Route path="/welcome">
+      <Welcome />
+    </Route>
+    <Route path="/products" exact>
+      <Products />
+    </Route>
+  </Switch>
+////////////////////////////////////////////////
+- rrd cung cấp component Redirect cùng với prop to, sử dụng trong Route component để chuyển hướng page tới url cố định
+////////////////////////////////////////////////
+- 404 page: sử dụng path="*"
+
+  <Route path="*">
+    <PageNotFound>
+  </Route>
+////////////////////////////////////////////////
+================================================================================================
+useHistory: custom hooks của rrd cho phép thay đổi lịch sử trình duyệt, re-render component, thay đổi url
+
+const history = useHistory();
+  .push('/url') : cho phép đẩy 1 page mới lên đầu history page stack, push cho phép quay trở lại page trươc
+  .replace('/url') : thay thế page hiện tại bằng 1 page mới, replace không cho phép quay trở lại page trước
+
+dùng để điều hướng (sử dụng khi muốn submit form)
+
+history.push() cũng chấp nhận 1 object với thuộc tính đầu tien bắt buộc với key là pathname, thuộc tính thứ 2 là search: chuỗi query 
+================================================================================================
+Xử lý rời khởi page khi đang focus form 
+- lắng nghe form focus
+- hiển thị thông báo khi người dùng leave form mà chưa submit
+
+- rrd hỗ trợ 1 component Prompt, component này từ động xem xét khi người dùng điều hướng đi và đáp ứng điều kiện nhất định sẽ hiện cảnh báo trước khi rời đi
+- prop: when dùng để xem xét điều kiện
+        message dùng hiện thống báo khi rời page
+////////////////////////////////////////////////
+  import { Prompt } from 'react-router-dom';
+
+  const [isEntering, setIsEntering] = useState(false);
+  
+  const submitFormHandler = (e) => {
+    e.preventDefault();
+  }
+  const formFocusedHandler = () => {
+    setIsEntering(true);
+  }
+  const submitButtonHandler = () => {
+    setIsEntering(false);
+  }
+  
+  return (
+   <Fragment>
+     <Prompt 
+       when={isEntering}
+       message={(location) => 
+         'Are you sure you want to leave?'
+       }
+     />
+     <form onFocus={formFocusedHandler}>
+       <input type='text' />
+       <button 
+         type='submit' 
+         onClick={submitButtonHandler}>
+       Submit Form
+       </button>
+     </form>
+   </Fragment>
+  )
+////////////////////////////////////////////////
+================================================================================================
+query parmeter
+// our-domain.com/products?name=hentai%jp,sort=price,...
+
+useLocation: custom hook do rrd cung cấp dùng để lấy ra location obeject
+
+const location = useLocation();
+  location.pathname: lấy ra path name url : /products
+  location.search: lấy ra chuỗi query string sau path name : ?name=hentai%jp&sort=price
+
+JS cung cấp class: URLSearchParams('_queryString') để tự động chuyển chuỗi sang object
+
+const queryParams = new URLSearchParams(location.search);
+  queryParams.has('sort') === true //true
+  queryParams.get('sort')  // "price"
+  queryParams.getAll('sort')  // ['price']
+  queryParams.append('limit', '30');
+  queryParams.toString(); // ?name=hentai%jp&sort=price&limit=30
+  queryParams.delete('limit') //xóa limit
+================================================================================================
+RR V6
+- component Swicth thay thế bằng Routes, phải đưa Component trong cặp component Route vào prop element của nó
+<Swicth>
+  <Route path='/welcome'><Welcome /></Route>
+  <Route path='/products'><Products /></Route>
+<Swicth>
+chuyển thành:
+<Routes>
+  <Route path='/welcome' element={<Welcome />} />
+  <Route path='/products' element={<Products />} />
+</Routes>
+
+- không cần props exact, Routes tự động macth chính xác path với url, không hiện toàn bộ Route của path đúng với 1 phần url nữa, không match Route theo thứ tự path trong code nữa
+- nếu muốn hành vi hiện nhiều Route với path ứng với 1 phần url: mỗi path parent cần thêm '/*' ở cuối path, RR-V6 sẽ phân tích url:
+  path1: /products/*
+  path2: /products/:productId
+  path3: /products/edit
+  url: .../products/edit => hiển thị path1 và path 3 ở dưới
+  url: .../products/6724392 => hiển thị path 2
+
+- component NavLink: props activeClassName bị xóa bỏ
+=> thay bằng: className={(navData) => navData.isActive ? 'active' : ''}
+
+component Redirect bị thay thế bởi component Navigate, thêm prop replace vào Navigate (nếu thực sự muốn thay thế page hiện tại bằng page mới, không có prop replace thì chỉ là chuyển sang page mới)
+<Route path='/'><Redirect to='/welcome'></Route>
+=> <Route path='/' element={<Navigate replace to='/welcome' />} />
+
+- Nested route (1 Route trong element component của 1 Route khác)
+cần luôn đảm bảo component Routes bao quanh các component Route (kể cả ở trong các component chưa nested route)
+Cần thêm '/*' vào path của parent Route trong chuỗi route nested
+Path của route child không cần lặp lại chuỗi path của parent
+  parent: /welcome; child: /welcome/new-user
+=> parent: /welcome/*; child: new-user
+Link trong route child cũng tự động lấy chuỗi path của parent để ghép vào chính nó:
+  welcome/new-user => new-user
+
+- có thể xác định route child ngay trong cặp thẻ mở và đóng của route parent thay vì đặt route child trong component của route parent:
+<Route path='/welcome/*' element={<Welcome />}>
+  <Route path='new-user' element={<p>Welcome, new user!</p>} />
+</Route>
+- trong component của route parent sử dụng component Outlet được cung cấp bởi rrd làm palceholder cho nội dung trong route child
+  welcome component:
+  JSX: 
+  <section>
+    <Link to='new-user'>New User</Link>
+    <Outlet />
+  </section>
+
+- useHistory thay thế bằng useNavigate => sử dụng để chuyển hướng trang
+  const navigate = useNavigate();
+  navigate('/url') // đặt trong useEffect hoặc khi http request kết thúc,...
+  navigate('/url', { replace: true });  // để đẩy page mới lên ngăn xếp navigate
+  navigate(-1); //quay về page trước
+  navigate(-2); //quay về 2 page trước 
+
+- component Prompt được loại bỏ

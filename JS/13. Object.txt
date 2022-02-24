@@ -49,4 +49,14 @@ for(const [key, {open, close}] of entries) {
   console.log(`On ${key} we open at ${open} and close at ${close}`);
 }
 ///////////////////////////////////////////////////////////
+sort object:
+const sortQuotes = (quotes, ascending) => {
+  return quotes.sort((quoteA, quoteB) => {
+    if(ascending) {
+      return quoteA.id > quoteB.id ? 1 : -1;
+    } else {
+      return quoteA.id < quoteB.id ? 1 : -1;
+    }
+  })
+}
 

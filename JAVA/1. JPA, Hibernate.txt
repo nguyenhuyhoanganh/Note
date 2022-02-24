@@ -1,0 +1,166 @@
+﻿- start.spring.io
+- chọn dependencies:
+   Spring Web, Spring Data JPA, MS SQL Server Driver, Validation
+
+Anotaition:
+ @SpringBootApplication
+   chỉ ra rằng file hiện tại sử dụng nó là Spring context file
+   cho phép auto configuaration
+   cho phép component scan, tự động quét tất cả các classes trong package chứa file context, và các sub package cho bất kỳ beans nào được sử dụng (import)
+  - SpringApplication.run() là 1 phương thức để run spring context trả về 1 ApplicationContext object
+ @RestController 
+   chú thích class này được scan, trở thành 1 component được đăng ký như 1 bean và được quản lý bởi spring framework 
+
+
+application.properties:
+  spring.jpa.defer-datasource-initialization=true
+
+ANNOTATION của HIBERNATE
+https://gpcoder.com/6338-cac-annotation-cua-hibernate/
+
+=======================================================================
+- Tạo 1 entity sẽ map vào 1 table trong database, thao tác trực tiếp với entity, không cần thực hiện viết sql query thao tác với jdbcTemplate
+  
+  @Entity
+  @Table(name="person") // xác định table cần map
+  // nếu tên class phù hơp:
+  //table: person => class: Person
+  //table: order_details => class: OrderDetails
+  // thì không cần xác định annotation @Table
+
+  public class Person {
+  
+    @Id // xác định đây là primary key
+    @GeneratedValue // hỗ trợ generate primary key
+    // 4 kiểu: 
+    // @GeneratedValue(strategy = GenerationType.AUTO): persistence provider tự động chọn kiểu generate key dựa trên database specific dialect, thường là SEQUENCE
+    // @GeneratedValue(strategy = GenerationType.IDENTITY): sinh ra 1 giá trị tăng dần với 1 thao tác insert
+    // @GeneratedValue(strategy = GenerationType.SEQUENCE):  
+    // @GeneratedValue(strategy = GenerationType.TABLE):
+    private int id;
+
+    @Column(name="name") // xác định đây map với row name trong db
+    // nếu tên field trùng với tên row thì không cần xác định
+    // row name => name
+    // row birth_date => birthDate
+    private String name;
+  
+    private Date birthDate;
+
+    public Person() { } // luôn cần no-arg constructor
+    
+    public Person(String name, Date birthDate) {
+      super();
+      this.name = name;
+      this.birthDate = birthDate;
+    } // không cần id, cho phép hibernate tự động generate id
+  
+    // getter, setter tất cả các fields
+  } 
+
+- tạo Repository để thiết lập các quy tác thao tác với entity
+
+  @Repository
+  @Transaction // đảm bảo không bị mất dữ liệu khi có nhiều bản cập nhật 1 lúc 
+  
+  public class PersonRepository {
+    @PersistenceContext 
+    EntityManager entityManager; // dùng để quản lý entity
+
+    public Person findById(int id) {
+      return entityManager.find(Person.class, id);
+      // phương thức: .find(), nhận vào class và fields cần tìm
+    }
+
+    public Peson update(Person person) {
+      return entityManager.merge(person);
+    }
+
+    public Peson insert(Person person) {
+      return entityManager.persist(person);
+      // gọi method đưa 1 person không cần xác định id
+    }
+  
+    public void deleteById(int id) {
+      Person person = entityManager.find(Person.class, id);
+      return entityManager.remove(person);
+    }
+
+    public List<Person> getAll() {
+      String jpql ="select p from Person p"; // query lấy dữu liệu từ class entity: Person (cần giống hoàn toàn với tên class)
+      return entityManager.createQuery(jpql, Person.class).getResultList();
+      // Hibernate không hỗ trợ findAll trực tiếp trên entityManager
+    }
+  }
+======================================================
+ - không sử dụng @Transaction, thì mỗi khi entitymanager, repository thực thi 1 câu lệnh sẽ mở 1 transaction và kết thúc ngay lập tức
+ - có @Transaction thì transaction được mở khi trong 1 funtion
+
+ EntityManager
+  .persist : theo dõi entity trong 1 transaction, entity phải chưa xuất hiện trong db, GenerationType.IDENTITY lưu luôn entity vào db để xác định key, nếu không phải identity thì theo dõi thay đổi của entity đến hết 1 transaction sẽ lưu object vào db
+  .merge : chuyển entity từ trạng thái detached sang persist, theo dõi thay đổi của entity đến hết transaction, nếu có thay đổi update lại db
+  .find : tìm kiếm entity theo key
+  .remove : xóa entity theo object
+  .flush : lưu thay đổi hiện tại vào db mặc dù vẫn trong 1 tran
+  .detach : bỏ theo dõi thay đổi của 1 entity trong tran
+  .clear : bỏ theo dõi toàn bộ entity trong tran
+  .refresh : 
+https://shareprogramming.net/persist-va-merge-lam-viec-nhu-the-nao-trong-jpa/
+
+======================================================
+@OnetoOne
+student 1-1 passport
+Student.java:
+  @OneToOne
+  // chỉ cần xác định annotation ở 1 bên entity chứa foreign key, foreign key tự động được tạo: passport_id trong db mặc dù không được xác định trước 
+  // khi sử dụng enityManager.find(), tự động select cả dữ liệu trong passport theo foreign key
+  // @OneToOne(fetch=FetchType.LAZY) : chỉ lấy dữ liệu student mỗi khi find, sử dụng  
+  @JoinColumn(name="passportId")
+  // chỉ định foreign key đúng như db:
+  Passport passport;
+  
+  getter, setter passport
+
+  relationship 2 way
+Passport.java
+  @OneToOne(mappedBy="passport")
+  // entity không chưa foreign key được map với property passport bên entity student
+  // tránh trùng lặp 2 bên cùng chứa foreign key, vẫn giúp get,set lấy đúng entity được map
+  Student student;
+
+  getter, setter student
+
+- type fetch:
+  - Với annotation @ManyToOne và @OneToOne thì fetchType mặc định là EAGER
+  - Với annotation @ManyToMany và @OneToMany thì fetchType mặc định là LAZY
+- EAGER: truy xuất luôn dữ liệu các entity được mappedBy hoặc @JoinColumn, khi gọi đến các entity liên quan bằng .get_NameEntity không cần 1 lần truy xuất nữa
+- LAZY: chỉ truy xuất dữ liệu của entity cần truy xuất, khi gọi đến các entity liên quan bằng .get_NameEntity cần thực hiện 1 lần truy xuất nữa qua foreign ở mappedBy, @JoinColumn hoặc foreign key tự động tạo ra của hibernate (cần mở transaction 1 lần nữa để query)
+
+https://stackjava.com/hibernate/hibernate-fetchtype-la-gi-phan-biet-fetchtype-lazy-voi-eager.html
+======================================================
+@OneToMany, @ManyToOne
+
+======================================================
+- Transaction: mọi thao tác với entity trong 1 transaction sẽ thành công và được giử tới csdl hoặc khi 1 thao tác thất bại sẽ hủy bỏ toàn bộ thao tác trước đó
+- Persistence Context: được tạo ra ngay khi xác định 1 transaction
+- EntityManager giúp tương tác với entity trong Persistence Context
+
+
+======================================================
+application.properties:
+  spring.jpa.show-sql=true // show sql
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

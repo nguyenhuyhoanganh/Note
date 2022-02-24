@@ -1,0 +1,198 @@
+﻿https://start.spring.io/
+deps: web, devtools, jpa, mssql
+
+user -> posts
+Get all users: GET /users
+Create one user: POST /users
+Get a user: GET /users/{user_id}
+Delete a user: DELETE /users/{user_id}
+Update a user: PATCH /users/{user_id}
+
+Get all posts for a users: GET /users/{user_id}/posts
+Get details of a post: GET /users/{user_id}/posts/{post_id}
+Create a posts for a user: POST /users/{user_id}/posts
+====================================================================================================
+Annotation:
+-- Spring MVC
+@RestController
+@CrossOrigin
+@RequestMapping
+@ResponseStatus
+@Component
+@Service
+@Repository
+-- Handle exception
+@ControllerAdvice: là annotation cho phép handle exception trên toàn bộ ứng dụng trong một global component.
+@ExceptionHandler
+@RestControllerAdvice
+-- pth variable, body
+@PathVariable
+@RequestBody 
+-- method
+@GetMapping
+@PostMapping
+@DeleteMapping
+@PathMapping
+
+====================================================================================================
+Controller:
+@RestController // đặt trước class, cung cấp cho sping mvc biết đây là 1 controller xử lý Restful
+@CrossOrigin("*") // custom domain, có thể đặt là:
+"http://localhost:3000", đặt = "*" là cho phép mọi domain
+@RequestMapping("/store") // thêm tiền tố /store trước tất cả các path
+  Class:
+--------------------------------------------------
+@GetMapping(path="/hello-world") // đặt trước method, phương thức GET, uri: '/hello-world'
+  Method:
+- method return string browser convert sang text
+- method return bean tự động convert bean đó sang JSON
+--------------------------------------------------
+path="/users/{userId}"
+=> lấy userId: đưa vào hàm tham số: @PathVariable String userId
+--------------------------------------------------
+POST path="/users"
+lấy data từ trong requestbody: đưa vào hàm tham số: @RequestBody User user
+//////////////////////////////////////////////////
+@PostMapping("/users")
+public ResponseEntity<Object> createUser(@RequestBody User user) {
+  User savedUser = userService.save(user);
+
+  // tạo ra custom uri  
+  URI location = ServletUriComponentBuilder
+    .fromCurrentRequest() // lấy ra uri request hiện tại
+    .path("/{id}")
+    .buildAndExpand(savedUser.getId()).toUri();
+    // trả về uri: _domain/_prePath/users/_userId
+    // link tới getUserById, Id là user vừa lưu
+  return ResponseEntity.created(location).build();
+  //ResponseEntity để custom respone trả về
+  //để trả về status 201 do dùng method .created
+  //respone có headers chứa key location: URI vừa custom
+}
+====================================================================================================
+handle exception 404 not found
+-> khi delete, update, get by Id: id không tìm thấy spring vẫn trả về status: 200; body: null
+  Controller:
+B1: throw 1 exception khi user = null và custom exception 
+  Method(@PathVariable int id){ 
+    User user = userService.getUserById(id);
+    if(user == null) 
+      throw new UserNotFoundException("User not found with id:" + id);
+      // exception này được tự động xử lý bởi Spring
+      // body trả về với key message = arg truyền vào UserNotFoundException
+      // chứa path, status, timestamp, error 
+    return user
+  }
+
+B2: Tạo 1 class UserNotFoundException extends RuntimeException:
+  // mặc định server throw exception return về status code: 500
+  @ResponseStatus(HttpStatus.NOT_FOUND) // chỉ định server trả về status 404
+  public class UserNotFoundException extends RuntimeException {
+    // tạo constuctor(String) kế thừa từ RuntimeException
+    public UserNotFoundException(String message) {
+      super(message);
+    }
+  }
+----------------------------------------------------------------------------------------------------
+ CUSTOM HANDLE EXCEPTION RESPONSE
+
+@Data
+@AllArgsConstructor
+public class ExceptionResponse {
+	private Date timestamp;
+	private String message;
+	private String details;
+}
+
+
+@ControllerAdvice
+@RestController
+public class CustomizedResponseEntityExceptionHandler extends ResponseEntityExceptionHandler {
+
+	@ExceptionHandler(Exception.class) // bắt mọi class exception kể cả class UserNotFoundException
+	public final ResponseEntity<Object> handleAllExceptions(Exception ex, WebRequest request) {
+		ExceptionResponse exceptionResponse = new ExceptionResponse(new Date(), ex.getMessage(), request.getDescription(false));
+		return new ResponseEntity(exceptionResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+	}
+
+	@ExceptionHandler(UserNotFoundException.class) // bắt class UserNotFoundException
+	public final ResponseEntity<Object> handleUserNotFoundException(UserNotFoundException ex, WebRequest request) {
+		ExceptionResponse exceptionResponse = new ExceptionResponse(new Date(), ex.getMessage(), request.getDescription(false));
+		return new ResponseEntity(exceptionResponse, HttpStatus.NOT_FOUND);
+	}
+	
+	@Override
+	protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
+			HttpHeaders headers, HttpStatus status, WebRequest request) {
+		ExceptionResponse exceptionResponse = new ExceptionResponse(new Date(), "Validation Failed", ex.getBindingResult().toString());
+		return new ResponseEntity(exceptionResponse, HttpStatus.BAD_REQUEST);
+	}	
+}
+
+//ResponseEntityExceptionHandler là handle exception mà Spring cung cấp 
+====================================================================================================
+pom.xml
+<dependency>    
+    <groupId>org.springframework.boot</groupId>    
+    <artifactId>spring-boot-starter-validation</artifactId>
+</dependency>
+
+Validation:
+Entity:
+ @NotNull – kiểm tra giá trị null
+ @AssertTrue – kiểm tra giá trị thuộc tính là true
+ @Size – kiểm tra độ dài min and max
+ @Min – kiểm tra giá trị nhỏ nhất
+ @Max – Kiểm tra giá trị lớn nhất
+ @Email – kiểm tra email có hợp lệ
+ @NotEmpty – kiểm tra không được trống và empty
+ @NotBlank – kiểm tra giá trị không được null hoặc khoảng trắng
+ @Positive and @PositiveOrZero – kiểm tra chỉ được phép là số nguyên dương từ 0 trở đi
+ @Negative and @NegativeOrZero – kiểm tra số âm
+ @Past and @PastOrPresent – kiểm tra ngày từ quá khứ đến hiện tại.
+ @Future and @FutureOrPresent – kiểm tra ngày từ hiện tại đến tương lai
+
+Controller:
+ @Vaild // đặt vào argment của method trong controller để xác thực
+ // tự động trả về 400 badrequest, tuy nhiên không nhận dữ liệu trong body
+ // custom handle err bằng cách ghi đè lại method handleMethodArgumentNotValid của ResponseEntityExceptionHandler (tự động handle )
+
+- custom validator check model & entity: tự định nghĩa annotation
+https://loda.me/articles/jpahuong-dan-tu-tao-validator-e-kiem-tra-model-entity
+https://levunguyen.com/laptrinhspring/2020/04/19/su-dung-validation-trong-spring/
+
+====================================================================================================
+- HttpEntity: đại dện cho 1 entity request hoặc respone bao gồm header và body
+  HttpEntity(T body, MultiValueMap<String,String> headers)
+- ResponseEntity: dùng để custom respone như status, headers, ...Mở rộng của HttpEntity và thêm status code
+  ResponseEntity(T body, MultiValueMap<String,String> headers, HttpStatus statusCode)
+ - sử dụng custom:
+   ResponseEntity.status(HttpStatus.CREATED)
+     .header("location", "/rest/users" + newUser.getId())
+     .body(newUser);
+   //////////////////////////////////////////
+   .ok()// trả về mã 200
+   .ok(user)// trả về mã 200, body user
+   .ok().body(user) == .ok(user)
+   .create(URI) == .status(Httpstatus.CREATED).location(URI)
+   .loctaion(URI) === .header.setLocation(URI)
+   .accepted() === .status(ACCEPTED)
+   .noContent, .badRequest, .notFound // cấu hình status như .accepted
+   .build == .body(null)
+   ................
+====================================================================================================
+resttemplate -> webclient: sử dụng để request đến 1 Rest API bất kỳ, mục đích lấy dữ liệu ngoài server
+https://shareprogramming.net/huong-dan-su-dung-resttemplate-trong-spring-boot/
+https://shareprogramming.net/thay-the-resttemplate-bang-webclient-trong-spring-boot/
+====================================================================================================
+search api:
+https://www.baeldung.com/rest-search-language-spring-jpa-criteria
+https://www.baeldung.com/rest-api-search-language-spring-data-specifications
+https://www.baeldung.com/rest-api-search-language-spring-data-querydsl
+https://www.baeldung.com/rest-api-query-search-language-more-operations
+https://www.baeldung.com/rest-api-query-search-or-operation
+====================================================================================================
+@Component, @Service và @Repository
+https://shareprogramming.net/su-khac-biet-giua-component-repository-va-service-trong-spring/
+====================================================================================================
+Khác nhau giữa exception và runtimeexception

@@ -199,11 +199,9 @@ Redux & Side effects (Asynchronous code)
 - tương tự reducerfn đưa vào useReducer, reducer fn đưa vào Redux phải là synchronous fn, không có bất kỳ side effect nào, và không có đột biến code (thay đổi trực tiếp object)
 - có thể đưa side effect, asynchronous fn vào component, hoặc vào trong action creators (không thay đổi chức năng của reducer fn)
 
-- với component, đưa async fn vào useEffect, tùy trạng thái async fn dispatch 1 action thích hợp
 
 
-- tạo ra các action creator ( chuyển action đến reducer) thay cho redux-toolkit: thunk
- - thuck là 1 fnction giúp trì hoãn 1 action cho đến khi 1 điều gì đó kết thúc, giúp không ngay lập tức trả về object action
+
 
 
 

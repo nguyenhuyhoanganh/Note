@@ -151,6 +151,9 @@ application.properties:
   spring.jpa.show-sql=true // show sql
 
 
+======================================================
+đọc thêm: lifecycle, cache, ...
+https://gpcoder.com/category/jpa/
 
 
 

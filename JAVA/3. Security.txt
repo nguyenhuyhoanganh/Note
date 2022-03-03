@@ -1,0 +1,480 @@
+﻿============================================================================================================================================================
+SPRING SECURITY
+
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-security</artifactId>
+</dependency>
+
+application.properties: 
+  #config username password default
+  spring.security.user.name = username
+  spring.security.user.password = 123456
+
+- khi lần đầu tiên giử request, spring boot tạo 1 cookie với key: JSESSIONID
+- mặc định spring securty sẽ cố gắng bảo mật tất cả các end point trong app và chỉ cho phép người dùng đã xác thực được thực hiện  truy cập vào các url
+
+1: security.web.authentication.AuthenticationFilter (Class)
+2: security.authentication.AuthenticationManager (Interface)
+3: security.authentication.AuthenticationProvider (Interface)
+4: security.core.userdetails.UserDetailsService (Interface)
+5: security.cryto.password.PasswordEncoder (Interface)
+6: security.core.context.SecurityContext (Interface)
+7: security.core.Authentication (Interface)
+
+Người dùng nhập thông tin đăng nhập -> 1 -> 2 -> 3 -> 2 -> 1 -> người dùng
+1 -> 6,7 : cấu hình xác thực, bối cảnh bảo mật
+3 -> 4,5 : cung cấp xác thực, cấu hình mã hóa mật khẩu và userdetailsservice: xác nhận có đúng người dùng dựa trên thông tin người dùng đăng nhập
+
+
+package config
+@Configuration
+class ProjectSecurityConfig extends WebSecurityConfigurerAdapter
+  
+  @Override
+  protected void configure(HttpSecurity http) throws Exception{
+
+    http.authorizeRequests()
+
+      //default: .anyRequest().authenticated()  
+      .antMatchers("/SecuredPath").authenticated()
+      //các path cần authenticated
+      .antMatchers("/NotSecuredPath").permitAll()
+      //các path không cần authenticated
+ 
+      .and().formLogin().and().httpBasic();
+      
+      //từ chối tất cả request, không quan tâm thông tin đăng nhập:
+      // .anyRequest.denyAll()
+      //chấp nhận tất cả request không cần thông qua authenticated:
+      // .anyRequest.permitAll()
+  } 
+
+============================================================================================================================================================
+DEFINING AND MANAGING USERS 
+UserDetails, UserDetailsService, UserDetailsManager, User, InmemoryUserDetailsManager, JdbcUserDetailsManager
+
+/*
+  //--- config nhiều tài khoản xác thực (HARD CODE) ---
+  // thay thế config trong application.properties
+  @Override
+  protected void configure(AuthenicationManagerBuilder auth) throws Exception {
+  auth.inMemoryAuthentication()
+  // tất cả người dùng muốn cấu hình được lưu vào bộ nhớ của spring container 
+  // sẽ được tận dụng bởi spring security khi thực hiện xác thực và ủy quyền
+  .withUser("admin").password("12345").authorities("admin")
+  .and().withUser("user").password("12345").authorities("read")
+  // config các tài khoản có sẵn và chỉ định quyền cho từng tài khoản
+  .and().passwordEncoder(NoOpPasswordEncoder.getInstance());
+  // vượt qua password encoder của user details do spring scurity yêu cầu
+  }
+
+  //--- config nhiều tài khoản xác thực thông qua userdetails (HARD CODE) ---
+  @Override
+  protected void configure(AuthenicationManagerBuilder auth) throws Exception {
+    InMemoryUserDetailsManager userDetailsService = new InMemoryUserDetailsManager();
+    UserDetails admin = User.withUsername("admin").password("12345").authorities("admin").build();
+    UserDetails user = User.withUsername("user").password("12345").authorities("read").build();
+    userDetailsService.createUser(admin);
+    userDetailsService.createUser(user);
+    auth.userDetailsService(userDetailsService);
+  }
+  // userdetails yêu cầu 1 bộ mã hóa mật khẩu => cần tạo 1 bean passwordencoder
+  // là 1 dấu hiệu cho spring security biết rằng tất cả xác thực mật khẩu nên tuân theo
+  @Bean
+  public PasswordEncoder passwordEncoder() {
+    return NoOpPasswordEncoder.getInstance();
+  }
+  // ở đây tất cả xác thực mật khẩu thực hiện NoOpPasswordEncoder
+*/
+
+InMemoryUserDetailsManager, JdbcUserDetailsManager, LdapUserDetailsManager 
+=> UserDetailsManager(Interface)
+ : createUser(UserDetails user)
+ : updateUser(UserDetails user)
+ : deleteUser(String username)
+ : changePassword(String oldPassword, String newPassword)
+ : userExists(String username)
+=> UserDetailsService(Interface)
+ : loadUserByUsername(String username) 
+=> UserDetails(Interface)
+ : getPassword()
+ : getUsername()
+ : getAuthorities()
+ : isAccountNonExpired()
+ : isAccountNonLocked()
+ : isCredentialsNonExpired()
+ : isEnabled()
+
+ví dụ trên:
+- InMemoryUserDetailsManager là class implements interface UserDetailsManager thực thi tất cả method của UserDetailsManager và UserDetailsService
+- UserDetailsManager là interface extends interface UserDetailsService
+ 
+- UserDetailsManager cung cấp các phương thức create, update, delete, changepassword, ... tương tác với interface UserDetails
+- UserDetailsService cung cấp phương thức loadUserByUsername trả về 1 UserDetails (cũng tương tác với UserDetails)
+
+- UserDetails là 1 schema được duy trì bởi spring security, đại diện cho 1 người dùng đang cố gắng truy cập vào ứng dụng
+
+- class User implements UserDetails, cung cấp builder qua UserBuilder sử dụng để thay thế UserDetails truyền vào các method của InMemoryUserDetailsManager, thông qua method: configure(AuthenticationManagerBuilder):void của WebSecurityConfigurerAdapter để đặt các user trong memory
+
+------------------------------------------------------------------------------
+- như InMemoryUserDetailsManager để tạo các user cứng trong memory, sử dụng JdbcUserDetailsManager với các user trong db hoặc LdapUserDetailsManager với các user với Ldap server, các class này được implements UserDetailsManager nên đã cung cấp sẵn các method thực thi
+
+- UserDetailsService phù hợp với việc chỉ cần lấy dữ liệu user thông qua username, không bao gồm các kịch bản như create, update, delete, ... của UserDetailsManager 
+
+- UserDetailsManager là interface mở rộng của UserDetailsService cung cấp thêm các abstract method create, update, delete, ...
+------------------------------------------------------------------------------
+- JdbcUserDetailsManager cung cấp tất cả các method được implement từ UserDetailsManager và UserDetailsService giúp truy xuất lấy dữ liệu sửa đổi dữ liệu user từ database
+- JdbcUserDetailsManager yêu cầu các bảng khớp hoàn toàn với sql query được cung cấp sẵn trong nó:
+  CREATE TABLE `users` (
+   `id` INT NOT NULL AUTO_INCREMENT,
+   `username` VARCHAR(45) NOT NULL,
+   `password` VARCHAR(45) NOT NULL,
+   `enabled` INT NOT NULL,
+   PRIMARY KEY (`id`)
+  );
+  CREATE TABLE `authrities` (
+   `id` INT NOT NULL AUTO_INCREMENT,
+   `username` VARCHAR(45) NOT NULL,
+   `authority` VARCHAR(45) NOT NULL,
+   PRIMARY KEY (`id`)
+  );
+  -- ngoài ra còn các table group_names, groups
+  
+  @Configuration
+  ProjectSecurityConfig extends WebSecurityConfigurerAdapter:
+  
+  @Bean
+  public UserDetailsService userDetailsService(DataSource dataSource) {
+    return new JdbcUserDetailsManager(dataSource);
+  }
+
+------------------------------------------------------------------------------
+CUSTOM UserDetails, UserDetaisService
+- @Entity Member(int id, String username, String password, List<String> roles)
+- @Respository MemberRepository extends JpaRepository<Member, Integer> {
+    List<Member> findByUsername(Strung username);
+  }
+- class UserCustomize implements UserDetails {
+    private final Member mem;
+    public UserCustomize(Member mem) {
+      this.mem = mem;
+    }
+    @Override all methods of UserDetails 
+     getAuthorities() {
+       List<GrantedAuthority> authorities = new ArrayLisst<>();
+       for(String role : mem.getRoles()) {
+         authorities.add(new SimpleGrantedAuthority(role));
+       }
+       return authorities;
+     }
+     getPassword -> return mem.getPassword();
+     getUsername -> return mem.getUsername();     
+     isAccountNonExpired -> return true;
+     isAccountNonLocked -> return true;
+     isCredentialsNonExpired -> return true;
+  }
+
+- @Service 
+  class UserCustomizeService implements UserDetailsService {
+    @Autowired MemberRepository reposiroty;
+    @Override loadUserByUsername(String username) of UserDetailsService
+     List<Member> mems = repository.findByUsername(username);
+     if(mems.size() == 0) throws new NotFoundExceptionCustomize("Not found user");
+     return new UserCustomize(mems.get(0));
+  }
+- @Configuration
+  SecurityConfig extends WebSecurityConfigurerAdapter {
+    @Override
+    configure(HttpSecurity):void
+     //custom http.authorizeRequest()
+
+    @Bean
+    PasswordEncoder passwordEncoder() 
+     // return PasswordEncoder
+    // cấu hình passwordencoder mặc định cho spring security
+
+    /*
+     * @Autowired UserCustomizeService userCustomizeService;
+     * @Override 
+     * protected void configure(AuthenticationManagerBuilder auth){
+     *   auth.userDetailsService(userCustomizeService)
+     *     .passwordEncoder(passwordEncoder());     
+     * }
+     *
+     * @Bean
+     * public BCryptPasswordEncoder passwordEncoder() {
+     *   BCryptPasswordEncoder bCryptPasswordEncoder 
+     *     = new BCryptPasswordEncoder(12);
+     *   return bCryptPasswordEncoder;
+     * }
+     */
+    // không cần đưa UserCustomizeService vào auth.userDetailsService
+    // tự động được sử dụng bỏi spring security
+  }
+------------------------------------------------------------------------------
+
+Spring cung cấp mặc định:
+1: Class User (password, username, authorities, accountNonExpired, accountNonLocked, credentialsNonExpired, enabled) implement UserDetails 
+2: JdbcUserDetailsManager implemnets UserDetailsManager extends UserDetailsService
+
+Spring security sẽ sử dụng User và JdbcUserDetailsManager để xác thực nếu không cấu hình như trên
+
+Như trên là tạo ra UserCustomize và UserCustomizeService để xác thực
+------------------------------------------------------------------------------
+* cách thầy cường:
+B1: Tạo model UserPrincipal extends User 
+  //(User từ springframework.security.core.userdetails.User)
+  // User này implement UserDetails 
+  // UserPrincipal thêm 1 số thuộc tính như name, phone, address, ... tương tự với các rows dữ liệu trong bảng User(DB)
+  // constructor của UserPrincipal lấy y nguyên của class User(extends) 
+B2: Tạo service UserPrincipalService implements UserDetailsService 
+  // trong loadUserByUsername:
+  // B1: lấy Repository.findByUsername trả về dữ  liệu của User(DB)
+  // B2: tạo List<SimpleGrantedAuthority> authorities và đưa các roles của User(DB) vào authorities 
+  // B3: tạo mới UserPrincipal, hàm tạo có username, password từ User(DB), có authorities  vừa tạo và các tham số còn lại set true
+  // B4: set các thuộc tính còn lại của UserPrincipal lấy từ của User(DB)
+  // B5: return UserPrincipal vừa tạo
+
+=> sử dụng UserPrincipal và UserPrincipalService để xác thực 
+*/
+============================================================================================================================================================
+PASSWORD ENCODERS
+
+Người dùng nhập thông tin đăng nhập gồm username, password
+Spring lấy username gọi phương thức loadUserByUsername để lấy user từ DB
+Spring so sánh password nhận được từ nguoefi dùng xem có giống với password lấy lên từ DB không
+Nếu không trùng khớp password, Spring trả về 401 Unauthorized, ngược lại Spring sẽ tiếp tục thực hiện request
+
+Encoding chuyển đổi dữ liệu người dùng nhập sang dạng khác (không đảm bảo bí mật, toàn vẹn xác thực vì hoàn toàn có thể đảo ngược)
+Encoding có thể sử dụng giảm kích thước các tệp, không sử dụng để bảo mật dữ liệu 
+
+Encrytion chuyển đổi dữ liệu theo cách đảm bảo tính bảo mật, yêu cầu sử dụng 1 secret key
+Encrytion chia là 2 loại symmetric và asymmetric có sự khác biệt là số key cần để encrytion
+Symmetric là chỉ có 1 secret key duy nhất được sử dụng vừa để mã hóa và giải mã
+Asymmetric có 2 key được sử dụng, 1 key công khai và 1 riêng tư được giữ bí mật, khi mã hóa key công khai sẽ được sử dụng, giải mã yêu cầu key riêng tư, bất kỳ ai cũng có thể giử dữ liệu để mã hóa nhưng chỉ bản thân mới có thể giải mã và đọc dữ liệu
+
+Hashing chuyển đổi dữ liệu thành hash nhờ 1 số hàm hashing, có thể là bất kỳ số nào được tạo từ string hoặc text. Dữ liệu sau khi được hashing không thể bị đảo ngược
+1 số thuật toán: MD5, SHA256,...
+Hashing khiến cho không thể đọc được dữ liệu gốc đưa vào từ dữ liệu đã được hashsing
+Hashing dùng để bảo mật password, thay vì lưu trữ password trong DB sẽ chỉ lưu trữ hash của password
+Lần đăng nhập kế tiếp sẽ lại tiếp tục hashing mật khẩu nhập vào và so sánh với hash có trong DB, nếu khớp nhau sẽ thông qua (Web không hề biết password thực trong bộ nhớ). khớp ở đây là khớp vầ text hoặc string đưa vào để hash, chuỗi hash có thể khác nhau khi so sánh
+
+PasswordEncoders là 1 Interface có swaxn trong spring security với 3 method:
+ -String encode(CharSequence rawPassword)
+   chuyển từ rawPassword sang encodedPassword
+ -boolean matches(CharSequence rawPassword, String encodedPassword)
+   match password nhận được với bất kỳ password đã được mã hóa 
+ -default boolean upgradeEncoding(String encodedPassword) -> return false
+
+Spring security cung cấp các class implements PasswordEncoders 
+-NoOpPasswordEncoder
+-StandardPasswordEncoder
+-Pbkdf2PasswordEncoder
+-BCryptPasswordEncoder
+-SCryptPasswordEncoder
+
+-NoOpPasswordEncoder: spring security không khuyến khích sử dụng, không sử dụng bất cứ xác thực nào
+
+-StandardPasswordEncoder tuân theo thuật toán SHA256 mức độ phức tạp thấp, sử dụng mã hóa 2 chiều 
+
+-Pbkdf2PasswordEncoder: làm 1 chức năng hashing trên HMAC nhiều lần, ngoài secret còn nhận thêm 2 tham số là số lần lặp lại và kích thước hàm hash, hàm hash càng dài thì mật khẩu càng mạnh (thực hiện chậm, cũng sử dụng mã hóa 2 chiều)
+  PasswordEncoder p = new Pbkdf2PasswordEncoder();
+  PasswordEncoder p = new Pbkdf2PasswordEncoder("secret");
+  PasswordEncoder p = new Pbkdf2PasswordEncoder("secret", 185000, 256);
+
+-BCryptPasswordEncoder sử dụng BCrypt hashing để mã hóa mật khẩu, có thể chỉ định hệ số cường độ đại diện cho quá trình mã hóa phải trải qua bao nhiêu lần, cũng có thể thay đổi SecureRandom được sử dụng để mã hóa
+  PasswordEncoder p = new BCrytPasswordEncoder();
+  PasswordEncoder p = new BCrytPasswordEncoder(4);
+  SecureRandom s = SecureRandom.getInstanceStrong();
+  PasswordEncoder p = new BCrytPasswordEncoder(4);
+
+-SCryptPasswordEncoder sử dụng SCrypt hashing để mã hóa, có 2 tùy chọn instances, là mạnh nhất, tuy nhiên yêu cầu thời gian, bộ nhớ nhiều
+  PasswordEncoder p = new SCryptPasswordEncoder();
+  PasswordEncoder p = new SCryptPasswordEncoder(16384, 8, 1, 32, 64);
+------------------------------------------------------------------------------
+triển khai BCryptPasswordEncoder
+   @Bean
+   public PasswordEncoder passwordEncoder() {
+     return new BCryptPasswordEncoder(4);
+   }
+============================================================================================================================================================
+Authentication Provider tận dụng UserDetailsService và PasswordEncoder để thực hiện xác thực 
+Ngay khi có request đến từ UI, 1 bộ lọc sẽ chặn request đó và chuyển đổi nó thành 1 object Authentication và cung cấp cho Authentication Manager, Authentication Manager sẽ chuyển trách nhiệm xác thực người dùng đó cho Authentication Provider (sử dụng UserDetailsService và PasswordEncoder để xác thực người dùng)
+
+Authentication Provider là 1 interface có 2 method:
+- authenticate() chấp nhận 1 object Authentication và trả về 1 object Authentication mới (object này do Authentication Filter chặn các request và chuyển chúng thành 1 object Authentication để đưa cho Authentication Manager). Authentication Manager sẽ gọi method authenticate này => logic xác thực được viết trong method authentcate này
+- supports(Class<?> authentication): method này hỗ trợ xác định loại định dạng xác thực mà AuthenticationProvider hỗ trợ
+ 
+- Authentication Manager
+    - có 1 method: Authentication authenticate (Authentication authentication) :chuyển request từ AuthenticationFilter đển AuthenticationProvider để validate và control user, AuthenticationProvider sẽ thực hiện các logic xác thực thực tế, cần thêm method supports trong các tình huống muốn có nhiều cách xác thực
+    - Chỉ có 1 Manager duy nhất ủy thác các Authentication object đến các provider tương ứng
+    - Spring security cung cấp 1 class: ProviderManager implements AuthenticationManager, method authenticate của class này sẽ xem xét tất cả provider của AuthenticationProvider hỗ trợ cho ứng dụng
+    - khi tất cả xác thực hoàn thành, spring security sẽ xóa hết thông tin đăng nhập và dữ liệu nhạy cảm
+
+- Authentication Object và Principal interface
+  - Principal (Interface) được cung cấp bởi java.security
+   - getName() : lấy ra username
+  - Authentication (Interface) được cung cấp bởi springframework.security.core, mở rộng cuat Principal
+   - getAuthorities() : lấy ra các authorities
+   - getCredentials() : lấy ra thông tin password
+   - getDetails() : lấy ra các chi tiết bổ sung muốn duy trì liên kết với user như Ip address
+   - getPrincipal() : methed mở rộng từ Principal, sử dụng nó để lấy username
+   - isAuthenticated() : lấy ra trạng thái xác thực của người dùng, ban đầu là false, sau khi xác thực là true
+   - setAuthenticated(boolean isAuthenticated) : đặt lại isAuthenticated
+------------------------------------------------------------------------------
+Spring cung cấp:
+  1. class ProviderManager implements AuthenticationManager
+    có method authenticate chuyển Authentication object sang AuthenticationProvider 
+  2. class DaoAuthenticationProvider extends abtract class AbstractUserDetailsAuthenticationProvider implement AuthenticationProvider 
+    có method authenticate
+      - trong method tạo ra 1 UserDetails user, nếu user null gọi method retieveUser để lấy user từ username (username này được cung cấp từ Authentication.getPrincipal().getName(), Authentication được cung cấp bởi AuthenticationManager )
+      - method return createSuccessAuthentication(principalToreturn, authentication, user) (là 1 method chuyển từ UserDetials sang Authentication object, chính xác hơn là trả về UsernamePasswordAuthenticationToken)
+  3. class UsernamePasswordAuthenticationToken extends AbstractAuthenticationToken implements Authentication
+
+=> UserDetails và Authentication là 2 cơ chế khác nhau để duy trì xác thực người dùng được cung cấp bởi Spring security, spring tách nó ra để cung cấp sự linh hoạt
+  UserDetailsManager và UserDetailsService tận dụng UserDetails
+  AuthenticationManager và AuthenticationProvider tận dụng Authentication
+------------------------------------------------------------------------------
+lấy thông tin user thực hiện đăng nhập từ request bằng cách:
+ - Principal principal = request.getUserPrincipal(); 
+   // trả về principal thực heiên request 
+
+ - Authentication auth = SecurityContextHolder.getContext().getAuthentication() 
+   // trả về Authentication object hiện tại
+------------------------------------------------------------------------------
+custom lại AuthenticationProvider: xây dựng logic xác thực riêng, không cần thông qua UserDetailsService 
+
+@Component
+public class MemberUsernamePwdAuthenticationProviderCustomize implements AuthenticationProvider {
+  @Autowired
+  private MemberRepository reposiroty;	
+  @Autowired
+  private PasswordEncoder passwordEncoder;
+	
+  @Override
+  public Authentication authenticate(Authentication authentication) {
+    String username = authentication.getName();
+    String pwd = authentication.getCredentials().toString();
+    List<Member> mem = repository.findByUsername(username);
+    if (mem.size() > 0) {
+      if (passwordEncoder.matches(pwd, mem.get(0).getPwd())) {
+        List<GrantedAuthority> authorities = new ArrayList<>();
+        authorities.add(new SimpleGrantedAuthority(mem.get(0).getRole()));
+        return new UsernamePasswordAuthenticationToken(username, pwd, authorities);
+      } else {
+        throw new BadCredentialsException("Invalid password!");
+      }
+    }else {
+      throw new BadCredentialsException("No user registered with this details!");
+    }
+  }
+
+  @Override
+  public boolean supports(Class<?> authenticationType) {
+    return authenticationType.equals(UsernamePasswordAuthenticationToken.class);
+  }
+}
+// Filter sẽ chặn request (cụ thể là UsernamePasswordAuthenticationsFilter):
+  this.getAuthenticationManager().authenticate(authRequest); line 95
+// chạy qua class ProviderManager vào method authenticate:
+  - có vòng lặp chạy qua các provider được cung cấp bở getProvider
+  - nếu có provider sẽ chạy vào đó, không có thì thực hiện default
+------------------------------------------------------------------------------
+============================================================================================================================================================
+CORs & CSRF
+- khi cố gắng thực hiện kết nối đến backend nhận được lỗi bloack do CORs 
+- CORs là CROSS_ORIGIN RESOURCE SHARING (CORs): nghĩa là app có 2 nguồn khác nhau, đang cố giao tiếp với nhau để nhận dữ liệu. CORs là 1 protocol cho phép các tập lệnh chạy trên trình duyệt yêu cầu tương tác với các tài nguyên từ các tài nguyên khác như call API từ 1 tên miền khác
+- CORs bị chặn mặc định bởi các trình duyệt để ngừng chia sẻ dữ liệu giữa các nguồn khác nhau
+- nguồn khác ở đây là URL khác với URL mà javascript đang chạy: khác HTTP/HTTPS, khác domain, khác port
+- CORs không phải vấn đề liên quan đến các cuộc tấn công bảo mật
+- Trình duyệt ban đầu giử 1 request đến backend xem nó có hỗ trợ CORs hay không, server có thể response lại với 1 collection of headers:
+  Access-Control-Allow-Origin: Xác định nguồn gốc nào có thể truy cập vào resource, * nghĩa là bất kỳ nguồn gốc nào
+  Access-Control-Allow-Methods: Chỉ ra các phương thức HTTP được phép cho các request cross-origin
+  Access-Control-Allow-Header: Chỉ ra các request header được cho phép 
+  Access-Control-Allow-Credentials: Cho biết liệu phản hồi cho request có được hiển thị hay không khi credentials flag là true
+  Access-Controll-Max-Age: cho biết thời gian hết hạn của result được lưu trong bộ nhớ cache
+------------------------------------------------------------------------------
+@Congiguration
+public class SecurityConfig extends WebSecurityConfigurerAdapter {
+  @Ovirride 
+  protected void configure(HttpSecurity http) throws Exception {
+    http.cors().configurationSource(new CorsConfigurationSource() {
+      @Override
+      public CorsConfiguration getCorsConfiguration(HttpServletRequest request) {
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOrigins(Collections.singletonList("http://localhost:4200"));
+        // cho phép origin truy cập resource
+        config.setAllowedMethods(Collections.singletonList("*"));
+        // chấp nhận tất cả method
+        config.setAllowCredentials(true);
+        // 
+        config.setAllowedHeaders(Collections.singletonList("*"));
+        config.setMaxAge(3600L);
+        return config;
+      }
+    }).and()....// config authorizerequest và csrf
+  }
+}
+------------------------------------------------------------------------------
+error: Forbidden, status: 403: do CSRF sẽ ném ra err khi thực hiện các method khác ngoài GET
+- CSRF là CROSS-SITE REQUEST FORGERY: là cuộc tấn công nhằm mục đích thực hiện 1 hoạt động trong 1 web ứng dụng thay mặt người dùng mà không có sự cho phép của họ. nó không trực tiếp đánh cắp danh tính người dùng mà sẽ lợi dụng người dùng thực hiện 1 hành động không phải theo ý của họ 
+- dựa theo thông tin người dụng đã đăng nhập đưucọ lưu ở trong session được duy trì bởi cookies
+-  kẻ tấn công sẽ tìm hiểu hành động người dùng cần thực hiện và thay mặt nạn nhân thực hiện hành động đó
+: người dùng đăng nhập, người dùng đã có 1 session/coolie hợp lệ, người dùng click vào 1 link độc hại tạo bở hacker, trình duyệt sẽ tự append cookie và giử request của hacker tới server
+------------------------------------------------------------------------------
+1. vô hiệu hóa csrf:
+  http.csrf().disable()
+2. tạo CSRF token khi login:
+  http.csrf().csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+  có: DEFAULT_CSRF_COOKIE_NAME = "XSRF-TOKEN"
+  ở UI, khi login lấy giá trị cookie tên XSRF-TOKEN lưu trữ ở sessionStorage và đưa vào header mỗi khi thực hiện request
+3. tạo CSRF token nhưng từ chối 1 số url:
+    http.csrf().ignoringAntMatchers("/contact").csrfTokenRepository(...
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

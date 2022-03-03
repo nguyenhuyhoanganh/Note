@@ -160,7 +160,7 @@ Controller:
 - custom validator check model & entity: tự định nghĩa annotation
 https://loda.me/articles/jpahuong-dan-tu-tao-validator-e-kiem-tra-model-entity
 https://levunguyen.com/laptrinhspring/2020/04/19/su-dung-validation-trong-spring/
-
+https://www.youtube.com/watch?v=aNpJGvFR5uI
 ====================================================================================================
 - HttpEntity: đại dện cho 1 entity request hoặc respone bao gồm header và body
   HttpEntity(T body, MultiValueMap<String,String> headers)

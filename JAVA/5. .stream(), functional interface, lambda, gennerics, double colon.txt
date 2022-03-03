@@ -1,0 +1,18 @@
+.stream()
+https://gpcoder.com/3923-gioi-thieu-ve-stream-api-trong-java-8/
+https://viblo.asia/p/hieu-hon-cac-iteration-methods-trong-javascript-duoi-goc-nhin-java-3Q75w6PGlWb
+
+functional interface
+https://viblo.asia/p/hieu-hon-ve-functional-interface-trong-java-Az45b09qZxY
+https://viblo.asia/p/cac-dang-implementation-cua-functional-interface-gDVK2d6rlLj
+https://viblo.asia/p/4-functional-interface-co-san-va-vi-du-voi-stream-api-RQqKL6L4l7z
+https://viblo.asia/p/them-vai-dang-functional-interface-co-san-nua-gGJ596MxKX2
+
+lambda
+https://viblo.asia/p/lambda-expression-khong-kho-Az45b0R6ZxY
+
+double colon
+https://viettuts.vn/java-new-features/toan-tu-dau-2-cham-trong-java-8
+
+java generics
+https://openplanning.net/10403/java-generics

@@ -1,0 +1,233 @@
+﻿Heap và Stack:
+Java Heap và Stack Memory là một phần của bộ nhớ được JVM sử dụng để chạy chương trình Java. Khi chạy chương trình Java, JVM sẽ yêu cầu hệ điều hành cấp cho một không gian bộ nhớ trong RAM để dùng cho việc chạy chương trình. JVM sẽ chia bộ nhớ được cấp phát này thành 2 phần: Heap và Stack cho việc quản lý.
+
+- Stack chứa lời gọi method, biến local trong method ở runtime trong một Thread java, luôn được tham chiếu theo last in first out
+
+- Heap chứa các object, biến instance, biến static
+  - sử dụng ở runtime
+  - các objects trong Heap đều được truy cập bởi tất cả các các nơi trong ứng dụng, bởi các threads khác nhau.
+  - kích thước heap lớn hơn stack (heap sẽ tăng giảm dựa trên object sử dụng, không cố định) 
+  - thời gian sống của object phụ thuộc vào Garbage Collection của java
+  - Garbage Collection sẽ chạy trên bộ nhớ Heap để xoá các Object không được sử dụng nữa, nghĩa là object không được referece trong chương trình
+
+Ex:
+public class Memory {
+ 
+    public static void main(String[] args) { // Line 1
+        int i=1; // Line 2
+        Object obj = new Object(); // Line 3
+        Memory mem = new Memory(); // Line 4
+        mem.foo(obj); // Line 5
+    } // Line 9
+ 
+    private void foo(Object param) { // Line 6
+        String str = param.toString(); //// Line 7
+        System.out.println(str);
+    } // Line 8
+ 
+}  
+
++ Khi chạy chương trình, một thread sẽ khởi tạo và sẽ gọi hàm main ở dòng 1. Một khối bộ nhớ được tạo trong stack cho hàm main().
+
++ Một biến local được tạo ở dòng 2, loại primitive được lưu trong cùng khối bộ nhớ của hàm main()
+
++ Dòng 3, một đối tượng được tạo loại Object sẽ được lưu trong bộ nhớ heap và biến tham chiếu obj được lưu trong stack của hàm main()
+
++ Tương tự dòng 4, một đối tượng được tạo loại Memory lưu trong bộ nhớ heap và biến tham chiếu mem lưu trong stack.
+
++ Dòng 5 , hàm foo() thì được gọi, vì vậy nó sẽ tạo một khối mới bộ nhớ trong stack cho hàm foo()
+
++ Hàm foo có một đối số ở dòng 6, loại biến tham chiếu param tời đối tượng Object trong heap, nên đối số này sẽ được lưu trong bộ nhớ stack của foo()
+
++ Dòng 7, một biến local loại tham chiếu là str được tạo trong stack của foo(). Biến này tham chiếu tới đối tượng StringPool trong heap.
+
++ Dòng 8, hàm foo() sẽ kết thúc vì vậy bộ nhớ trong stack cho hàm foo() sẽ được giải phóng.
+
++ Theo quy luật LIFO, foo() vào sau chết trước, và sau đó hàm main() cũng kết thúc, bộ nhớ trong stack cho hàm main() cũng được giải phóng.
+
++ Chương trình kết thúc.
+
+https://gpcoder.com/2160-quan-ly-bo-nho-trong-java-voi-heap-space-vs-stack/
+
+--------------------------------------------------------
+3 loại biến java:
+
+- biến local (biến cục bộ): khai báo trong 1 khối (block), một function, hoặc constructor method
+  - được tạo ra khi được gọi tới trong method, ... và bị hủy khi constructor function, block, method kết thúc
+  - phạm vị: chỉ truy cập được trong block code, thân constructor funtcion, method mà nó được khai báo
+  - không có giá trị mặc định, cần gán giá trị cho nó trước khi sử dụng
+  - (là bao gồm các biến kiểu nguyên thủy, và biến tham chiếu tới object trong heap)
+  
+- biến global/instance (toàn cục): biến không được khai báo với static, không khai báo trong method, block, constructor function
+  - được tạo ra khi 1 object/instance của class được khởi tạo, mất đi khi object đó bị hủy
+  - được gán giá trị mặc định với Number là 0, Boolean là false, kiểu tham chiếu (String, Object, ...) là null, có thể được khởi tạo lại khi khai báo rõ ràng hoặc được gán giá trị mới bên trong constructor method
+  - có thể truy cập được bởi các method trong cùng class (ngoại trừ static method), truy cập ngoài class với access modifier public ở mọi nơi, protected chỉ ở các class con kế thừa class gốc với cú pháp: tên_Object.tên_biến
+ 
+- biến static (biến class): khi báo giống như biến instance đi kèm từ khóa static
+  - được dùng chung cho tất cả object được khởi tạo từ cùng 1 class
+  - được tạo khi ctrinh bắt đầu chạy và huy khi ctrinh tắt 
+  - được truy cập thông qua tên class ở bên ngoài class theo access modifier, bên trong class truy cập giống với biến instance   
+--------------------------------------------------------
+Kiểu dữ liệu java: 
+chia làm 2 loại chung bao gồm kiểm tham chiếu (pass by reference) và kiểu tham trị (pass by value)
+
+- tham trị: dành cho các biến, tham số khai báo kiểu dữ liệu nguyên thủy: byte, short, int, long, float, double, boolean, char
+  - lưu giá trị biến chính xác tại địa chỉ ô nhớ dành cho biến đó (địa chỉ bộ nhớ chỉ lưu giá trị), 2 biến tên khác nhau có 2 địa chỉ bộ nhớ khác nhau để lưu dữ liệu, sử dụng các phép toán, phép gán truyền qua function, method sẽ copy giá trị sang địa chỉ ô nhớ khác => không thay đổi giá trị
+
+- tham chiếu: lưu trữ địa chỉ tham khảo (không lưu giá trị), địa chỉ này dùng để truy cập vào 1 ô nhớ khác lưu giá trị: String, Array, Integer, Long, ... và các Object
+  - lưu địa chỉ => khi sử dụng các phép toán, phép gán truyền vào method sẽ copy địa chỉ => thay đổi giá trị 
+  - các biến lưu địa chỉ được gọi là biến tham chiếu 
+--------------------------------------------------------
+
+========================================================
+========================================================
+OOP
+--------------------------------------------------------
+Encapsulation (Đóng gói):
+- sử dụng để bảo vệ trạng thái bên trong của một đối tượng
+- ẩn giấu các biến biểu diễn trạng thái của đối tượng
+- chỉnh sửa đối tượng được thực hiện, xác nhận thông qua các phương thức
+- các lớp sẽ không chia sẻ thông tin với nhau được, giảm số lượng khớp nối có thể có trong một ứng dụng
+*Lợi ích:  
+ - tạo lớp read-only hoặc write-only bằng việc cài đặt phương thức setter hoặc getter.
+ - kiểm soát đối với dữ liệu, ví dụ: chỉ muốn giá trị id > 100 có thể đặt logic trong setter
+--------------------------------------------------------
+Inheritance (Kế thừa):
+- sự liên quan giữa hai class với nhau, trong đó có class cha (superclass) và class con (subclass)
+- khi kế thừa class con được hưởng tất cả các phương thức và thuộc tính (public, protected) của class cha
+- tạo ra một class mới được xây dựng trên các lớp đang tồn tại, đồng thời có thể khai báo thêm các phương thức và thuộc tính khác
+* 3 kiểu đơn kế thừa
+ - đơn kế thừa: classB extends ClassA
+ - kế thừa nhiều tầng: classC extends ClassB extends ClassA
+ - kế thừa thứ bậc: 
+* đa kế thừa chỉ hỗ trợ với interface, không hỗ trợ với class: để giảm thiểu sự phức tạp và đơn giản hóa ngôn ngữ
+--------------------------------------------------------
+Polymorphism (Đa hình):
+- có thể thực hiện một hành động bằng nhiều cách khác nhau
+- có 2 kiểu đa hình trong java: 
+  - overloading (nạp chồng method): đa hình lúc biên dịch (compile)
+  - overriding (ghi đè method): đa hình lúc thực thi (runtime)
+
+- Nạp chồng: 1 class có nhiều phương thức cùng tên nhưng khác nhau về kiểu dữ liệu trả về hoặc số lượng, kiểu dữ liệu của tham số truyền vào
+  - hỗ trợ tùy vào kiểu dữ liệu tham số và số lương tham số trả về giá trị thích hợp
+  - trong java, không thể nạp chồng phương thức bằng cách chỉ thay đổi kiểu trả về của phương thức bởi vì không biết phương thức nào sẽ được gọi
+  - có thể nạp chồng phương thức man=in nhưng JVM chỉ gọi phương thức main có tham số là 1 mảng string
+  - nạp chồng hỗ trợ tự động ép kiểu nếu giá trị đối số truyền vào không phù hợp với kiểu đã định nghĩa
+  byte -> short -> int
+  char -> int
+  int -> long | float | double
+
+- Ghi đè: xảy ra nếu lớp con có phương thức giống lớp cha
+  - lớp con cung cấp sự cài đặt cụ thể cho phương thức đã được cung cấp bởi một lớp cha của nó được gọi là ghi đè phương thức (method overriding)
+  - quy tắc
+    - Phương thức phải có tên giống với lớp cha.
+    - Phương thức phải có tham số giống với lớp cha.
+    - Lớp con và lớp cha có mối quan hệ kế thừa.
+  - phương thức static không thể ghi đè được do phương thức static được ràng buộc với class còn phương thức instance được ràng buộc với đối tượng. Static thuộc về vùng nhớ class còn instance thuộc về vùng nhớ heap.
+  - main là phương thức static. không ghi đè được
+
+* Upcasing: biến tham chiếu của lớp cha tham chiếu tới đối tượng của lớp con
+Ex: Class B extends A
+  A a = new B();
+=> B ghi đè method của A, sử dụng a gọi lại method đã ghi đè sẽ gọi method của B thay vì của A 
+=> với các biến instance (properties), B không thể ghi đè được, sử dụng a tham chiếu tới 1 thuộc tính được ghi đè bởi B vẫn chỉ lấy ra giá trị ở A do khi khởi tạo a là biến tham chiếu của A, nếu khởi tạo bởi B thì sẽ lấy được gái trị của B
+
+--------------------------------------------------------
+Abstraction (Trừu tượng): sự ẩn đi những chi tiết bên trong và hiển thị ra các chức năng
+
+Abstract và Interface:
+
+1 class có 1 method chung muốn các class con của nó cần triển khai mà class này không rõ ràng các triển khai(không có thâm hàm) thì method đó là 1 abstract method, và class chứa method đó sẽ trở thành abstract class
+
+interface sẽ chỉ chứa abstract class, ở java 8 hộ trợ thêm default và static method
+
+* sự khác nhau:
+Abstact:
+- Abstract hỗ trợ cả method non-abstract(có thâm hàm)
+- không bắt overriding tất cả method
+- không hỗ trợ da kế thừa
+- có các biến static, final, non-static, non-final
+- có thể implements interface để cung cấp nội dụng triền khai cho 1 số hoặc toàn bộ method của interface
+- không khởi tạo trực tiếp được abstract phải qua class extends hoặc anonymous class
+ex: abstract class Hello {}
+    class XinChao extends Hello {}
+    Hello hello = new XinChao();
+- trừu tượng (0 -> 100%)
+
+Interface:
+- Interface chỉ chứa abstract method (được đặt mặc định khi compile không cần từ khoa abstract)
+- bắt buộc tất cả class (không phải abstract class) override lại toàn bộ abstract class
+- các biến phải là biến static final
+- hộ trợ đa kế thừa (interface kế thừa từ nhiều interface)
+- chỉ cung cấp nội dung cài đặt cho static method và default method
+- với default method không bắt buộc tất cả class phải overriding, có thể dùng instace của class gọi đến method default của interface 
+  - nếu class implements cả 2 interface cùng 1 default method, thì default method này vô hiệu
+  - class implement 2 interface này cần override method: log(String string):void 
+  - class override method này thì dùng bthuog
+- với static method: giống với default nhưng không cho phép override (sử dụng @Override), gọi method này chỉ bẳng interface (method được thực thi bởi interface)
+- không khởi tạo trực tiếp interface phải qua implements class hoặc anonymous class 
+- trừu tương 100% (trước java 8)
+
+
+=> interface và abstract cung cấp sự trừu tượng
+--------------------------------------------------------
+Class, Emun, Anonymous, Object
+
+Outer class
+- trong 1 file phải có ít nhất 1 public class hoặc interface, chỉ có 1 public class trùng với tên file, access modifier của outer class không thể là private và protected (có thể là default)
+
+Inner class
+- inner class (class khai báo bên trong class), access modifier có thể là public, private, protected, default, có thể khai báo mọi biến mọi hàm như class bình thường
+- inner class được khai báo là static khi truy cập trong hàm main, khởi tạo bên ngoài class hay kế thừa ở bên ngoài class cần gọi thông qua class chứa nó:
+ ex: public class Animal { public static Dog {} }
+  // khai báo class, hay kế thừa ngoài class:
+  Animal.Dog dog = new Animal.Dog()
+  class Husky extends Animal.Dog {}
+- inner class được khai báo non-static, không được kế thừa bên ngoài class (chỉ kế thừa bên trong class), khởi tạo class bên ngoài, hoặc trong hàm main thông qua instance
+  ex: public class Animal { public Dog {} }
+  // khai báo, khởi tạo:
+  Animal an = new Animal();
+  Animal.Dog dog = an.new Dog();
+- inner class trong 1 method của class: có thể khai báo mọi biến mọi hàm như bt, chỉ truy xuất class trong method đó
+
+Anonymous class:
+- với interface không có class implements, khởi tạo 1 object với interface đó, jvm sẽ tạo ra 1 anonymous class implements interface và override tất cacr method abstract ngay lúc khơi tạo object (tương tự vs abstract class)
+Ex:
+interface PersonService {
+  void hello();
+}
+public class Main {
+  public static void main(String[] args) {
+    PersonService p = new PersonService() {
+      @Override
+      public void hello() {}
+    };
+  }
+}
+
+Enum: là class lai với hằng số, constructor function của enum bắt buộc phải có acess modifier là private, bắt buộc phải khởi tạo ít nhất enum trong chính nó với tên và giá trị được truyền sẵn được viết ngay đầu của enum
+ - giống như 1 đối tương được tạo ra trc với các giá trị không được thay đổi
+Ex: 
+public enum MyEnum {
+  CAFE("cafe"),TEA("tra") // đây là khởi tạo enum
+  private String ten
+  private MyEnum(String ten) {
+    this.ten = ten;
+  }
+  public String getTen()  { return ten}
+}
+
+//cách truy cập enum bên ngoài: 
+MyEnum.CAFE.getTen() // trả về giá trị: cafe
+
+--------------------------------------------------------
+- this trỏ đến instance của class
+- super trỏ đến class cha của class hiện tại
+- final để định nghĩa hằng số
+- static để chỉ định 1 method, 1 biến của class không phải của object, truy cấp qua class
+=======================================================
+========================================================
+Java 4,5 -> 7 -> 8:
+--------------------------------------------------------
+Lambda Expression:
+

@@ -1,0 +1,347 @@
+﻿COLLECTION
+==============================================================================================================
+"Collection" và "Collections" trong java là hai khái niệm khác nhau.
+
+- Collections trong java là một khuôn khổ cung cấp một kiến trúc để lưu trữ và thao tác tới nhóm các đối tượng. Tất cả các hoạt động mà bạn thực hiện trên một dữ liệu như tìm kiếm, phân loại, chèn, xóa,... có thể được thực hiện bởi Java Collections.
+- Collection trong java là một root interface trong hệ thống cấp bậc Collection. Java Collection cung cấp nhiều interface (Set, List, Queue, Deque vv) và các lớp (ArrayList, Vector, LinkedList, PriorityQueue, HashSet, LinkedHashSet, TreeSet vv).
+
+- Collection là một interface, trong khi Collections là một lớp. Collecion interface cung cấp các chức năng về cấu trức dữ liệu cho List, Set, Queue. Nhưng lớp Collections là để sắp xếp và đồng bộ các phần tử Collection.
+
+Gói java.util:
+Interface Iterable
+  - Interface Collection
+    - Interface List
+      - Class ArrayList
+      - Class Vector
+      - Class LinkedList
+    - Interface Queue
+      - Class PriorityQueue
+      - Interface Deque
+        - Class LinkedList
+        - Class ArrayDeque
+    - Interface Set
+      - Class HashSet
+      - Class LinkedHashSet
+      - Interface SortedSet
+        - Class TreeSet
+Interface Map
+  - Class HashMap
+  - Class LinkedHashMap
+  - Class HashTable
+  - Interface SortedMap
+    - Class TreeMap
+
+- Set: là một collection không thể chứa 2 giá trị trùng lặp. Set được sử dụng để biểu diễn các bộ, chẳng hạn như bộ tú lu khơ, thời khóa biểu của học sinh, các tiến trình đang chạy trên máy tính...
+  - SortedSet: là một Set chứa các phần tử theo thứ tự tăng dần.
+- List: là một collection có thứ tự (đôi khi còn được gọi là một chuỗi). List có thể chứa các phần tử trùng lặp. Thường có quyền kiểm soát chính xác vị trí các phần tử được chèn vào và có thể truy cập chúng bằng chỉ số (vị trí của chúng).
+- Queue (hàng đợi): là một collection được sử dụng để chứa nhiều phần tử trước khi xử lý. Bên cạnh các thao tác cơ bản của collection, Queue cung cấp các thao tác bổ sung như chèn, lấy ra và kiểm tra. Queue có thể được sử dụng như là FIFO (first-in, first-out - vào trước, ra trước)
+- Deque: là một collection được sử dụng để chứa nhiều phần tử trước khi xử lý. Ngoài các thao tác cơ bản của collection, một Deque cung cấp các thao tác bổ sung như chèn, lấy ra và kiểm tra. Deques có thể được sử dụng như là FIFO (first-in, first-out - vào trước, ra trước) và LIFO (last-in, first-out - vào sau, ra trước). Trong một Deque, tất cả các phần tử mới có thể được chèn vào, lấy ra và lấy ra ở cả hai đầu.
+- Map: là một đối tượng ánh xạ mỗi key tương úng với một giá trị. Map không thể chứa giá trị trùng lặp. Mỗi key có thể ánh xạ đến nhiều nhất một giá trị.
+  - SortedMap: là một Map chứa các phần tử được sắp xếp theo thứ tự tăng dần của key của chúng. Các SortedMap được sử dụng cho các collection theo thứ tự tự nhiên của cặp key/value, chẳng hạn như từ điển và danh bạ điện thoại.
+
+---------------------------------------------------------------------
+- ArrayList 
+  - có thể chứa các phần tử trùng lặp.
+  - duy trì thứ tự của phần tử được thêm vào.
+  - là không đồng bộ (non-synchronized).
+  - cho phép truy cập ngẫu nhiên vì nó lưu dữ liệu theo chỉ mục.
+  - thao tác chậm vì cần nhiều sự dịch chuyển nếu bất kỳ phần tử nào bị xoá khỏi danh sách (các phần tử sau phần tử bị xóa sẽ dịch lên 1 vị trí) 
+  - tốt nhất cho việc sắp xếp và truy xuất dữ liệu, không nên dùng để thêm, xóa dữ liệu 
+  - hỗ trợ các method: 
+    boolean add(Obecjt o) // thêm cuối
+    void add(int index, Object o) // chèn thêm vào vị trí
+    boolean allAll(Collection c) // nối coollection
+    boolean allAll(int index, Collection c)// chèn bắt đầu từ index
+    void retainAll(Collection c) // xóa tất cả ngoài element thuộc c
+    void removeAll(Collection c) // xóa tất cả element thuộc c
+    int indexOf(Object o) // trả về index của o đầu tiên, không có trả về -1
+    int lastIndexOf(Object o) // trả về index của o cuối cùng, không có trả về -1
+    Object[] toArray() // trả về 1 mảng object thao đúng thứ tự
+    Object[] toArray(Object[] arrObj) // ?
+    Object clone() // trả về bản sao của ArrayList
+    void clear() // xóa tất cả
+    void trimToSize() // 
+    boolean contains(element) // true nếu có element
+    int size() // trả về số lượng element
+    ...
+
+
+- LinkedList 
+  - có thể chứa các phần tử trùng lặp.
+  - duy trì thứ tự của phần tử được thêm vào.
+  - không đồng bộ (non-synchronized).
+  - thao tác nhanh vì không cần phải dịch chuyển nếu bất kỳ phần tử nào bị xoá khỏi danh sách.
+  - phù hợp hơn với việc thêm và xóa dữ liệu so với ArrayList
+  - có thể được sử dụng như list (danh sách), stack (ngăn xếp) hoặc queue (hàng đợi).
+
+
+- Vector 
+  - có thể chứa các phần tử trùng lặp 
+  - duy trì thứ tự phần tử được thêm vào
+  - đồng bộ (synchronized)
+  => công suất thấp, tính bảo mật cao
+  - nếu không chỉ định số sức chứa ban đầu sẽ mặc định độ lớn là 10, mỗi khi thêm quá sức chứa sẽ tăng thêm 100% kích thước hiện tại
+
+
+- So sánh giữa ArrayList và LinkedList
+  - ArrayList nội bộ sử dụng mảng động để lưu trữ các phần tử, LinkedList nội bộ sử dụng danh sách liên kết doubly để lưu trữ các phần tử
+  - Thao tác với ArrayList là chậm bởi vì nó sử dụng nội bộ mảng. Nếu bất kỳ phần tử nào được xoá khỏi mảng, tất cả các bit được chuyển trong bộ nhớ. Thao tác với LinkedList là nhanh hơn so với ArrayList bởi vì nó sử dụng danh sách liên kết doubly do đó không cần chuyển đổi bit nào trong bộ nhớ.
+  -  Lớp ArrayList trong java chỉ có thể hoạt động như một list vì nó chỉ implements Interface List. Lớp LinkedList trong java có thể hoạt động như một list và queue(hàng đợi) vì nó implements các Interface List và Deque.
+  - ArrayList là tốt hơn trong việc lưu trữ và truy cập dữ liệu. ArrayList là tốt hơn trong việc lưu trữ và truy cập dữ liệu.
+
+
+- So sánh ArrayList với Vector
+  - ArrayList là không synchronized. Vector là synchronized.
+  - ArrayList tăng 50% kích thước hiện tại nếu số phần tử vượt quá khả năng chứa của nó, Vector tăng 100% nghĩa là tăng gấp đôi kích thước hiện tại nếu số phần tử vượt quá khả năng chứa của nó..
+  - ArrayList không là một lớp legacy, Vector là một lớp lớp legacy.
+  -  ArrayList là nhanh hơn vì nó là non-synchronized. Vector là chậm hơn ví nó là synchronized. Tức là, trong môi trường đa luồng, các thread giữ nó ở trong trạng thái runnable hoặc non-runnable cho đến khi thread hiện tại giải phóng đối tượng đó.
+  - ArrayList sử dụng Iterator để duyệt các phần tử. Vector sử dụng Enumeration và Iterator để duyệt các phần tử.
+---------------------------------------------------------------------
+- HashSet 
+  - Được sử dụng để tạo một bộ sưu tập sử dụng bảng băm để lưu trữ
+  - Có các đặc điểm của set: duy trì không lặp lại phần tử giống nhau
+  - Cơ chế hash table: lưu giữ thông tin bởi sử dụng một kỹ thuật được gọi là hashing. Trong hashing, nội dung mang tính thông tin của một key được sử dụng để quyết định một value duy nhất, được gọi là hash code của nó. Hash code sau đó được sử dụng như là index, tại đó dữ liệu mà liên kết với key được lưu giữ. Phép biến đổi của key vào trong hash code của nó được thực hiện tự động.
+  - Lưu trữ các phần tử của nó trong bảng băm, là cách thực hiện tốt nhất, tuy nhiên nó không đảm bảo về thứ tự các phần tử được chèn vào.
+  * HashSet sử dụng HashMap nội bộ để lưu trữ các phần tử. Bất cứ khi nào bạn tạo một đối tượng HashSet, một đối tượng HashMap liên kết với nó cũng được tạo ra. Đối tượng HashMap này được sử dụng để lưu trữ các phần tử bạn thêm vào HashSet. Các phần tử bạn thêm vào HashSet được lưu trữ như các khóa (key) của đối tượng HashMap này. Giá trị (value) kết hợp với các khóa (key) đó sẽ là một static final Object tên là PRESENT được tạo ra bên trong class HashSet
+
+- LinkedHashSet: được triển khai dưới dạng bảng băm với có cấu trúc dữ liệu danh sách liên kết, sắp xếp các phần tử của nó dựa trên thứ tự chúng được chèn vào tập hợp (thứ tự chèn).
+  - LinkedHashSet cho phép các phần tử null
+  - Duy trì thứ tự chèn
+  - Chỉ chứa các phần tử duy nhất giống như HashSet.
+  - HashSet và LinkedHashSet sử dụng cả equals và hashCode để so sánh object
+
+- TreeSet lưu trữ các phần tử của nó trong một cây, sắp xếp các phần tử của nó dựa trên các giá trị của chúng, về cơ bản là chậm hơn HashSet (trong việc thêm bớt). 
+  - Thời gian truy xuất nhanh.
+  - Chỉ chứa các phần tử duy nhất giống như HashSet.
+  - Duy trì thứ tự tăng dần.
+  - dùng để lưu trữ object thì object cần phải implements giao diện Comparable. override phương thức compareTo() để cài đặt tiêu chí so sánh
+
+
+- EnumSet là một cài đặt chuyên biệt để sử dụng với các kiểu enum.
+
+* Chuyển đổi set thành list:
+  list.addAll(set);
+
+---------------------------------------------------------------------
+- với Interface Queue sử dụng class LinkedList, khi sử dụng .remove() sẽ xóa phần từ đầu tiên nhập vào (vờ trước ra trước), vẫn hỗ trợ xóa chính xác phần tử mong muốn: .remove(_element)
+
+
+---------------------------------------------------------------------
+- HashMap: cặp key value, key là duy nhất
+    - HashMap lưu trữ dữ liệu dưới dạng cặp key và value.
+    - Nó chứa các key duy nhất.
+    - Nó có thể có 1 key là null và nhiều giá trị null.
+    - Nó duy trì các phần tử KHÔNG theo thứ tự.
+    Map<Integer, String> map = new HashMap<Integer, String>();
+    // thêm phần tử vào map: map.put(_key, _value)
+    map.put(1, "A")
+    map.put(2, "B")
+    map.put(3, "C")
+
+    // lấy giá trị theo key: map.get(_key)
+    // xóa 1 phần tử: map.remove(_key)
+
+    // lấy ra 1 collection các key:
+    Set<Integer> keySet = map.keySet();
+
+    // lặp toàn bộ phần tử:
+    for (Entry<Integer, String> el : map.entrySet()) {
+      System.out.println("value: " + el.getValue() + " Key: " + el.getKey());
+    }
+*********************************************************************
+* HashMap hoạt động ntn
+- HashMap hoạt động dựa trên nguyên lý của việc băm dữ liệu (hashing).
+- Map.Entry interface: Interface này là nơi đại diện chứa các entry (cặp key - value) của map.
+- Phương thức hashCode(): HashMap cung cấp hoạt động put(key, value) để lưu trữ và get(key) để lấy ra giá trị từ HashMap. Khi phương thức put được gọi, HashMap sẽ gọi phương thức hashCode() từ đối tượng key để tính toán giá trị hash, sau đó dùng hash để tìm đến bucket[1] tương ứng và lưu trữ đối tượng Entry trong đó. Khi get() được sử dụng để lấy ra value, một lần nữa đối tượng key được dùng để tính toán ra hash, từ đó tìm được bucket - nơi chứa dữ liệu của key đó
+- Phương thức equals(): phương thức này thường dùng để so sánh 2 object. Trong trường hợp của HashMap là so sánh 2 key, ngoài ra phương thức equals() được dùng để xử lý hashing collision (xung đột hash value - các key khác nhau nhưng lại có hash value giống nhau, như vậy chúng được xếp chung vào cùng một bucket. Trong trường hợp đó, các đối tượng value được lưu bên trong một linked list). Trong khi hashCode() được dùng để tìm ra hash của key thì equals() giúp ta tìm được chính xác value tương ứng với key trong trường hợp một hash code trỏ tới nhiều value.
+
+* Khi gọi phương thức put() của đối tượng HashMap, sẽ có ba trường hợp sảy ra như sau:
+- Phương thức hashCode() được gọi và tính ra hash value, nếu hash value này không tồn tại trong hash table, thì chèn Entry vào một bucket mới.
+- Phương thức equals() được gọi khi hash value tồn tại, nếu trả về true tức là đã có key tồn tại trong HashMap, ghi đè Entry cũ bằng Entry mới trên Linked List ở bucket của Entry cũ.
+- Phương thức equals() trả về false thêm một phần tử vào đằng sau Linked List ở bucket tương ứng với hash value.
+
+* Hai keys khác nhau có cùng giá trị băm được gọi là sự va chạm băm (hash-collision). Hai mục khác nhau sẽ được giữ trong một chậu băm đơn để tránh va chạm.
+
+*********************************************************************
+
+- LinkedHashMap: 
+  - lưu trữ dữ liệu dưới dạng cặp key và value.
+  - Nó chứa các key duy nhất.
+  - Nó có thể có 1 key là null và nhiều giá trị null.
+  - Nó duy trì các phần tử theo thứ tự chèn.
+
+- TreeMap:
+  - Nó KHÔNG cho phép bất kỳ key nào là null và nhưng có thể có nhiều giá trị null.
+  - Nó duy trì các phần tử được thêm vào theo thứ tự key tăng dần.
+
+
+- HashTable:
+  - Hashtable là một mảng của list. Mỗi list được biết đến như một xô chứa các phần tử. Ví trí của một xô được xác định bằng việc gọi phương thức hashcode(). Hashtable cũng lưu trữ dữ liệu dưới dạng cặp key và value.
+  - Nó chứa các key duy nhất.
+  - Nó KHÔNG thể có bất kỳ key hoặc giá trị nào là null.
+  - Nó được đồng bộ.
+  - Chậm
+==============================================================================================================
+equals và hashCode
+- 2 method được kế thừa từ class Object, mọi class đều mặc định extend Object
+    public boolean equals(Object obj) {}
+    public int hashCode() {}
+- dùng để so sánh các object, sắp xếp tìm kiếm vị trí trong collection object, đặc biệt là HashSet và HashMap
+
+
+- Khi so sánh hai đối tượng với nhau, Java gọi phương thức equals() của chúng trả về true nếu hai đối tượng bằng nhau hoặc false nếu hai đối tượng là khác nhau, .equals() và == là khác nhau
+    Ex:khi so sánh 2 chuỗi String được tạo bằng từ khóa new
+    == trả về false, .equals trả về true
+- trong thực tế xem xét 2 object như student có ngữ nghĩa tương đường nhau nếu cùng chung thuộc tính định danh như id, name, email, ...
+  Ex: 
+public class Student {
+    private String id;
+    private String name;
+    private String email;
+    private int age;
+ 
+    public Student(String id, String name, String email, int age) {
+        this.id = id;
+        this.name = name;
+        this.email = email;
+        this.age = age;
+    }
+ 
+    public boolean equals(Object obj) {
+        if (obj instanceof Student) {
+            Student another = (Student) obj;
+            if (this.id.equals(another.id) &&
+                this.name.equals(another.name) &&
+                this.email.equals(another.email) &&
+                this.age == another.age) {
+                    return true;
+            }
+        }
+        return false;
+    }
+}
+- phương thức contains(Object) của interface List trong java có thể được sử dụng để kiểm tra nếu đối tượng được chỉ định tồn tại trong danh sách. về bản chất equals() được gọi trong contains(Object)
+
+
+- hashCode() trả về 1 số nguyên là 1 số băm được sử dụng bởi các collection dựa trên bảng băm như Hashtable , HashSet và HashMap để lưu trữ các đối tượng trong các container nhỏ được gọi là "nhóm". Mỗi nhóm được liên kết với mã băm và mỗi nhóm chỉ chứa các đối tượng có mã băm giống hệt nhau.
+- một bảng băm nhóm các phần tử của nó bằng các giá trị mã băm của chúng. Sự sắp xếp này giúp cho bảng băm định vị một phần tử một cách nhanh chóng và hiệu quả bằng cách tìm kiếm trên các phần nhỏ của collection thay vì toàn bộ collection.
+- các bước để định vị một phần tử trong một bảng băm
+  - nhận giá trị mã băm của phần tử được chỉ định bằng cách gọi phương thức hashCode().
+  - tìm nhóm thích hợp được liên kết với mã băm đó.
+  - bên trong nhóm, tìm phần tử chính xác bằng cách so sánh phần tử được chỉ định với tất cả các phần tử trong nhóm. Bằng phương thức equals() của phần tử đã chỉ định được gọi.
+- khi chúng ta thêm các đối tượng của một lớp vào một collection dựa trên bảng băm (HashSet, HashMap ), phương thức hashCode() của lớp được gọi để tạo ra một số nguyên (có thể là một giá trị tùy ý). Con số này được sử dụng bởi bộ sưu tập để lưu trữ và định vị các đối tượng một cách nhanh chóng và hiệu quả, vì collection dựa trên bảng băm không duy trì thứ tự các phần tử của nó.
+-  Việc thực thi phương thức mặc định hashCode() trong lớp Object trả về một số nguyên là địa chỉ bộ nhớ của đối tượng
+
+- collection dựa trên bảng băm xác định một phần tử bằng cách gọi phương thức hashCode() và equals() của nó, vì vậy khi ghi đè các phương thức này chúng ta phải tuân theo các quy tắc sau
+  - khi phương thức equals() được ghi đè, phương thức hashCode() cũng phải được ghi đè.
+  - nếu hai đối tượng bằng nhau, mã băm của chúng phải bằng nhau.
+  - nếu hai đối tượng không bằng nhau, không có ràng buộc về mã băm của chúng (mã băm của chúng có thể bằng nhau hay không).
+  - nếu hai đối tượng có mã băm giống nhau, thì không có ràng buộc nào về sự bình nhau của chúng (chúng có thể bằng nhau hay không).
+  - nếu hai đối tượng có mã băm khác nhau, chúng không được bằng nhau.
+- vi phạm các quy tắc này, các collection sẽ hoạt động có thể không đúng như các đối tượng không thể tìm thấy, hoặc các đối tượng sai được trả về thay vì các đối tượng chính xác.
+==============================================================================================================
+Comparable và Comparator 
+
+- Comparable là 1 interface, hỗ trợ so sánh để sắp xếp vị trí của list các object, String, lớp Wrapper
+  - Comparable yêu cầu override method 
+    public int compareTo(Object o)
+    Ex: class Person implements Comparable<Person> 
+    @Override 
+    public int compareTo(Person o) {
+      if (this.id > o.getId()) return 1;
+      if (this.id < o.getId()) return -1;
+      return 0; // 2 object bằng nhau
+    }
+- Comparator cũng là 1 interface sử dụng bằng cách dùng anonymous class
+  Ex:
+  public static void main:
+    List<Person> list = new ArrayList<Person>();
+    list.add(new Person(1, "X"));
+    list.add(new Person(5, "A"));
+    list.add(new Person(3, "G"));
+    list.add(new Person(2, "E"));
+  
+    Collection.sort(list, new Comparator<Person>() {
+      @Override
+      public int compare(Person o1, Person o2) {
+        if (o1.getId() > o2.getId()) return 1;
+        if (o1.getId() < o2.getId()) return -1;
+        return 0;
+        // so sánh theo id
+      }
+    });
+
+
+- khi sắp xếp 1 list, đưa list vào: Collection.sort(list); ctrinh sẽ tự động gọi method compareTo() của objeect implement Comparable hoặc đưa vào 1 Comparator đằng sau list và override phương thức compare() để so sánh các object trong list và sắp xếp
+
+- sort không dùng Collection.sort, sử dụng .sort và lamba expression
+
+listPeron.sort((p1, p2) -> {
+  if (p1.getName().compareTo(p2.getName) > 0) return 1;
+  if (p1.getName().compareTo(p2.getName) < 0) return -1;
+  return (p1.getAge() - p2.getAge());
+});
+// sắp xếp theo tên , tuổi
+
+==============================================================================================================
+Iterator: là 1 interface được extends bởi tất cả collection, cung cấp phương tiền để
+- Có thể chuyển bất cứ collection nào về iterator bằng .iterator()
+  Ex: List<Person> list = new ArrayList<Person>();
+      Iterator<Person> itr = list.iterator();
+
+- Iterator hỗ trợ 3 phương thức:
+  itr.hasNext(): trả về true nếu còn phần tử kế tiếp phần tử đang duyệt
+  itr.next(): trả về phần tử hiện tại và di chuyển con trỏ tới phần tử kế tiếp
+  itr.remove(): xóa phần tử cuối được trả về bởi Iterator
+
+ => kết hợp 3 phương thức có thể xóa được phần tử trong list (không thể xóa nếu sử dụng foreach)
+  
+Ex:
+List<String> list = new ArrayList<String>();
+list.add("A"); 
+list.add("B"); 
+list.add("C"); 
+list.add("D"); 
+Iterator<Person> itr = list.iterator();
+while(itr.hasNext()) {
+  String s = itr.next();
+  if s.equals("B") itr.remove();
+}
+
+ListIterator: là một interface được sử dụng để duyệt các phần tử của List trong java.
+- tương tự với Iterator có ListIterator bằng cách: list.listIterator(); sử dụng cho các collection triển khai List Interface
+- có phương thức: 
+  boolean hasNext(): trả về true nếu list interator có tồn tại phần tử kế tiếp phần tử hiện tại.
+  Object next(): rả về phần tử kế tiếp trong danh sách và vị trí con trỏ tăng lên 1
+  boolean hasPrevious(): trả về true nếu list interator có tồn tại phần tử kế sau phần tử hiện tại.
+  Object previous(): trả về phần tử kế sau trong danh sách và vị trí con trỏ giảm đi 1.
+
+Khác nhau Iterator và ListIterator:
+- Iterator duyệt các phần tử chỉ theo một chiều hướng là chuyển tiếp, trong khi ListIterator duyệt các phần tử theo hai hướng là chuyển tiếp và ngược lại.
+- Iterator có thể được sử dụng trong List, Set và Queue.
+- ListIterator chỉ có thể được sử dụng trong List.
+
+Khác biệt giữa Iterator và Enumeration:
+- Iterator duyệt các phần tử legacy và non-legacy. Enumeration chỉ có thể duyệt các phần tử legacy.
+- Iterator là chậm hơn Enumeration. Enumeration là nhanh hơn Iterator.
+
+- Legacy Class: là lớp gốc được cung cấp tại phiên bản java đầu tiên dùng để lưu trữ các đối tượng, sau này được tái cấu trúc hỗ trợ thêm collection interface, bao gồm:
+  1. Dictionary
+  2. HashTable
+  3. Properties
+  4. Stack
+  5. Vector
+
+
+==============================================================================================================
+- StringBuilder và StringBuffer
+  StringBuilder bất đồng bộ, StringBuffer đồng bộ => chậm hơn
+- sử dụng cộng chuỗi String thay cách bt, đỡ tiêu tốn bộ nhớ heap
+
+String s = "hello";
+s = s + "HoangAnh"; // tiêu tốn bộ nhớ heap
+
+StringBuilder stringBuilder = new StringBuilder();
+stringBuilder.append("hello");
+stringBuilder.append("HoangAnh");
+String s1 = stringBuilder.toString(); // đỡ tiêu tốn bộ nhớ heap

@@ -155,11 +155,13 @@ application.properties:
 đọc thêm: lifecycle, cache, ...
 https://gpcoder.com/category/jpa/
 
+======================================================
+Tìm kiếm theo nhiều tiêu chí với generic type
+https://stackoverflow.com/questions/52045949/spring-data-jpa-how-to-create-a-generic-specification-builder
 
+https://stackoverflow.com/questions/12199433/jpa-criteria-api-with-multiple-parameters
 
-
-
-
+https://www.baeldung.com/rest-api-search-language-spring-data-specifications
 
 
 

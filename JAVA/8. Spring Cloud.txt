@@ -1,0 +1,25 @@
+﻿Spring cloud Open Feign
+  - 1 thư viện hỗ trợ goị REST API từ client
+  - thay thế cho rest-template, web-client
+  - Hỗ trợ fallbak pattern và load balencer (cân bằng tải)
+
+- cấu hình file pom.xml
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-cloud-starter-openfeign</artifactId>
+</dependency>
+
+<dependencyManagement>
+ // thông tin về spring cloud dependencies
+ // version spring-cloud  
+</dependencyManagement>
+
+- trong Application thêm annotation: @EnableFeignClients
+- tạo 1 package: .client
+  - tạo Interface trong package với annotation 
+    @FeignClient(name = "_nameApplication", url = "_urlMicroservice")
+    _nameApplication đặt trùng với key spring.application.name=_nameApp trên file application.properties
+    _urlMicroservice url của 1 microservice khác muốn gọi đến
+  - trong Interface sẽ thêm 1 số phương thức tương ứng ở controller bên microservice muốn sử dụng (có mapping method), void, không cần kiểu trả về 
+- đưa DTO cần trong Interface từ microservice muốn gọi đến
+- Sử dụng chỉ cần autowired lại interrface và gọi đến method của interface đó

@@ -431,42 +431,839 @@ error: Forbidden, status: 403: do CSRF sẽ ném ra err khi thực hiện các m
   ở UI, khi login lấy giá trị cookie tên XSRF-TOKEN lưu trữ ở sessionStorage và đưa vào header mỗi khi thực hiện request
 3. tạo CSRF token nhưng từ chối 1 số url:
     http.csrf().ignoringAntMatchers("/contact").csrfTokenRepository(...
+ 
+============================================================================================================================================================
+trong Authentication, anh tính của người dùng được kiểm trả về cung cấp quyền truy cập hệ thống, trả về mã lỗi 401
+Trong Authenrization, authorities của người dùng được kiểm tra cho phép truy cập tài nguyên, trả về mã lỗi 403
+AUTHORIZATION
+- authorities được lưu trữ dưới dạng Collection of GrantedAuthority của interface UserDetails, có thể lấy ra bằng method getAuthorities() trả về 1 collection grantedauthority
+ public interface UserDetails {
+   Collection<? extends GrantedAuthority> getAuthorities();
+ }
+- bên trong interface GrantedAuthority có method getAuthority trả về tên quyền hạn/vai trò dưới dạng String. 
+
+- Spring security cung cấp class SimpleGrantedAuthority implements GrantedAuthority
+- Spring security có phép cấu hình và xác thực quyền của người dùng:
+  hasAuthority() chấp nhận một quyền hạn duy nhất mà endpoint được cấu hình. chỉ người dùng có cùng quyền hạn được cấu hình mới có thể gọi endpoint
+  hasAnyAuthority() chấp nhận nhiều quyền hạn mà endpoint được cấu hình. chỉ người dùng có bất kỳ quyền hạn nào được cấu hình mới có thể gọi endpoint
+  access() sử dụng Spring Exception Language (SpEL), cung cấp không giới hạn  để cấu hình các quyền hạn mà các method trên không thực hiện được. sử dụng toán tử OR, AND bên trong access()
+------------------------------------------------------------------------------
+  @Configuration class SecurityConfig implements WebSecurityConfigurerAdapter 
+    @Override
+    configure(HttpSecurity http):void
+      http.authorizeRequests().antMathers("/user").hasAuthority("READ")
+   
+  @Service class UserDetailsImplCustomize implements UserDetailsService
+    @Autowired MemberRepository repo;
+    @Override 
+    loadUserByUserName(String username):UserDetails
+      Member mem = repo.getByUserName(username).get(0);
+      List<SimpleGrantedAuthority> authorities = new ArrayList<SimpleGrantedAuthority>();
+      for(Authority authority : mem.getAuthorities())      
+        authorities.add(new SimpleGrantedAuthority(authority.getName()));
+      UserDetails userDetails = new UserDetailsImplCustomize(mem.getUsername(), mem.getPassword(), authorities)
+      return userDetails;
+
+   // tạo bảng Authority n-1 với Member
+   // Authority lưu trữ các authority của memeber như READ, WRITE, DELETE...
+   // thực ra cái l này cũng chả liên quan lắm đến method kiểu đặt authority là admin hay user cũng được, và thàng nào có authority đó thì mới được giử requets với url tương ứng
+------------------------------------------------------------------------------
+ROLE / AUTHORITY
+- authority giống như đăch quyền cá nhân, role là 1 nhóm các đặc quyền
+- role kiểu admin, user trong khi đó aythority là read, write, delete
+- cũng trực tiếp đưa role vào Collection<SimpleGrantedAuthority> và trả về UserDetails có collection này trong method LoadUserByUsername của UserDetailsService
+- role name nên được lưu trong CSDL hoặc trước khi đưa vào UserDetails phải theo dạng Collection<SimpleGrantedAuthority> phải có tiền tố "ROLE_" để phân biệt giữa role và authority
+- 1 user chỉ nên có 1 role
+- Spring cung cấp các method: hasRole(), hasAnyRole() và access()
+
+  antMatchers("/user").hasAnyRole("USER", "ADMIN") 
+   // trong db lưu role là ROLS_USER, ROLE_ADMIN
+   // những user có role tương ứng truy cập được vào
+------------------------------------------------------------------------------
+Spring security có 2 loại match method để config endpoint
+ 1: MVC matchers sử dụng Handler MappingIntrospector của Sping MVC để match path và trích xuất variables
+   - mvcMatchers(HttpMethod method, String... patterns) cho phép chỉ định Http method và mẫu path để cấu hình các hạn chế:
+   Ex: http.authorizeRequest().mvcMatchers(HttpMethod.POST, "/example").authenticated().mvcMatchers(HttpMethod.GET, "/example").permitAll()
+   - mvcMatchers(String... patterns) cho phép chỉ định mẫu path để cấu hình các hạn chế và tất cả các Htt methods sẽ được chấp nhận
+   Ex: http.authorizeRequest().mvcMathers("/profile/edit/**").authenticated()
+
+Note: 
+** sẽ chấp nhận số lượng path bất kỳ: 
+  Ex: /x/**/z match: /x/y/z , /x/y/abc/def /z
+      /x/** match: /x/y/z/g/h
+* sẽ chấp nhận chỉ 1 path:
+  Ex: /x/*/z match: /x/y/z, không match /x/y/abc/z
+      /x/* match với /x/y, không match x/y/z
+
+ 2: Ant matchers triển khai theo Ant-style path patterns có các method:
+   - antMatchers(HttpMethod method, String... patterns)
+   Ex: http.authorizeRequest().antMatchers(HttpMethod.POST,"/example").authenticated().antMatchers(HttpMethod.GET, "/example").permitAll()
+   - antMatchers(String... patterns)
+   Ex: http.authorizeRequest().antMathers("/profile/edit/**").authenticated()
+   - antMatchers(HttpMethod method) ~ antMatchers(HttpMethod method, "/**")
+   Ex: http.authorizeRequest().antMatchers(HttpMethod.POST).authenticated()
+
+Note: mvcMatcher an toàn hơn antMatcher
+  antMatcher("/secured"): chỉ match chính xác URL /secured
+  mvcMatcher("/secured"): match /secured, /secured.html, /secured.xyz, ...
+ 
+ 3: Regex matchers cung cấp 2 method:
+   - regexMatchers(HttpMethod method, String regex)
+   Ex: http.authorizeRequest().regexMatchers(HttpMethod.GET,".*/(en/es/zh/vn)").authenticated()
+   - regexMatchers(String regex)
+   Ex: http.authorizeRequest().regexMatchers(".*/(en/es/zh/vn)").authenticated()
+============================================================================================================================================================
+FILTER
+- Spring security cung cấp các Filter, cũng tận dung các filter của sevlet cho những việc:  xác thực đầu vào, theo dõi, kiểm tra báo cáo, ghi nhật ký input như địa chỉ IP, mã hóa và giải mã, xác thực nhiều yếu tố sử dụng OTP
+- 1 số filter tích hợp trong Spring security Authentication filter, Authorization filter, CSRF filer, CORS filter
+- 1 filter như 1 component, chấp nhận request, xử lý logic của nó và chuyển giao cho filter kế tiếp
+- Spring security dựa trên 1 chuỗi các servlet filters, mỗi filter có 1 trách nhiệm cụ thể  tùy thuộc vào cấu hình, bộ lọc được thêm vào hoặc loại bỏ. có thể tự thêm custom filter nếu cần
+- các filter được Spring security thực hiện trong quy trình authentication
+  Security filter chain: [
+    WebAsyncManagerIntergrationFilter
+    SecurityContextPersistenceFilter
+    HeaderWriterFilter
+    CorsFilter
+    CsrfFilter
+    LogoutFilter
+    BasicAuthenticationFilter
+    RequestCacheAwareFilter
+    SecurityContextHolderAwareFilter
+    AnonymousAuthenticationFilter
+    SessionManagementFilter
+    ExceptionTranslationFiler
+    FilterSecurityInterfceptor
+  ]
+- bật chế độ DEBUG để xem những filer được log ra:
+  @EnableWebSecurity(debug = true) thêm vào cùng @SpringBootApplication
+  application.properties:    logging.level.org.springframework.security.web.FilterChainProxy=DEBUG
+------------------------------------------------------------------------------
+Custom filter
+- implements interface Filter từ package javax.servlet, cần ghi đè method doFilter() để custom logic. method này nhận các tham số ServletRequest, ServletResponse và FilterChain
+  - ServletRequest đại diện cho Http request , sử dụng để lấy thông tin chi tiết về request của client
+  - ServletResponse đại diện cho Http response, sử dụng để sửa đổi response trước khi giử nó trở lại client hoặc xa hơn cho filter chain
+  - Filter chain là chuỗi filter đại diện cho 1 tập hợp các filter với thứ tự xác định mà chúng hoạt động. Sử dụng để chuyển tiếp yêu cầu tới filter tiếp theo trong chain
+
+- có thể thêm filter mới vào spring security chain trước, sau hoặc tại 1 vị trí của filter là 1 chỉ mục(1 số) như thứ tự
+- các method có sẵn để cấu hình filter tùy chỉnh trong Spring security:
+  - addFilterBefore(filter, class): thêm 1 filter trước vị trid của filter class được chỉ định
+  - addFilterAfter(filter, class): thêm 1 filter sau vị chí của 1 filter class được chỉ định
+  - addFilterAt(filter, class): thêm 1 filter vào 1 vị trị của filter class được chỉ định
+
+Ex: inject RequestValidationFilter trước BasicAuthenticationFilter
+chain: CorsFilter -> CsrfFilter -> RequestValidationFilter -> BasicAuthenticationFilter
+
+public class RequestValidationBeforeFilter implements Filter {
+  public static final String AUTHENTICATION_SCHEME_BASIC = "Basic";
+  private Charset credentialsCharset = StandardCharsets.UTF_8;
+
+  @Override
+  public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+    HttpServletRequest req = (HttpServletRequest) request;
+    HttpServletResponse res = (HttpServletResponse) response;
+    String header = req.getHeader(AUTHORIZATION);
+    if (header != null) {
+      header = header.trim();
+      if (StringUtils.startsWithIgnoreCase(header, AUTHENTICATION_SCHEME_BASIC)) {
+        byte[] base64Token = header.substring(6).getBytes(StandardCharsets.UTF_8);
+        byte[] decoded;
+        try {
+          decoded = Base64.getDecoder().decode(base64Token);
+          String token = new String(decoded, getCredentialsCharset(req));
+          int delim = token.indexOf(":");
+          if (delim == -1) {
+            throw new BadCredentialsException("Invalid basic authentication token");
+          }
+          String email = token.substring(0, delim);
+          if(email.toLowerCase().contains("test")) {
+            res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            return;
+          }
+        } catch (IllegalArgumentException e) {
+          throw new BadCredentialsException("Failed to decode basic authentication token");
+        }
+      }
+    }
+    chain.doFilter(request, response);
+  }
+  protected Charset getCredentialsCharset(HttpServletRequest request) {
+    return getCredentialsCharset();
+  }
+  public Charset getCredentialsCharset() {
+    return this.credentialsCharset;
+  }
+}
+   @Configuration class SecurityConfig:
+   configure(HttpSecurity http)  
+   .and().addFilterBefore(new RequestValidationBeforeFilter(), BasicAuthenticationFilter.class)
+
+B1: implements Filter từ javax.servlet.Filter
+B2: Override method doFilter()
+B4: thêm addFilterBefore() vào method configure(HttpSecurity http):void
+
+Spring security cũng cung cấp 2 filter:
+- GenericFilterBean: là 1 abstract class filter bean cho phép sử dụng các tham số initalization và configurations được thực hiện bởi web.xml 
+- OncePerRequestFilter : là 1 abstract class extends GenericFilterBean, Spring không đảm bảo filter được tạo sẽ chỉ gọi 1 lần, nhưng nếu  có 1 tình huống muốn thực thi filter 1 lần thì có thể sử dụng điều này, viết logic vào doFilterInternal method()
+- BasicAuthenticationFilter là 1 class extends OncePerRequestFilter
+============================================================================================================================================================
+JSON Web Token
+- Token là 1 chuỗi đơn giản có định dạng là 1 mã định danh duy nhất (UUID) hoặc có thể thuộc loại JWT thường được tạo khi nguqofi dùng xác thực lần đầu tiên trong khi đăng nhập
+- Đối với mọi truy cập bị hạn chế, clinet sẽ giử request hoặc Authorization cùng với access token, sever nhận được token nếu hợp lệ sẽ trả lại response an toàn cho client
+ 
+- Ưu điểm của xác thực bằng token
+  - Không chia sẻ thông tin xác thực cho mọi request, đây là 1 ruit ro bảo mật làm cho thông tin xác thực được giử qua mạng thường xuyên
+  - Token có thể bị vô hiệu hóa trong bất kỳ hoạt động đáng ngờ nào mà không làm mất hiệu lực thông tin đăng nhập của người dùng
+  - Token có thể được tạo ra với thời gian tồn tại ngắn
+  - Token có thể lưu trữ thông tin liên quan đến người dùng như vai trò, quyền hạn ,...
+  - Có khả năng tái sử dụng trên nhiều máy chủ, nhiều nền tảng, domain sử dụng cùng 1 token để xác thực
+  - Không duy trì cookies trên trình duyệt, có thể bảo vệ khỏi các cuộc tấn công giả mạo yêu cầu CSRF
+  - Không trạng thái, dễ mở rộng hơn, token chứa tất cả thông tin để xác định user, loại bỏ như cầu về session state, nếu sửu dụng load balancer, có thể chuyển user đến bất kỳ máy chủ nào thay vì bị ràng buộc với cùng 1 máy chủ đã đăng nhập
+
+- Trước đây đã sử dụng token ở dạng CSRF và JSESSIONID tokens
+  - CSRF token bảo vệ ứng dụng khỏi các cuộc tấn công CSRF
+  - JSESSIONID là token được tạo mặc định bởi Spring security, giúp không cần chi sẻ thông tin đăng nhập với backend mọi lúc
+- CSRF và JSESSIONID token được lưu ở cookie
   
+JSON Web Token (JWT): 
+- là 1 token được triển khai ở định dạng JSON và đưucọ thiết kế để sử dụng cho web request
+- được sử dụng trong cả Authorization và Authentication cùng với trao đổi thông tin: có thể chia sẻ dữ liệu liên quan đến người dùng trong chính token, làm giảm gánh nặng của việc duy trì các dữ liệu này trong sessions ở server side
+- gồm 3 phần được phân tách bằng dấu (.) 
+ - Header : header được mã hóa bằng base64 value, lưu trữ metadata/info liên quan đến token như loại thuật toán để generates , loại token
+ - Payload : cũng được mã hóa bằng base64 lưu trữ thông tin chi tiết liên quan đến vai trò, người dùng, ... có thể dùng cho cả xác thực và phân quyền. mặc dù không có giới hạn nào nhưng nên cố hết sức giữ nó càng nhẹ càng tốt
+   nếu đi theo các truyền thống phải tạo ra một jsessionid, phải duy trì tất cả các chi tiết này trong  trong bộ nhớ
+ - Signature : đảm bảo không ai giả mạo (là 1 phần tùy chọn)
+  - nếu giử token trong nội bộ, có thể chỉ giử header và body
+  - nếu chia sẻ token này cho các ứng dụng client sẽ được sử dụng cho tất cả người dùng trong web thì cần đảm bảo không ai có thể thay đổi các giá trị header và body như authorities, username, ...
+  - bởi vì không lưu token ở bất cứ đâu trong application, để đảm bảo không ai giả mạo dữ liệu trên mạng, chúng ta có thể giử chữ ký của content khi token lần đầu được tạo. để tạo signature, cần tạo ra 1 giá trị hash lấy encoded header, encoded payload, 1 secret, thuật toán được sử dụng trong header và sign đó
+  - ví dụ sử dụng thuật toán HMAC SHA256 để tạo signature
+  HMACSHA256(base64UrkEncode(header)+ "." + base64UrlEncode(payload), secret)
+  - signature được sử dụng để xác minh token đã không bị thay đổi trong cả quá trình, trong trường hợp token được ký bởi private key, nó có thể xác minh người giử của JWT có phải người nó nói hay không
+------------------------------------------------------------------------------
+pom.xml:
+<dependency>
+    <groupId>io.jsonwebtoken</groupId>
+    <artifactId>jjwt-api</artifactId>
+    <version>0.11.2</version>
+</dependency>
+<dependency>
+    <groupId>io.jsonwebtoken</groupId>
+    <artifactId>jjwt-impl</artifactId>
+    <version>0.11.2</version>
+    <scope>runtime</scope>
+</dependency>
+<dependency>
+    <groupId>io.jsonwebtoken</groupId>
+    <artifactId>jjwt-jackson</artifactId>
+    <version>0.11.2</version>
+    <scope>runtime</scope>
+</dependency>
+------------------------------------------------------------------------------
+@Configuration SecurityConfig extends WebSecurityConfigurerAdapter
+  @Override configure(HttpSecurity http): void 
+    http.sessionManagerment().sessionCreationPolicy(SessionCreationPolicy.STATELESS).and().cors().configurationSource(new CorsConfigurationSource() {
+      @Override
+      public CorsConfiguration getCorsConfiguration(HttpServletRequest request) {
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOrigins(Collections.singletonList("http://localhost:4200"));
+        config.setAllowedMethods(Collections.singletonList("*"));
+        config.setAllowCredentials(true);
+        config.setAllowedHeaders(Collections.singletonList("*"));
+        config.setMaxAge(3600L);
+  
+        config.setExposedHeaders(Arrays.asList("Authorization"));
+        // thêm vào để chỉ thị header với các ứng dụng khác consumer back-end
+        return config;
+      }
+    }).and().crsf().disable()
+    // vô hiệu hóa crsf và ngăn spring security generate JSESSIONID lưu trữ trong httpSession
+    .addFilterBefore(new JWTTokenValidatorFilter(), BasicAuthenticationFilter.class)
+    .addFilterAfter(new JWTTokenGeneratorFilter(), BasicAuthenticationFilter.class)
+    .authorizeRequest().....
+------------------------------------------------------------------------------
+Constants:
+
+public class SecurityConstants {
+  public static final String JWT_KEY = "jxgEQeXHuPq8VdbyYFNkANdudQ53YUn4";
+  public static final String JWT_HEADER = "Authorization";
+}
+
+public class ApplicationConstants {
+  public static final String ERROR_MSG = "An unknown error occured";
+  public static final String SUCCESS_MSG = "Request Successfully processed";
+}
+
+------------------------------------------------------------------------------
+------------------------------------------------------------------------------
+Filter:
+
+public class JWTTokenGeneratorFilter extends OncePerRequestFilter {
+  // thực thi 1 lần duy nhất cho mỗi request
+  @Override
+  public void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+      throws IOException, ServletException {
+    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+    if (null != authentication) {
+      SecretKey key = Keys.hmacShaKeyFor(SecurityConstants.JWT_KEY.getBytes(StandardCharsets.UTF_8));
+      String jwt = Jwts.builder()
+                    // header
+                    .setIssuer("hoang anh") // người phát hành
+                    .setSubject("JWT Token") // chủ đề
+                    // payload
+                    .claim("username", authentication.getName())
+                    .claim("authorities", populateAuthorities(authentication.getAuthorities()))
+                    .setIssuedAt(new Date())
+                    .setExpiration(new Date((new Date()).getTime() + 3000000000))
+                    // signature
+                    .signWith(key).compact();
+      response.setHeader(SecurityConstants.JWT_HEADER, jwt);
+    }
+    chain.doFilter(request, response);
+  }
+
+  @Override
+  protected boolean shouldNotFilter(HttpServletRequest request) { 
+    return !request.getServletPath().equals("/login");
+  } // chỉ nên được thực thi khi login
+    // đảm bảo chỉ generate filter khi người dùng login 
+	
+  private String populateAuthorities(Collection<? extends GrantedAuthority> collection) {
+    Set<String> authoritiesSet = new HashSet<>();
+    for (GrantedAuthority authority : collection) {
+      authoritiesSet.add(authority.getAuthority());
+    }
+    return String.join(",", authoritiesSet);
+  }
+}
+
+------------------------------------------------------------------------------
+public class JWTTokenValidatorFilter extends OncePerRequestFilter {
+  @Override
+  public void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+      throws IOException, ServletException {
+    String jwt = request.getHeader(SecurityConstants.JWT_HEADER);
+    if (null != jwt) {
+      try {
+        SecretKey key = Keys.hmacShaKeyFor(SecurityConstants.JWT_KEY.getBytes(StandardCharsets.UTF_8));
+        Claims claims = Jwts.parserBuilder()
+                        .setSigningKey(key).build()
+                        .parseClaimsJws(jwt).getBody();
+        String username = String.valueOf(claims.get("username"));
+        String authorities = (String) claims.get("authorities");
+        Authentication auth = new UsernamePasswordAuthenticationToken(username,null,
+        AuthorityUtils.commaSeparatedStringToAuthorityList(authorities));
+        SecurityContextHolder.getContext().setAuthentication(auth);
+      }catch (Exception e) {
+        throw new BadCredentialsException("Invalid Token received!");
+      }		
+    }
+    chain.doFilter(request, response);
+  }
+	
+  @Override 
+  protected boolean shouldNotFilter(HttpServletRequest request) {
+    return request.getServletPath().equals("/login"); 
+  } // không nên áp dụng cho login request
+}
+------------------------------------------------------------------------------
+phía client:
+- nhận response với header chứa:
+  Authorization: token
+- lưu giá trị này vào cookie bằng cách:
+  fetch() ... .then( responseData => 
+  window.sessionStorage.setItem('Authorization', responseData.headers.get ('Authorization'););
+- mỗi lần request giử đi với header chứa: 
+  let authorization = window.sessionStorage.getItem('Authorization');
+  if(authorization)
+    httpHeader.append('Authorization', authorization )
+============================================================================================================================================================
+Method level security
+- là 1 tính năng được cung cấp bởi spring security
+- đặt 1 số quy tắc ủy quyền nhất định, xem ai có thể thực hiện method trong service layer, repostory layer hay bất kỳ layer nào của ứng dụng
+- sử dụng @EnableGlobalMethodSecurity cho phép bảo mật global trên bất kỳ layer config nào có annotation
+- áp dụng authorization ngay trong các ứng dụng không phải là web, nới không có bất cứ endpoint nào
+
+  - Invocation authorization: xác thực nếu ai đó có thể gọi 1 method hoặc không dựa trên vai trò quyền hạn
+  - Filtering authorization: xác thực những gì một method có thể nhận được thông qua các tham số của nó và những gì invoker có thể nhận lại từ method post thực thi logic nghiệp vụ
+
+- Spring security sẽ sử dụng các aspects từ AOP module và có các interceptors ở giữa các lần gọi method để áp dụng quy tác ủy quyền được định cấu hình
+- Method level security cung cấp dưới 3 kiểu khác nhau để định cấu hình các quy tắc ủy quyền
+  - thuộc tính prePostEnable cho phép Spring Security các annotations @PreAuthorize và @PostAuthorize
+  - thuộc tính securedEnable cho phép annotations @Secured
+  - thuộc tính jsr250Enable cho phép annotation @RoleAllowed
+
+@Configuration
+@EnableGlobalMethodSecurity(prePostEnable = true, securedEnable = true, jrs250Enable = true)
+public class MethodSecurityConfig {
+  ...
+}
+------------------------------------------------------------------------------
+@Secured và @RoleAllwed sẽ kém mạnh mẽ hơn @PreAuthorize và @PostAuthorize
+
+- Sử dụng invacation authorization
+- đối với lọc các parameters trước khi gọi method có thể sử dụng PreFiltering
+
+------------------------------------------------------------------------------
+- Sử dụng invacation authorization
+@Service
+public class LoanService {
+  @PreAuthorize("hasAuthority('admin')")  // kiểm tra người dùng đăng nhập có quyền hạn admin
+  @PreAuthorize("hasRole('admin')") // kiểm tra vai trò
+  @PreAuthorize("hasAnyRole('admin')") // kiểm tra 1 trong các vai trò
+  @PreAuthorize("# username == authentication.principal.username") // username đưa vào là người dùng đăng nhập
+  @PreAuthorize("hasPermission(returnObject, 'admin')")  // kiểm tra object trả về có sự cho phép admin
+  
+  @PostAuthorize("returnObject == authentication.principal.username")
+  @PostAuthorize("hasPermission(returnObject, 'admin')")
+  public Loan getLoanDetails(String username) {
+    return loanRepository.loadLoanByUserName(username);
+  }
+}
+  - khác nhau giữa PreAuthorize và PostAuthorize: Post sẽ vẫn thực thi các logic được xác định trong method, nhưng không rollback lại những thao tác thực hiện với database
+  - custom hasPermistion trong interface PermissionEvaluator extends AopInfrastructureBean
+------------------------------------------------------------------------------
+
+- Sử dụng filtering authorization
+  - không muốn ngăn chặn invacation(lời kêu gọi) method 1 cách mù quáng, thay vào đó muốn thực hiện đảm bảo rằng các tham số được giử vầ nhận đến/ từ method cần tuân theo quy tắc authorization => có thể xem xét việc filtering 
+  - lọc các parameters trước khi call method sử dụng Prefiltering
+
+@Service
+public class LoanService {
+  // chỉ cập nhật chi tiết khoản vay của riêng mình mà không phải của người khác
+  @PreFilter("filterObject.username == authentication.pricipal.username")
+  public Loan updateLoanDetails(Loan loan) {
+    // business logic
+    return loan;
+  }
+
+}
+  - cũng có thể sử dụng Postfiltering tuy nhiên cần lưu ý vì spring security coi vi phạm filter như 1 exception và những gì thực thi với database trong logic sẽ không được rollback
+============================================================================================================================================================
+OATH 2
+- với http basic authentication, clinet cần giử thông tin đăng nhập của user mọi lần vào logic authentication sẽ được thực thi mọi lúc với tất cả các request. với cách tiếp cận này, sẽ luôn chi sẻ thông tin đăng nhập qua mạng (có thể tránh được bằng cách sử dụng token như JWT)
+- trường hợp hệ thống duy trì nhiều ứng dụng riêng lẻ, người dùng phải đăng ký và  duy trì các thông tin đăng nhập khác  nhau/ cùng 1 thông tin đăng nhập nhưng lưu trữ trong nhiều DB, thậm chí cả logic AuthN và AuthZ, tiêu chuẩn bảo mật sẽ được sao chép trong tất cả ứng dụng 
+  => yêu cầu khách hàng đăng ký riêng trong tất cả ứng dụng
+  => sử dung Oath tránh phân phát thông tin đăng nhập trong nhiều DB, và có thể theo dõi chúng, các ứng dụng sẽ sao chép logic được xác định trong chúng cho dù đó có thể là authentication flow, authorization flow, security standed 
+------------------------------------------------------------------------------
+- Oath là viết tắt của open authorization , 1 giao thức miễn phí được xây dựng trên các tiêu chuẩn IEFT và giấy phép từ  Open Web FOoundation
+- OAth 2 là 1 giao thúc ủy quyền, có nghĩa là để ai đó kiểm soát tài nguyên cho phép trong ứng dụng phần mềm truy cập tài nguyên đó thay mặt họ mà không mạo danh họ
+- Ví dụ thay vì xử lý Auth và Business logic bên trong cùng 1 ứng dụng sẽ để ứng dụng khác xử lý ủy quyền trước khi cho phép khách hàng truy cập tài nguyên được bảo vệ. chủ yếu sẽ xảy ra với sự trợ giúp của các token
+- theo đặc điểm ký thuật của OAth 2, nó cho phép ứng dụng bên thứ 3 có quyền truy cập hạn chế vào dịch vụ HTTP, thay mặt cho tài nguyên. Chủ sở hữu bằng cách sắp xếp tác tác phê duyệt giữa chử sở hữu tài nguyên và dịch vụ HTTP hoặc bằng cách cho phép ứng dụng bên thứ 3 quyền truy cập thay mặt mình
+- trong Oath world, ứng dụng client muốn có quyền truy cập vào tài nguyên được bảo vệ thay mặt chủ sở hưu tài nguyên (thường là người dùng cuối). đối với ứng dụng khách này sẽ tương tác với máy chủ Authorization để lấy token
+- theo nhiều cách, có thể coi OAuth token là 1 thẻ ra vào lấy bất kỳ tài nguyên nào. token này cung cấp quyền truy cập hạn chế cho 1 người nào đó mà không cần giao toàn quyền kiểm soát dưới dạng master key
+
+ví dụ có thể sử dụng fb, gg, ... để lấy thông tin người dùng và ủy quyền
+------------------------------------------------------------------------------
+- Các thành phần OAuth framework
+  - The Resource Server: nơi hiển thị các tài nguyên được bải vệ do người dùng sở hữu như ảnh đại diện, thông tin cá nhân, ..
+  - The user (chủ sở hữu tài nguyên): Người sở hữu tài  nguyên do resource server hiển thị, thông thương user chứng minh danh tính của mình thông qua sự trợ giúp của username và passwprd
+  - The client : ứng dụng muốn truy cập các tài nguyên của user sở hữu thay mặt họ. sử dụng client id và secret để nhận dạng nó. Thông tin này không giống thông tin đăng nhập của user
+  - The authoziration server: máy chủ ủy quyền cho client truy cập tài nguyên user. khi authorization server xác định rằng 1 client được ủy quyền để truy cập tài nguyên thay mặt người dùng, nó sẽ phát hanhfh token. ứng dụng client nhận token này để chứng minh với resource server rằng nó đã được cho phép, resource sẽ cho phép truy cập tài nguyên nếu token hợp lệ sau khi xác thực tương tự auth server
+
+------------------------------------------------------------------------------
+Auth code grant type (standard flow)
+
+flow:
+  - user muốn truy cập tài nguyên sẽ nói với Auth server cho phép client truy cập vào tài nguyên của họ bằng cách cung cấp thông tin đăng nhập để chứng mình identity. 
+  - auth server giử authozirztion code cho client 
+  - client giử lại authoziration code và thông tin tử client yêu cầu auth server cung cấp token
+  - auth server giử lại token cho client, clinet sẽ lấy token đưa cho resource server để truy cập tài nguyên
+  - resource server sẽ valid token nếu successfully sẽ trả lại tài nguyên cho request
+
+
+- khi client thực hiện request tới auth server endpoint để yêu cầu token cần giử những chi tiết quan trọng sau:
+  - client_id : id xác định clinet application bởi auth server. cài này được cấp khi client lần đầy tiên đăng ký với auth server
+  - redirect_uri: là uri mà auth seerver cần để chuyển hướng xác thực thành công. Nếu 1 giá trị mặc định được cung cấp trong quá trình đăng ký, sau đó giá trị này sẽ là không bắt buộc
+  - scope: tương tự với authorities, chỉ định mức độ truy cập của client đang yêu câu như READ
+  - state: CSRF token để bảo vệ khỏi CSRF attacks
+  - response_type: với giá trị "code" cho biết rằng client muốn tuân theo việc cấp ã ủy quyền
+  
+- khi clinet nhận được authorization code từ auth server, nó sẽ đưa lại request tới auth server lấy token với các giá trị:
+  - code: mã ủy quyền nhân được lúc trước
+  - client_id và client_secret : thông tin xác thực của client mà đã được đăng ký với auth server. (không phải thông tin đăng nhập của user)
+  - grant_type: với giá trị authorization code xác định loại quyền hạn được sử dụng
+  - redirect_uri 
+
+- client yêu cầu auth server 2 lần cho auth code và access token
+  - lần đầu riên để đảm bảo rằng user đã tương tác trực tiếp với auth server cùng với thông tin đăng nhâp. nếu chính xác sẽ giử auth code cho client
+  - sau khi nhận auth code, clinet pahir chứng minh danh tính cyar mình kèm với auth code, thông tin xác thực của client để lấy access token 
+  ex: như sử dung gg để đăng nhập stackoverflow, lần đâu user nhập thông tin đăng nhập như gmail, password để xác thực với gg, gg sẽ giử code cho stackoverflow, stackoverfolow chuyển thông tin xác thực kèm auth code để lấy thông tin người dùng như họ tên, gmail ...
+
+------------------------------------------------------------------------------
+implicit grant type (implicit flow)
+
+- auth server không trực tiếp kết hợp 2 bước cung cấp token trong 1 lần duy nhất? đã từng có loại này được gọi là implicit túy nhiaat không được khuyến khích sử dụng do nó kém an toàn, không chứa client_secret
+https://example.app.com/redirect#access_token=xMADBAKJKbhjcbsjhajnam632bj23482cn&token_type=Bearer&expires_in=600&state=80nGJDAudnaksfniuBJDjnfshND856mf8w
+
+------------------------------------------------------------------------------
+resource owner credentials grant type (direct access grants)
+
+- client, auth server, resource server thuộc về cùng 1 tổ chức, để có trải nghiệm tốt cho user sẽ không thực hiện chuyển hướng tới auth server mà cung cấp luôn thông tin đăng nhập tới client, client sẽ giử tới auth  server, auth server sẽ trả về ngay token để truy cập đến resource server
+- client giử thông tin: client_id, client_secret, scope, username & password, grant_type
+
+------------------------------------------------------------------------------
+client credentials grant type
+
+- không có bất kỳ ui application, dữ liệu được chia sẻ giữa nhiều backend appliaction như microservice 
+- client sẽ trực tiếp gọi auth server với tư cách là khách hàng, không có bất kỳ thông tin đăng nhập người dùng nào được chia sẻ 
+- client sẽ giử client_id, client_secret, scope, grant_type 
+
+------------------------------------------------------------------------------
+refresh token grant type
+
+- khi token hết hạn, throw 403 forbidden error
+- không yêu cầu thông tin đăng nhập từ user nữa, client giửu refresh token  của user tới auth server. refresh toẹn vaild, auth server sẽ giửu lại access token mới và refresh token mới
+- client tiếp tục sử dụng access token truy cập resource server
+
+------------------------------------------------------------------------------
+cách resource nhận access token:
+  - 1: thực hiện valid token bằng api call tới auth server
+  - 2: check trong DB accesstoken có thực sự được phát hành bởi auth server và nó đã hết hạn hay chưa (sử dụng DB chung giữa auth server và resource server)
+  - 3: không có tương tác giữa Auth và resource server, token sẽ được signed bởi Auth server và signeture của nó sẽ được xác minh bởi resource server tương tự JWT, secret key được duy trì ở 2 bên đảm bảo không ai giả mạo
+============================================================================================================================================================
+Triền khai OATH 2 với github, gg, fb, ...
+------------------------------------------------------------------------------
+- sử dụng github authorization 
+  Settings / Developer settings / OAuth Apps
+    > Register a new application
+  - github sẽ cung cấp Client ID và Client secret
+
+  - sử dụng dependency: cho client
+  <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-oauth2-client</artifactId>
+  </dependency>
+  
+    cho server:
+  <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+  </dependency>
+
+  - code client:
+  @Configuration
+  public class SpringSecOAUTHGitHubConfig extends WebSecurityConfigurerAdapter {
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
+      http.authorizeRequests().anyRequest().authenticated().and().oauth2Login();
+    }
+  
+    private ClientRegistration clientRegistration() { 
+      return CommonOAuth2Provider.GITHUB.getBuilder("github")
+      .clientI("e482d40474aaaec77980")
+      .clientSecret("dcd7d4f3b2fabeaf8a8646b0d1d653a4378170e9").build(); 
+    } // sử dụng enum CommonOAuth2Provider đã cấp hình mặc định cho framework nổi tiếng như GOOGLE, FACEBOOK, GITHUB, ...
+    
+    /*
+    private ClientRegistration clientRegistration() { 
+      ClientRegistration cr = ClientRegistration
+        .withRegistrationId("github")
+        .clientId("3c9be97074f067e78e75")
+	.clientSecret("ab313f7ade3d79e06c192ca80cf152c43cb5d916")
+        .scope(new String[]{"read:user" })
+	.authorizationUri("https://github.com/login/oauth/authorize")
+	.tokenUri("https://github.com/login/oauth/access_token")
+        .userInfoUri("https://api.github.com/user")
+	.userNameAttributeName("id").clientName("GitHub")
+	.authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+	.redirectUriTemplate("{baseUrl}/{action}/oauth2/code/{registrationId}")
+        .build(); 
+      return cr; 
+    } // config tùy chỉnh, chỉ nên dùng nếu có Auth server riêng
+    */
+
+    @Bean 
+    public ClientRegistrationRepository clientRepository() {
+      ClientRegistration clientReg = clientRegistration(); 
+      // lấy ra clientReg  từ method đưcọ viết ở trên
+      return new InMemoryClientRegistrationRepository(clientReg); 
+    }
+  }
+
+  
+  - hoặc có thể config trong application.properties (chỉ cần giữ lại configure(HttpSecurity http): void)
+  spring.security.oauth2.client.registration.github.client-id=e482d40474aaaec77980
+  spring.security.oauth2.client.registration.github.client-secret=dcd7d4f3b2fabeaf8a8646b0d1d653a4378170e9
+
+  - lấy thông tin trong controller:
+  @Controller
+  public class SecureController {
+    @GetMapping("/")
+    public String main(OAuth2AuthenticationToken token) {
+      System.out.println(token.getPrincipal());
+      return "secure.html";
+    }
+  }
+
+- sử dụng .oath2Login() trong configure sẽ tự động thêm filter OAuth2LoginAuthenticationFilter extends AbstractAuthenticationProcessingFilter
+- sử dụng các framework nổi tiếng đã được hỗ trợ sẵn bởi enum CommonOAuth2Provider
+- sử dụng ClientRegistration để config nên tạo bean ClientRegistrationRepository giống như UserDetailsService
+  bean này trả về interface ClientRegistrationRepository có method: findByRegistrationId(String registrtionId) lấy ra được ClientRegistration
+
+============================================================================================================================================================
+Triền khai OAuth 2 với Keycloak
+
+------------------------------------------------------------------------------
+- Keycloak OAuth Server
+
+  - các auth server cung cấp bên ngoài chỉ hỗ trợ xác thực để ủy quyền truy cập bảo mật bên trong application
+  - muốn kết hợp quản lý truy cập dựa trên vai trò bên trong một ứng dụng web thì những auth server được cung cấp bởi github, google, fb không tốt. do khi lấy ủy quyền từ những auth server này, sẽ không có sự linh hoạt trong việc duy trì role và authorities dựa trên custtom logic của app.
+  - cần auth server như keycloak để tách authentication logic và authorization logic ra khỏi ui business logic (resource server). back-end sẽ không có bất cứ điều gì liên quan đến xác thực và ủy quyền, loại bỏ tất cả các tương tác cơ sở dự liệu để thực hiện thao tác đăng nhập: authentication provider, password encoder, filter, ... sẽ có 1 auth server riêng dựa trên keycloak để lưu trữ tất cả thông tin đăng nhập của người dùng
+  - client như angular, react, ... sẽ cố gắng để có được access token bằng cách kết nối với keycloak auth server và truyền thông tin đăng nhập. sau đó clinet chuyển access token tới resource server và cố gắng gọi api. resource sẽ validate token bằng cách kết nối lại oauth server, hợp lệ resource server sẽ trả về data cho client
+
+
+------------------------------------------------------------------------------
+Open ID connect
+  - OpenID connect gần giống với OAuth 2, là 1 protocol dựa trên OAuth 2 framework. trong khi Oauth cấp ủy quyền thông qua access token có chứa scopes. OpenID connect cung cấp xác thực bằng cách đưa ra token ID mới chứa 1 tập hợp mới của các scopes và xác nhận quyền sở hữu dành riêng cho danh tính
+  - với ID token, OpenID mang đến các tiêu chuẩn xoay quanh việc chia sẻ danh tính giữa các application 
+  - Oauth chỉ thực hiện ủy quyền trên quản lý truy cập và vai trò. không có cách nào chia sẻ chi tiết danh tính của người dùng
+  - Open ID cung cấp access token đến từ OAuth 2 và token ID
+  - Open ID thêm detials bên dưới OAuth 2:
+    1: OIDC chuẩn hóa scopes tới openid, profile, email, address
+    2: ID token sử dụng chuẩn JWT
+    3: OIDC tiết lộ enpoint đưuọc tiêu chuẩn hóa cung cấu user details: "/userinfo"
+  - khi bắt dầu kết hợp OAuth framework với nhiều app bằng cách tận dụng access token được cung cấp bởi Auth server thì cần phải biết access token này thuộc về ai => kết hợp Authentication OpenID Connect với Authorization OAuth 2.0 tạo thành IAM => tạo thành chiến lược mới identity và access management
+
+------------------------------------------------------------------------------
+Keycloak Server 
+
+- B1: keycoak.org -> downloads -> keycloak
+- B2: giải nén -> bin -> cmd
+    standalone.sh
+- B3: localhost:8080 : xem keycloak server
+- B4: tạo admin account, account này được lưu trữ trên H2 DB 
+- B5: Adminstration Console -> đăng nhập admin
+- B6: tạo realm : là 1 không gian bên trong bất kỳ phần mềm quản lý nhận dạng truy cập nào, cũng óc trong okta, ... để duy trì 1 nhóm người dùng chuyên dụng
+    mặc định keycoak đã tạo sẵn 1 master realm
+- B7: chọn Clients ở menu, mặc định có 1 số clinet được tạo sẵn bởi keycloak server cho các hoạt động nội bộ
+
+
+--Client Credentials grant type flow
+
+  - tạo 1 client cho phép api này kết nối với api khác (không có tương tác với user)
+
+- B8: tạo client mới, clinet protocol chọn openid-connect, nhập thông tin user details, với postman không có user, là client kết nối với auth server cần tắt Standard Flow Enabled, Implicit Flow Enabled, Direct Access Grants Enabled
+- B9: đổi Access Type thành confidential, bật Service Accounts Enabled => save
+- B10: chọn Credentials: thấy được secret mà clinet sử dụng bất cứ khi nào tương tác với keycloak server
+--------------------------------------------------------------------------
+- SET UP RESOURCE SERVER
+  - thêm dep cho pom.xml:
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+    </dependency>
+   
+    --------------------------------------------------------------------------
+    // ProjectSecurityConfig.java
+    public class ProjectSecurityConfig extends WebSecurityConfigurerAdapter {
+      @Override
+        protected void configure(HttpSecurity http) throws Exception {
+
+          JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
+	  jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(new KeycloakRoleConverter());
+
+          http.cors().configurationSource(new CorsConfigurationSource() {
+	    @Override public CorsConfiguration getCorsConfiguration(HttpServletRequest request) { 
+              CorsConfiguration config = new CorsConfiguration();
+	      config.setAllowedOrigins(Collections.singletonList("http://localhost:4200"));
+	      config.setAllowedMethods(Collections.singletonList("*"));
+	      config.setAllowCredentials(true);
+	      config.setAllowedHeaders(Collections.singletonList("*"));
+	      config.setMaxAge(3600L); return config;
+	    }
+	  }).and()
+	  .authorizeRequests()
+	  .antMatchers("/myAccount").hasAnyRole("USER")
+	  .antMatchers("/myBalance").hasAnyRole("ADMIN")
+	  .antMatchers("/myLoans").authenticated()
+	  .antMatchers("/myCards").hasAnyRole("USER", "ADMIN")
+	  .antMatchers("/notices").permitAll()
+	  .antMatchers("/contact").permitAll()
+	  .and().csrf().disable()
+	  .oauth2ResourceServer().jwt().jwtAuthenticationConverter(jwtAuthenticationConverter);
+      }
+    }
+    // KeycloakRoleConverter.java
+    public class KeycloakRoleConverter implements Converter<Jwt, Collection<GrantedAuthority>> {
+      @Override
+      public Collection<GrantedAuthority> convert(Jwt jwt) {
+        Map<String, Object> realmAccess = (Map<String, Object>) jwt.getClaims().get("realm_access");
+
+        if (realmAccess == null || realmAccess.isEmpty()) {
+          return new ArrayList<>();
+        }
+
+        Collection<GrantedAuthority> returnValue = ((List<String>) realmAccess.get("roles"))
+                .stream().map(roleName -> "ROLE_" + roleName)  
+                .map(SimpleGrantedAuthority::new)
+                .collect(Collectors.toList());
+ 
+        return returnValue;
+      }
+    }
+    --------------------------------------------------------------------------
+    
+  - trong configure tắt csrf: .and().csrf().disable()
+  - không sử dụng http basic login nữa mà muốn duy trì như 1 resource server
+      .oauth2ResourceServer()
+     .jwt() // tuân theo chuẩn jwt token
+     .jwtAuthenticationConverter(jwtAuthenticationConverter) 
+     // keycloak duy trì tất cả các role detais trong jwt token
+     => tạo 1 jwtAuthenticationConverter chuyển đổi tất cả role trong token về spring security
+
+     JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
+     jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(new KeycloakRoleConverter());
+
+  - KeycloakRoleConverter là class dùng để convert role từ token 
+     - method convert nhận vào jwt
+     - tìm kiếm trong Json object đó giá trị có key là "realm_access"
+     - tạo collection<grantedauthority> trong list role từ realmAccess.get("roles")
+  - kết nối với keycloak server:
+    application.properties:
+      spring.security.oauth2.resourceserver.jwt.jwk-set-uri = http://localhost:8080/auth/realms/[[REALM_NAME]]/protocol/openid-connect/certs
+--------------------------------------------------------------------------    
+- SET UP POSTMAN
+
+- lấy access token sử dụng trong postman
+  - truy cập 
+  http://localhost:8080/auth/realms/[[Realm_name]]/protocol/openid-connect/token
+  - method: POST, cần cung cấp client_id, client_secret từ client vừa tạo
+     scope: openid email address 
+     grant_type: client_credentials 
+- đưa access_token vào trong header của request cần giưu tớ resource server với key là Authorization: Bearer [[access_token]]
+--------------------------------------------------------------------------
+TẠO ROLES
+- tạo 2 Role USER và ADMIN ở menu dọc mục Roles
+- tại mục CLients chọn client vừa tạo -> Roles -> Service Account Roles -> Add role từ Available roles sang Assigned roles
+
+----------------------------------------------------------------------------------------------------------------------------------------------------
+--Authorization code grant flow
+
+- User nhập thông tin đăng nhập lấy các resource sở hữu bên trong resource server (authorization code grant flow)
+ 
+ 1: user muốn truy cập resource qua client => client sẽ redirect tới auth server để user nhập thông tin đăng nhập cùng client_id (từ client) 
+ 2: authentication sucessfully => authorization code được giử tử auth server tới client
+ 3: client chuyển client_id, client_secret kèm authorization code tới auth server 
+ 4: client_secret valid => auth server sẽ giử lại client access token
+ 5: client sử dụng token để lấy resource từ resource server
+
+- tạo clients trong keycloak:
+  - tự nhập client ID, chuyển client protocol sang openid-connect => save
+  - vì sử dụng athorization code grant type => bật Standard Flow Enabled
+  - chuyển Access Type sang confidential
+  - thêm Valid Redirect URIs: chuyển hướng user sau khi nhận đc authorization code => save
+  - chuyển sang Credentials lấy Secret key
+
+- tạo user: nhập đầy đủ thông tin, bật Email Verified => save
+  - tới Credentials để đặt password
+  - chuyển Temporary sang off để passowrd có thời hạn vĩnh viễn
+  - Role Mappings -> đưa USER và ADMIN từ Avaiable Roles sang Assigned Roles
+
+- sử dụng postman cấu hình uri đưa lên browser để redirect sang trang login của keycloak
+   http://localhost:8080/auth/realms/[[realm name]]/protocol/openid-connect/auth
+   query params: client_id : tên client vừa tạo
+                 response_type: code // mỏng đợi authorization code
+                 scope: openid
+                 redirect_uri: Valid Redirect URIs vừa nhập
+  => nhận được chuỗi code trong uri được redirect sau khi đang nhập thành công trên trang logic mặc định của keycloak
+
+- postman:
+  POST http://localhost:8080/auth/realms/[[realm name]]/protocol/openid-connect/token
+  body: 
+   grant_type: authorization_code
+   client_id: tên client vừa tạo
+   client_secret: lấy trong client vừa tạo
+   code: authorization code vừa nhận trên uri redirect của keycloak
+   redirect_uri: Valid Redirect URIs vừa nhập
+   scope: openid
+  => nhận được access_token, refresh_token, id_token, ...
+- tiếp tục đưa access_token vào header key Authorization vào sau Bearer để giửu request được bảo vệ
+
+----------------------------------------------------------------------------------------------------------------------------------------------------
+Client là web application như react, anguler
+
+Sử dụng Proof key để trao đổi code (PKCE) - PKCE authoration code flow
+
+- Khi public client như native hoặc singlepage app yêu cầu access token, một số lo ngại về bảo mật do public client không thể lưu trữ an toàn clinet_secret
+- Oauth 2 cung cấp 1 phiên bản của authorization code flow cho các public client sử dụng Proof key để trao đổi code (PKCE)
+
+- luồng của PKCE-enhanced Authorization Code Flow:
+  - khi user đăng nhâp, client app sẽ tạo 1 cryptographically ngẫu nhiên code_verifier (1 giá trị ngẫu nhiên bằng cách tận dụng 1 số thuật toán mã hóa) và từ đó lại generate ra 1 code_challenge
+  - redirect user tới auth server cung với code_challenge
+  - auth server lưu trữ code_challenge và redirect user trở lại application với authorization_code, code này cho phép 1 lần sử dụng
+  - client app giử authz_code và code_verifier(được tạo trc đó) tới authz server
+  - authz server verifies code_challenge và code_verifier. nếu hợp lệ sẽ phàn hổi lại id_token và access_token (có thể tùy chọn thêm refresh_token)
+
+- code_verifier sẽ gián tiếp hoạt động như 1 client_secret thay vì client secret cố định luôn giống nhau 
+--------------------------------------------------------------------------
+- tạo client deatail trên keycloakserver để có thể sử dụng kèm với PKCE
+  - Client (menu dọc) -> create
+  - nhập tên client vào Client ID, Client Protocol: openid-connect -> save
+  - Access type: public (không có client_secret => tự động theo phương thức PKCE)
+  - Standard Flow Enable: On (đảm bảo authorization code grant flow)
+  - Valid Redirect URIs: đưa đến dashboard của client 
+  - Web Origins: + (chống CORS, "+" cho phép tất cả uri truy cập đến keyclaok server)
+  - > Advanced Settings: Proof Key for Code Exchange -> S256 -> save
+--------------------------------------------------------------------------
+- thiết lập trong angular app:
+
+https://www.npmjs.com/package/keycloak-angular
+> npm install keycloak-angular keycloak-js
+
+import { APP_INITIALIZER, NgModule } from '@angular/core';
+import { KeycloakAngularModule, KeycloakService } from 'keycloak-angular';
+
+function initializeKeycloak(keycloak: KeycloakService) {
+  return () =>
+    keycloak.init({
+      config: {
+        url: 'http://localhost:8080/auth', //url dẫn đến keycloak server
+        realm: 'realm_name', //realm name
+        clientId: 'client_name', //client name
+      },
+      initOptions: {
+        pkceMethod: 'S256', // đã thiết lập trong client của keycloak server
+        redirectUri: 'http://localhost:4200/dashboard' // đã thiết lập trong client
+      },loadUserProfileAtStartUp: false
+    });
+}
+
+https://github.com/eazybytes/spring-security/blob/main/section_13/client-app-ui/src/app/app.module.ts
+...
+--------------------------------------------------------------------------
 
 
 
 
 
+============================================================================================================================================================
+https://www.marcobehler.com/guides/spring-security
 
 
 
+Câu hỏi:
 
+Nếu chúng tôi xóa .formLogin(), nó sẽ không chấp nhận yêu cầu từ trình duyệt? Tương tự như vậy, nếu chúng tôi loại bỏ .httpBasic(), nó sẽ không chấp nhận yêu cầu từ Postman?
 
+> formLogin() dành cho các yêu cầu đến từ JSP / HTMLs, trong đó httpBasic() dành cho các yêu cầu đến thông qua lời kêu gọi REST API như thông qua POST man và mã giao diện người dùng góc cạnh thực hiện cuộc gọi phụ trợ bằng HTTP REST.
+ 
+WebSecurityConfigurerAdapter nằm ở đâu?
 
+> WebSecurityConfigurerAdapter là một lớp trừu tượng hiện diện bên trong khung Bảo mật Mùa xuân với các cấu hình mặc định được đề cập. Chúng tôi có thể mở rộng nó và ghi đè lên các cấu hình mặc định theo yêu cầu tùy chỉnh của chúng tôi đặc biệt là bằng cách ghi đè lên phương pháp cấu hình (HttpSecurity http).
+WebSecurityConfigurerAdapter xuất hiện ở lớp AuthenticationManager ở bước 3. Chúng ta cũng có thể thấy một phương pháp AuthenticationManager authenticationManager() bên trong nó sẽ quyết định đi với AuthenticationManager mặc định hoặc người dùng được cung cấp.
 
+Sau khi đăng nhập, Nếu chúng tôi nắm bắt "jwt-token" từ back-end và lưu trữ nó trong localStorage cho yêu cầu tiếp theo.---> Sau đó một kịch bản phát sinh, giả sử một số người đã lấy "jwt-token" của tôi bằng cách duyệt vào bộ nhớ cục bộ của trình duyệt của tôi và cố gắng truy cập tài nguyên được bảo vệ từ khách hàng như POSTMAN. Làm thế nào để ngăn chặn tất cả những điều này.
 
+>  Có một cơ hội tốt ai đó có thể sử dụng mã thông báo JWT của bạn được lưu trữ bên trong 'localStorage'. Nhưng dựa trên kịch bản dự án, bạn có thể làm theo bất kỳ cách tiếp cận nào sau đây,
+1) Sử dụng thay vì Sự khác biệt là với , dữ liệu chỉ tồn tại cho đến khi cửa sổ hoặc tab được đóng lại. Với , dữ liệu được duy trì cho đến khi người dùng xóa thủ công bộ nhớ cache trình duyệt hoặc cho đến khi ứng dụng web của bạn xóa dữ liệu. Bằng cách này, bạn có thể đảm bảo ít nhất là ngay sau khi trình duyệt / tab được đóng, mã thông báo của bạn sẽ bị xóa khỏi thiết bị người dùng.sessionStoragelocalStoragesessionStoragelocalStorage
+2) Tạo mã thông báo JWT với thời gian hết hạn ít hơn như 5 phút và tiếp tục làm mới thời gian mã thông báo bất cứ khi nào người dùng thực hiện yêu cầu phụ trợ. Bằng cách này, nếu phiên người dùng không hoạt động trong hơn 5 phút, mã thông báo sẽ tự động hết hạn ở phụ trợ.
+3) Không lưu trữ mã thông báo JWT ở bất cứ đâu bên trong mã khách hàng, luôn vượt qua giao diện người dùng mã thông báo b / w và phụ trợ mà không lưu trữ nó khi mỗi lần bạn thực hiện yêu cầu từ giao diện người dùng sang phụ trợ.
 
+Không lưu trữ mã thông báo JWT ở bất cứ đâu bên trong mã khách hàng, luôn vượt qua giao diện người dùng mã thông báo b / w và phụ trợ mà không lưu trữ nó khi mỗi lần bạn thực hiện yêu cầu từ giao diện người dùng sang phụ trợ? về điểm này.nhưng ở phía khách hàng, bạn đã lưu trữ nó trong phiênStorage right.without this approach, làm thế nào chúng ta có thể gửi nó đến server.atleast trong 5 phút chúng ta cần lưu trữ nó ở phía khách hàng ngay cả khi bạn đặt thời gian hết hạn
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+> Một JWT cần được lưu trữ ở một nơi an toàn bên trong trình duyệt của người dùng.
+Nếu ứng dụng của bạn không có bất kỳ thông tin nhạy cảm nào thì việc lưu trữ JWT bên trong sessionStorage có thể hoạt động cho bạn. Nhưng đây là cách tiếp cận tồi vì một cuộc tấn công XSS có thể cho phép kẻ tấn công bên ngoài truy cập vào mã thông báo.
+Nhưng cách tiếp cận an toàn nhất là lưu trữ JWT bên trong cookie httpOnly. Đây là một loại cookie đặc biệt chỉ được gửi trong các yêu cầu HTTP đến máy chủ. Nó không bao giờ có thể truy cập (cả để đọc hoặc viết) từ JavaScript chạy trong trình duyệt.
+Vì vậy, không phải lúc nào cũng bắt buộc phải lưu trữ bên trong phiênStorage / localStorage vì chúng không phải là cách tiếp cận an toàn. Thay vào đó, chúng ta có thể tận dụng cookie httpOnly.
 
 
 

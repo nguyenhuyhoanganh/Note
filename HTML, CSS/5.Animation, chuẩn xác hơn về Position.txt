@@ -1,0 +1,124 @@
+ANIMATION và TRANSITION
+
+Transition: 
+ - transition-property: thuộc tính áp dụng transition
+ - transition-duration: khoảng thời gian thay đổi
+ - transition-delay: delay thời gian áp dụng transition
+ - transition-timing-function: biến đổi nhanh chậm theo từng khoảng thời gian trong 1 quãng thời gian của transition-duration
+   - timing function của css: cubic-berier() nhận vào 4 tham số
+      - ease-in-out === cubic-bezier(0.42, 0, 0.58, 1.0) : nhanh dần đến khoảng giữa rồi chậm dần, thời gian nhanh bằng thời gian chậm
+      https://cubic-bezier.com/#.17,.67,.83,.67
+      - linear: chuyyeenr động không đổi tốc độ
+      - ease: nhanh dần đến khoảng giữa rồi chậm dần, thời gian nhanh bằng nửa thời gian chậm
+      - ease-in: nhanh dần, lúc đầu chậm hơn linear, lúc sau nhanh hơn linear
+      - ease-out: ngược của ease-in
+ * property và duration có thể chưa nhiều giá trị, mặc định property là all và, với 1 giá trị của duration sẽ áp dụng cho all property
+    - nếu viết chi tiết các property và viết chi tiết duration cho từng property
+     - số lượng duration bằng số lượng property khai báo, mỗi property sẽ tương xứng với 1 duration theo thứ tự viết ra
+     - số lượng duration nhỏ hơn số lượng property khai báo, khi đến property không được khai báo duration tương ứng sẽ lấy lại duration từ đầu trong chuỗi duration đã được khai báo
+     - số lượng duration nhiều hơn số lượng property, css không quan tâm đến các duration khai báo dư ra phía sau
+    - với timing-function sẽ giống như duration khi áp dụng với property
+ * cú pháp short-hand:
+   - transition: property1 duration1 timming1, property2 duration2 timing2, ...
+    - sử dụng all thay thế property sẽ áp dụng tất cả các property
+
+Animation:
+  animation-name: nhận tên 1 keyframes; 
+  animation-duration: thời gian thực hiện animation
+  // không cần tương tác, ngay lúc bắt đầu đã thực thi ngay 1 lần animation và trở lại ngay lập tức trạng thái ban đầu 
+  animation-iteration-count: khai báo số lần thực thi animation liên tục, 'infinite' là vô hạn lần 
+  animation-direction: alternate; // quay trở lại trạng thái ban đầu từ từ như lúc thay đổi trạng thái (không trở lại ngay lập tức)
+  animation-delay: khoảng thời gian delay khi mới bắt đầu load trang, sau đó mới thực thi animation
+  animation-timing-function: tương tự transition-timing-function
+
+  // với nhiều animation, hành vi khai báo animation-name tương đương với transition-property, các thuộc tính animation còn lại dựa vào aimation name tương tự như các thuộc tính còn lại của transition dựa vào transition-property 
+  keyframes:
+  @keyframes _keyframes_name {
+    0% {
+      // viết css bên trong
+    }
+    100% {
+      // viết css bên trong
+    }
+  }
+  // 2 thời điểm 0% và 100% là quan trọng nhất
+  // có thể thay thế 0% bằng 'from' và 100% bằng 'to', không bắt buộc khai báo cả from và to
+  // khi không khai báo giá trị của 'from' lấy mặc định trạng thái ban đầu được khai báo
+  
+  * short-hand animation:
+    animation: name1 duration1 iteration-count1 direction1, name2 duration2 iteration-count2 direction2, ... 
+  
+Ex: loanding
+
+html:
+ div.loading
+css:
+ .loading {
+   width: 20px;
+   height: 20px;
+   border: 5px solid black;
+   border-top-color: red;
+   border-right-color: burlywood;
+   border-bottom-color: chartreuse;
+   border-radius: 50%
+   animation: circle-loading 1s infinite linear;
+ }
+
+ @keyframes circle-loading {
+   to {
+     transform: rotate(360deg);
+   }
+ }
+================================================================================================
+POSITION
+ - static
+ - relative
+ - Absolute
+ - Fixed
+ - Sticky
+
+- flow của trang: trình duyệt hiển thi các block eleement theo chiều từ trên xuống dưới, mỗi 1 block element sẽ chiếm hết khaogr không gian chiều rộng của element bao quanh nó, với inline  element sẽ nằm kế cạnh nhau theo chiều ngang, và trượt xuống dưới nếu hết khoảng chiều ngang element chứa nó
+
+- static 
+  - được đặt mặc định cho mọi element
+  - không cho phép áp dụng các thuộc tính top, left, right, bottom, z-index
+
+- relative: 
+  - tương tự như static nhưng áp dụng được 5 thược tính top, left, right, bottom, z-index
+  - không ảnh hưởng đến vị trí các element nằm xung quanh nó 
+  - khoảng không gian relative element chiếm vẫn bằng đúng kích thước của nó nhưng ở vị trí với 5 giá trị thuộc tịnh top, bottom, ... bằng 0
+  - element nằm xung quanh nó sẽ lấy vị trí so với element này tại top, left, right, bottom, z-index của element này = 0
+
+- absolute: 
+  - loại bỏ element ra khỏi flow của trang 
+  - khoảng không gian nó chiếm so với các element bên cạnh nó là 0
+  - ví trị của absolute element là tương đối số với element cha gần nhất của nó có thuộc tính prosition: khác với static, theo mép box-model của element cha (không theo padding, border của element cha)
+  - nếu không có element cha nào chứa position khác với static thì sẽ nằm tương đối so với root element (là thẻ html đó, không phải khung trình duyệt đâu)
+  - nó sẽ tự động trở thành display: inline-block (không gian chứa vừa chọn các element bên trong nó, không còn rộng 100% theo cha nó nữa)
+
+- fixed: 
+  - giống absolute nhưng lấy vị trí tương đối theo màn hình hiển thị browser (đéo phải thẻ html đâu ba), cũng trở thành display: inline-block
+  - vì giới hạn theo khung broser nên kéo scroll thế nào vẫn giữ nguyên 1 ví trí trên màn hình thôi, đéo mất được đâu, trừ màn hình nhỏ quá, đéo thể chứa nổi nó
+
+- sticky:
+  - kết hợp của relative và fixed
+  - hiển thị ban đầu như relative (vẫn là block)
+  - với hành vi scroll khiến cho element bị chạm 1 mép của màn hình browser, sẽ dính theo mép của màn hình browser mà di chuyển theo, không bị màn hình browser che mất element
+  - tuy nhiên phạm vi hoạt động của element này cũng chỉ giới hạn trong content container (element cha gần nhất có thuộc tính position khác static) chứa nó (nằm trong padding khác với absolute giới hạn trong box-model)
+  - vượt quá phạm vi content của container sẽ bị hành vị scoll khiến mép màn hình browser đè lên
+  - không có container thì container là màn hình browser nhé :))
+
+
+* với các thuộc tính áp dụng được top, left, bottom, right, z-index, nếu không đặt thêm các thuộc tính này vào thì hành vị trí vẫn như ban đầu khi không có position
+  
+
+
+
+
+
+
+
+
+
+
+

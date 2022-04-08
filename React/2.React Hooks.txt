@@ -112,7 +112,7 @@ userEffect(() => { ... }, [ dependencies ]);
   2: mảng các dependencies để useEffect theo dõi thực thi callback fn: các props hoặc các state
 -Callback LUÔN LUÔN được gọi ngay sau khi component chứa useEffect() MOUNTED
 -Mảng dependencies không bắt buộc khi đưa vào useEffect(), là 
-  TH1: useEffect(callbackfn) : Sử dụng update DOM (document.title)  không addEvent, tránh setState() trong TH này
+  TH1: useEffect(callbackfn) : Sử dụng update DOM (ví dụ thay đổi document.title theo state, state này change theo text nhập vào input)  mà không addEvent, tránh setState() trong TH này
    -Callback luôn luôn được gọi mỗi khi component re-render (thay đổi state)
    -Code ngoài useEffect sẽ thực thi trước (JSX trước) rồi mới thực thi callbackfn (:re-render trước mounted)
    -Do callback thực thi SAU khi re-render => đảm bảo giao diện đã render trước khi mounted => tránh khi thực thi logic nặng trước khi render (thực thi logic không sử dụng useEffect() => thực thi logic trước mới render)
@@ -325,8 +325,7 @@ const result = useMemo(callbackfn, []);
 ================================================================================================
 USE-CONTEXT=====================================================================================
 useContext() 
-- đơn giản hóa việc đưa dữ liệu qua các component, không cần truyền dữ liệu gián tiếp qua props 
-của component trung gian
+- đơn giản hóa việc đưa dữ liệu qua các component, không cần truyền dữ liệu gián tiếp qua props của component trung gian
 
 -const Context = React.creatContext();
   - React.creatContext() tạo ra 1 context, cho phép lưu trữ data, thường dùng để lưu state để truyền qua các componet

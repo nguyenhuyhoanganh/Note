@@ -7,7 +7,7 @@
 - các thuộc tính được kế thừa sẽ có độ ưu tiên thấp nhất
 - không phải các thuộc tính luôn được kế thừa (chủ yếu là các thuộc tính về text được kế thừa): font-family, font-weight, font-style, line-height, letter-spacing, text-align, text-shadow, list-style, etc...
 - Universal Selector: * {} : chọn tất cả element trên page để chỉ định thuộc tính, KHÔNG PHẢI LÀ KẾ THỪA => có thuộc tính box-sizing, border-top, etc.. vẫn áp dụng trên tất cả element (KHÁC VỚI body)
-=========================================================
+========================================================
 #The CSS Box Model: chỉ áp dụng cho display: block, hoặc inline-block
 - Content: nội dung thực của element, cho phép chỉ định width, height, khi chỉ định height lớn hơn height của text trong content, text sẽ được đẩy lên trên, mặc định không set height, text được căn giữa content (theo chiều dọc)
 - Border: đường viền quanh element, vẫn thuộc về element (inside)

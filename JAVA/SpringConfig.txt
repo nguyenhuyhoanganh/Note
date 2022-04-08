@@ -1,0 +1,100 @@
+=> new project => maven project => maven-archetype-webapp
+=> add dependencies -> pom.xml:
+- spring-webmvc
+- javax.servlet-api
+- javax.servlet.jsp.api
+- jstl
+=> add plugin (java-config)
+<plugins>
+	<plugin>
+		<groupId>org.apache.maven.plugins</groupId>
+		<artifactId>maven-war-plugin</artifactId>
+		<configuration>
+			<warSourceDirectory>src/main/webapp</warSourceDirectory>
+			<!-- ten file war -->
+			<warName>HelloWorld</warName>
+			<!-- set false bo? xml config -->
+			<failOnMissingWebXml>false</failOnMissingWebXml>
+		</configuration>
+	</plugin>
+</plugins>
+
+=> tạo folder java trong folder main
+=> tạo package config trong folder java
+=> tạo 2 file AppInit và SpringConfig
+
+AppInit:
+
+public class AppInit implements WebApplicationInitializer {
+	public void onStartup(ServletContext container) throws ServletException {
+		AnnotationConfigWebApplicationContext ctx = new AnnotationConfigWebApplicationContext();
+		ctx.register(SpringConfig.class);
+		
+		ctx.setServletContext(container);
+
+		DispatcherServlet dispatcherServlet = new DispatcherServlet(ctx);
+		dispatcherServlet.setThrowExceptionIfNoHandlerFound(true);
+
+		ServletRegistration.Dynamic dynamic = container.addServlet("dispatcher", dispatcherServlet);
+		dynamic.setLoadOnStartup(1);
+		dynamic.addMapping("/");
+
+		CharacterEncodingFilter characterEncodingFilter = new CharacterEncodingFilter("UTF-8", true);
+		container.addFilter("encodingFilter", characterEncodingFilter).addMappingForUrlPatterns(null, false, "/*");
+	}
+}
+
+SpringConfig:
+
+@Configuration
+@EnableWebMvc
+@ComponentScan(basePackages = "com.webapp")
+public class SpringConfig extends WebMvcConfigurerAdapter {
+	
+	@Bean //doi tuong dc spring container quan ly, - IoC
+	public ViewResolver viewResolver() {
+		InternalResourceViewResolver viewResolver = new InternalResourceViewResolver();
+		viewResolver.setViewClass(JstlView.class);
+		viewResolver.setPrefix("/views/");
+		viewResolver.setSuffix(".jsp");
+		return viewResolver;
+	}
+	
+	
+	@Override
+	public void addResourceHandlers(ResourceHandlerRegistry registry) {
+		registry.addResourceHandler("/static/**").addResourceLocations("/static/");
+	}
+
+	@Bean
+	public DataSource dataSource() {
+		DriverManagerDataSource dataSource = new DriverManagerDataSource();
+		dataSource.setDriverClassName("com.mysql.cj.jdbc.Driver");
+		dataSource.setUrl("jdbc:mysql://localhost:3306/javaweb20");
+		dataSource.setUsername("root");
+		dataSource.setPassword("123456789");
+		return dataSource;
+	}
+}
+
+=> WEB-INF tạo folder views chứa các trang jsp
+=> webapp tạo folder static chứa các folder css, js, img
+=> trong file .jsp khai báo thư viện:
+<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"%>
+=> Để link css, js qua file jsp 
+<link href="<c:url value='static/css/style.css'/>"
+=> Controler
+package com.webapp.springmvc;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.ModelMap;
+import org.springframework.web.bind.annotation.RequestMapping;
+
+@Controller
+public class HelloController {
+	@RequestMapping("/hello")
+	public String sayHello(ModelMap map) {
+		map.addAttribute("msg", "Nguyen Huy Hoang Anh");
+		return "hello";// tên file jsp muốn map
+	}
+}

@@ -8,3 +8,41 @@
  C1: onChange gắn với 1 hanle change setState để theo dõi từng từng key nhập vào input, đặt prop value bằng chính state để binding 
  C2: sử dụng ref nhận toàn bộ giá trị input khi hoàn thành việc nhập
 https://academind.com/tutorials/reactjs-a-custom-useform-hook
+-----------------------------------------------------------
+với checkbox: 
+const [checkboxState, setCheckboxState] = useState([]);
+
+const checkboxStateChangeHandler = (event) => {
+  value = event.target.value
+  if (event.target.checked) setCheckboxState(prev => [...prev, value])
+  else setCheckboxState(prev => prev.filter(item => { return item !== value })) 
+}
+JSX: deafaultChecked={checkboxState.indexOf("value") !== -1} onChange={checkboxStateChangeHandler}
+-----------------------------------------------------------
+với radio:
+const radioStateHandler = (event) => {
+  setRadioState(event.target.value)
+}
+JSX: deafaultChecked={radioState == value} onChange={radioStateHandler}
+-----------------------------------------------------------
+với file: 
+fileStateChangeHandler = (event) => {
+  const files = event.target.files;
+  setFileState(files[0].name)
+}
+-----------------------------------------------------------
+với state chung cho cả form:
+const [enteredForm, setEnteredForm] = useState({
+    name: "",
+    username: "",
+    password: "",
+    favourites: [],
+    gender: "",
+    city: "",
+    showPassword: false,
+  });
+
+const enteredFormHandler = (event) => {
+    setEnteredForm({...enteredForm, [event.target.name]: event.target.value});
+    console.log(event.target.value);
+};

@@ -1,0 +1,393 @@
+REDUX:
+
+I. Quy ước: 
+  - Redux thay đổi state theo kiểu Immutability (bất biến)
+    - mỗi lần cập nhật lại state trong store của redux cần clone lại chính state đó, thay đổi state clone, setState bằng chính state clone vừa mới thay đổi
+    - không được phép thay đổi trực tiếp state
+      - với arr dụng .slice() hoăc .concat() để clone
+      - với object 1 cấp sử dụng: const objClone = {...object}
+  - không thực thi các function bất đồng bộ trong reducer
+
+II. Gồm: 
+ 1. Store: lưu trữ tất cả các state của ứng dụng và các reducers (để thay đổi state)
+   - Reducer là 1 function nhận vào 2 giá trị state và action
+     - có thể khởi tạo initState truyền vào lần đầu tiên khi khởi chạy ứng dụng
+     - trong reducer kiểm tra action có type là giá sẽ tiến hành cập nhật state theo giá trị payload được đính kèm action (cập nhật lại theo kiếu immutability)
+     - state mới luôn luôn được tính toán dựa vào giá trị state trước đó
+     - không được có bất kỳ code async hay side effect nào trong reducer: Math.random(), Date.now(), fetchAPI, ... => khiến không thể lường trước được giá trị trả về của redux
+
+ 2. Action: là 1 object, thông thường có 2 fields là type và payload. Reducer xác định hành vi thực thi với state dựa trên type, với giá trị payload đi kèm action sẽ được reducer dùng để thay đổi state (có thể không có)
+   - thường sử dụng Action creator là 1 function để trả về action, trong action creator đã xác định sẵn type cho action, chỉ cần nhận thêm các gia trị khác => giúp có thể 1 lần thay đổi toàn bộ type của các action theo creator mà không cần sửa từng action
+
+ 3. Dispatch: là 1 function, nhận vào 1 action, chuyển action này đến store -> đến reducer
+
+III. Luồng thực thi
+  1. Store khởi tạo state và reducer, chuyển sate đến UI
+  2. UI nhận event từ phí người dùng, theo đó dispatch 1 action đến cho store
+  3. Store nhận được 1 action được dispatch, tuỳ thuộc vào type của action, cập nhật lại state, giử state lại cho UI để UI render lại
+
+IV. code
+------------------------------------------------
+ 1. thao tác terminal:
+  > npm i redux
+  > npm i react-redux
+
+------------------------------------------------
+ 2. tạo store:
+ // tạo store:
+ import { createStore } from 'redux';
+ import rootReducer from '..._nơi lưu root reducer'
+ /* 
+  * createStore nhận vào 3 tham số:
+  * 1. rootReducer: gồm các reducer
+  * 2. initValue: dùng để khởi tạo giá trị cho state (không bắt buộc)
+  * nếu không có initValue, có thể bỏ qua và đưa tham số thứ 3 lên vị trí thứ 2
+  * 3. enhancers: để cấu hình các middle ware như redux-saga, redux-thunk (không bắt buộc) 
+  */
+
+  const store = createStore(rootReducer);
+  export default store;
+
+------------------------------------------------
+ 3. tạo reducer
+ // nên khởi tạo state ngay tại đây thay vì trong store
+ const initState = {
+   filter: {
+     search: '',
+     status: 'All',
+     priority: []
+   },
+   todoList: [
+     {id: 1, name: 'Learn Redux', completed: false, priority: 'High'}
+   ],
+   
+ }
+ 
+ // khởi tạo reducer
+ const rootReducer = (state = initState, action) => {
+   switch(action.type) {
+     case 'todoList/addTodo':
+       return {
+         ...state,
+         todoList: [
+           ...state.todoList,
+           action.payload
+         ]
+       }
+     default: 
+       return { ...state }
+   }
+ }
+
+------------------------------------------------
+ 4. tạo 1 Provider bọc root component chứa các component cần thao tác với state lưu trong store
+ import { Provider } from 'react-redux';
+ import { store } from '..._nơi lưu store'
+ 
+ ... JSX
+ <Provider store={store}>
+   <App /> 
+   {/*có thể không phải App cho toàn bộ component, chỉ cần component root chứa các component thao tác với store*/}
+ </Provider>
+ ...
+
+------------------------------------------------
+ 5. tạo Action creator
+
+  /* 
+  * tạo action thông thường
+  * export const addTodoAction = {
+  *   type: 'todoList/addTodo',
+  *   payload: {id: 2, name: 'Learn JS', completed: false, priority: 'Medium'}
+  * }
+  */
+
+  //tạo action creator:
+  export const addTodo = (data) => {
+    return {
+      type: 'todoList/addTodo',
+      payload: data
+    }
+  }
+
+------------------------------------------------
+ 6. dispatch action trên UI
+ import { useDispatch } from 'react-redux';
+ import { addTodo } from '..._nơi chứa action creator này';
+ import { v4 as uuidv4 } from 'uuid'
+ // dùng để tự tạo id ngẫu nhiên không trùng
+
+ Component:
+   // state này được tạo trong component chứa name todo cần add vào store
+   const [todoName, setTodoName] = useState('');
+   // state này được tạo trong component chứa priority todo cần add vào store
+   const [todoPriority, setTodoPriority] = useState('');
+   const dispatch = useDispatch();
+
+   // ví dụ gán handle này trên 1 form theo sự kiện onSubmit
+   const handelEventAddTodo = (e) => {
+     e.preventDefault();
+     dispatch(addTodo({
+       id: uuidv4(), // được tự tạo bởi uuid
+       name: todoName,
+       priority: todoPriority,
+       completed: false, // mặc định chưa hoàn thành
+     }));
+   };
+
+------------------------------------------------
+ 7. tạo 1 composedEnhancers cho redux để sử dụng extendsion redux-devtools
+ // trong file chứa store
+ import { composeWithDevTools } from 'redux-devtools-extension';
+
+ const composedEnhancers = composeWithDevTools();
+
+ // đưa composedEnhancers  vào làm tham số thứ 2 ở hàm tạo store
+ const store = createStore(rootReducer, composedEnhancers);
+
+------------------------------------------------
+ 8. tạo selector để đưa state từ store đến UI (component)
+ // trong UI:
+ import { useSelector } from 'react-redux';
+ /*
+  * useSelector nhận vào 1 function
+  * function này nhận vào toàn bộ state của Store và trả về 1 phần của state đó
+  * giá trị trả về được gán cho giá trị trả về của useSelector()
+  */
+ import { todoListSelector } from '..._nơi chứa các selector functions'
+ 
+ Component:
+   const todoList = useSelector(todoListSelector);
+   // giá trị này là state của Store, dùng để render lại UI
+
+------------------------------------------------
+ 9. viết selector function để truyền vào useSelector()
+ 
+  export const todoListSelector = (state) => state.todoList;
+
+------------------------------------------------
+------------------------------------------------
+ 10. thêm và thêm
+-> viết thêm action creator
+-> thêm các case trong rootReducer
+-> thêm các selector để lấy ra đúng state cần thao tác
+
+------------------------------------------------
+------------------------------------------------
+ 11. sử dụng library viết selector kết hợp từ nhiều selector
+ > npm i reselect
+ // được tích hợp sẵn trong reacttoolkit
+
+ // trong file chứa các selector function:
+ import { createSelector } from 'reselect';
+
+ export const searchTextSelector = (state) => state.filters.search;
+ export const filterStatusSelector = (state) => state.filters.status;
+ export const filterPrioritiesSelector = (state) => state.filters.priorities;
+ export const todoListSelector = (state) => state.todoList;
+
+ export const todosRemainingSelector = createSelector(
+   todoListSelector,
+   filterStatusSelector,
+   searchTextSelector,
+   filterPrioritiesSelector,
+   (todoList, status, searchText, priorities) => {
+     return todoList.filter((todo) => {
+       if (status === 'All') {
+         return priorities.length
+           ? todo.name.includes(searchText) && priorities.includes(todo.priority)
+           : todo.name.includes(searchText);
+       }
+
+       return (
+         todo.name.includes(searchText) &&
+         (status === 'Completed' ? todo.completed : !todo.completed) &&
+         (priorities.length ? priorities.includes(todo.priority) : true)
+       );
+     });
+   }
+ );
+ /*
+  * todosRemainingSelector sử dụng createSelector()
+  * createSelector nhân vào 1 list các selector function
+  * tham số cuối cùng của nó là 1 function
+  * function này nhân vào lần lượt các giá trị trả về của list selector function trước đó
+  * kết hợp các giá trị trả về này thực thi logic và return lại giá trị state cần
+  * state này được đưa vào giá trị trả về của todosRemainingSelector 
+  * ở đây todosRemainingSelector trả về list Todo sauu khi lọc qua search value, status value, priority value trong filter
+  * sử dụng todosRemainingSelector như các function selector khác 
+  */
+
+------------------------------------------------
+------------------------------------------------
+ 12. tạo các slice reducer để tách rootReducer ra cho dễ quản lý
+  
+ // tạo filterReducer riêng khỏi rootReducer
+ const initState = {
+   search: '',
+   status: 'All',
+   priorities: [],
+ };
+ 
+ const filtersReducer = (state = initState, action) => {
+   switch (action.type) {
+     case 'filters/searchFilterChange':
+       return {
+         ...state,
+         search: action.payload,
+       };
+
+     case 'filters/statusFilterChange':
+       return {
+         ...state,
+         status: action.payload
+       }
+
+     case 'filters/prioritiesFilterChange':
+       return {
+         ...state,
+         priorities: action.payload
+       }
+     default:
+       return state;
+  }
+ };
+
+ export default filtersReducer;
+------------------------------------------------
+------------------------------------------------
+ 13. đưa Slice reducer vào rootReducer, viết lại rootReducer
+
+ // xoá bỏ initState ban đầu
+
+ import filtersReducer from '..._nơi đặt filtersReducer'
+ import todoListReducer from '..._nơi đặt todoListReducer'
+ // import các reducer ở các nơi
+
+ C1: không sử dụng combineReducers 
+ const rootReducer = (state = {}, action) => {
+   return { 
+     filters: filtersReducer(state.filter, action),
+     todoList: todoListReducer(state,todoList, action),
+   };
+ };
+ // cần khởi tạo initState trong hàm trả về rootReducer để có thể đọc được state.filter
+
+
+ C2: sử dụng combineReducers cử redux
+ import { combineReducers } from 'redux';
+ // dùng để combine các reducers lại rootReducer
+
+ const rootReducer = combineReducers({
+   filters: filtersReducer,
+   todoList: todoListReducer,
+ });
+
+ export default rootReducer;
+
+
+
+
+================================================
+================================================
+REDUX TOOLKITS: 
+- cấu hình đơn giản hơn, cho phép sử dụng mutation để thay đổi state, không cần clone state 
+> npm i @reduxjs/toolkit
+------------------------------------------------
+ 1. cấu hình lại store theo redux toolkit 
+
+ import { configureStore } from '@reduxjs/toolkit';
+ import filtersSlice from '..._nơi chứa filtersSlice' ;
+ import todosSlice from '..._nơi chứa todosSlice';
+
+ // khác với createStore của redux
+ // configureStore nhận vào 1 object
+ // object bắt buộc có 1 field reducer chứa các _Slice.reducer
+ // _Slice.reducer tự động trả về reducer dựa vào slice
+ // redux devtools extension và redux thunk được thêm mặc đinh vào configureStore
+
+ const store = configureStore({
+   reducer: {
+     filters: filtersSlice.reducer,
+     todoList: todosSlice.reducer,
+   },
+ });
+ // tên các field trong reuducer có thêm đặt tuỳ ý
+
+export default store;
+------------------------------------------------
+ 2. cấu hình lại Slice Reducer thay cấu hình cũ của redux => tạo slice
+
+ import { createSlice } from '@reduxjs/toolkit';
+ // dùng để tạo 1 slice trong redux toolkit
+
+ export default createSlice({
+   name: 'filters', 
+   initialState: {
+     search: '',
+     status: 'All',
+     priorities: [],
+   },
+   reducers: {
+     searchFilterChange: (state, action) => {
+       // mutation: redux toolkit sử dụng thư viện IMMER để clone sâu state
+       // sâu bên trong redux thay đổi state vẫn là immutation
+       state.search = action.payload;
+     },
+     statusFilterChange: (state, action) => {
+       state.status = action.payload;
+     },
+     prioritiesFilterChange: (state, action) => {
+       state.priorities = action.payload;
+     },
+   },
+ });
+ // nhận 1 object
+ // object chứa name: tương ứng với phần tiền tố của type action
+ // object chứa initialState: tương ứng với giá trị khởi tạo của state
+ // object chứa reducers: là 1 object chứa các function, mỗi function tương ứng với 1 case của filterReducer ban đầu
+ // tên của functionn trong object reducers là phần hậu tố của type action 
+ // map lại thành type action tương ứng: name/_namefunctionReducer
+ // viết code muttation như code immutation đạt được kết quả tương tự => thao tác trực tiếp trên state
+------------------------------------------------
+ 3. không cần viết action cũng như action creator
+ // dispatch action trên UI
+
+ import filterSlice from '..._nơi vừa viết filterSlice'
+
+ Component:
+
+ // handle này nhận state: searchValue từ ô seacrh
+ handleSearchFilterChange = () => {
+   dispatch(
+     filterSlice.actions.searchFilterChange(searchValue) 
+   );
+   // đưa vào dispatch 1 action creator được redux toolkit tạo ra
+   // action creator có tên: _nameSlice.actions._nameAction
+   // _nameAction giống với tên function muốn xử lý trong field reducer của object được đưa vào createSlice
+   // action creator này cũng nhận vào data, data này gán vào field payload của action (là tham số thứ 2 của function trong reducer trong object truyền vào createSlice())
+ }
+------------------------------------------------
+ có thể import trực tiếp createSelector từ @reduxjs/toolkit mà không cần install reselect
+ -> viết selector như bình thường giống redux
+ -> createSelector giúp không thực thi lại các selector nếu không có thay đổi từ selector khác, làm component không re-render lại nếu không cần thiết, giống như useCallback và useMemo
+
+
+
+
+================================================
+================================================
+REDUX THUNK:
+-> khi các action creator là 1 async function để trả về action, action này được dispatch giử đến reducer như việc fetchAPI trả về data vào payload cho action
+
+-> redux thunk đóng vai trò là 1 middleware, đặt trước thời điểm reducer nhận request, đợi async function trong action creator trả về giá trị rồi giử cho reducer: xen giữa dispatch và reducer
+
+
+
+
+
+
+
+
+
+

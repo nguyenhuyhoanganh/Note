@@ -1,0 +1,26 @@
+Delay featch API:
+
+function Search() {
+  const [searchTerm, setSearchTerm] = useState('')
+
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      console.log(searchTerm)
+      // Send Axios request here
+    }, 3000)
+
+    return () => clearTimeout(delayDebounceFn)
+  }, [searchTerm])
+
+  return (
+    <input
+      autoFocus
+      type='text'
+      autoComplete='off'
+      className='live-search-field'
+      placeholder='Search here...'
+      onChange={(e) => setSearchTerm(e.target.value)}
+    />
+  )
+}
+

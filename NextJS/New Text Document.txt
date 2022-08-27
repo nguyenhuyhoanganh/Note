@@ -1,0 +1,83 @@
+# npx create-next-app
+# npm run dev
+
+Hỗ trợ định tuyến theo file
+=======================================================================
+useRouter from 'next/router'
+Link from 'next/link'
+
+const router = useRouter()
+const {path, query} = router; // truy xuất ra tên path và query là những segment của url hay query của url
+router.push('/url'); chuyển trang bằng router
+router.replace('/url'); thay thể trang bằng router (không cho back lại url cũ)
+
+định tuyến động bằng tên tệp : [id].js
+định tuyến động với nhiều segment : [...slug].js
+=======================================================================
+=======================================================================
+Kết xuất phía server:
+
+Static generation:
+  export async function getStaticProps(context) { ... }; 
+  // chuẩn bị props cho component, chạy trước khi component fn thực thi
+  // cần trả về 1 object có key có props
+  // thực thi tất cả code async bên server bên trong để prepare dữ liệu, không sự dụng được window object truy cập vào localStorage,...
+  // code thực thi sẽ không được đóng gói băng bundle để giử đến client
+  // code sẽ không được chạy trên máy chủ thực tế mà chạy 1 lần duy nhất khi trang được build 
+- giải pháp cho việc dữ liệu chuẩn bị trước thay đổi liên tục:
+  - Vẫn sử dụng useEffect để fetch data, tuy nhiên chấp nhận SEO dữ liệu có thể đã lỗi thời
+  - Incremental static generate: cập nhật data liên tục không cần build lại theo 1 khoảng thời gian nhất định
+    thêm properties revalidate vào object trả về của getStaticProps
+- object return của getStaticProps:
+  {
+    props: // object props được đưa vào làm props của component cùng chung 1 file
+    revalidate: // khoảng time tính bằng giây để re-generate lại page => biến page thành ISG
+    notFound: // giá trị boolean, true thì page trả về 404, mặc định là false
+    redirect: // chứa giá trị path: /dashboard..., cho phép chuyển hướng ngưới dùng sang 1 page khác ngay lập tức
+     // redirect có thể là 1 object, object này chứa 1 properties bắt buộc là destination: chuỗi path để redirect, 
+     // và 1 properties permanent mang giá trị boolean (https://www.techomoro.com/how-to-set-up-the-301-redirect-in-a-next-js-app/)
+  }
+- làm việc với các tham số động như file [id].js : sử dụng đối số context truyền vào getStaticProps
+  context là object chứa:
+    params: object chứa tất cả tham số động của path, ví dụ với products/[pid], path là products/p4 => const { params } = context; params.pid = p4 
+    preview: 
+    previewData
+    locale
+    locales
+    defaultLocale
+- với đường dẫn động, next sẽ không tạo trước các trang mặc định, bắt buộc phải sử dụng thêm:
+  export async function getStaticPaths() {
+    return {
+      paths: [
+        { params: { ... } } // See the "paths" section below
+      ],
+      fallback: true, false or "blocking" // See the "fallback" section below
+    };
+  }  // để báo với server tạo các sẵn các page
+  // số lượng { params: { ... } } trong mảng paths tương ứng với số lượng path động
+  // giá trị fallback giải quyết vẫn đề không tạo tất cả các trang, tránh lãng phí tgian, nguồn lực
+  //  - đặt là false nếu muốn mỗi lần build page tạo ra tất cả các page cũng 1 lúc, nếu có 1 path không có trong mảng paths, sẽ trả về 404 khi truy cập qua url hoặc nhấp vào link
+  //  - đặt là true, nextjs vẫn chấp nhận load tất cả path có trong paths, 
+  //       1 số path map tương ứng mà không có trong paths vẫn truy cập được nhưng không được generate trước để SEO (những path được cho là ít truy cập)
+  //       tuy nhiên những path này chỉ có thể truy xuất khi nhấp vào thẻ Link trên page, nếu nhập trực tiếp url sẽ trả về lỗi
+  //       lý do là server cần chuẩn bị trước props data để trả về nội dung cho các page này 
+  //        => giải pháp để truy xuất url: check xem props cho null không, nếu null trả về <p>loading...</p>, sau khi server chuẩn bị xong props, page sẽ cập nhật lại theo props mới 
+  //  - đặt với giá trị 'blocking', next tự động chờ server tạo sẵn page đến khi có thể trả lại người dùng thay vì khắc phục như đặt bằng true
+- với fallback đặt là false, các path truy xuất không tồn tại trong mảng paths được khai báo của object getStaticPaths trả về, mặc định trả về 404
+  - với fallback đặt là true, các path không tồn tại sẽ cần kiểm tra props trong component có null không và chờ đợi server trả về props
+    => không được set mặc định trả về 404, trả về lỗi nếu path thực sự không truy xuất được phía server => cần check data trong getStaticProps nếu data = null trả về { notFound: true }
+
+Server Silde Rendering: sủ dụng để pre-render cho mọi request không chờ thời gian, hoặc cần truy xuất đến request object cụ thể (vidu: truy xuất cookie), mã này thực sự chạy trên server
+ export async function getServerSideProps(context) {
+   return {
+     props: {}, // will be passed to the page component as props
+   }
+ }
+  - object trả về tương tự như getStaticProps tuy nhiên không có revalidate 
+  - context đưa vào getServerSideProps cũng giống như getStaticProps tuy nhiên cho phép truy cập thêm request object : context.req và response objec: contetx.res
+useSWR: custom Hooks của nextjs, có tính năng tích hợp cho bộ nhớ đêm, đánh giá lại dữ liệu để cung cấp cập nhật mới nhất, xịn hơn useEffect n+1 lần
+  > npm install swr
+  const {data, error} = useSWR(<request-url>, (url) => fetch(url).then(res => res. json())) 
+=======================================================================
+tối ưu nextjs
+  meta tag

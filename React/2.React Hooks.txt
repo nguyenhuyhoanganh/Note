@@ -153,6 +153,10 @@ userEffect(() => { ... }, [ dependencies ]);
     => thay đổi file theo dõi bằng onChange ở JSX => thực thi tạo URL mới, URL cũ vẫn trong bộ nhớ => rò rỉ bộ nhớ
     => sử dụng return trong callback của useEffect() thực hiện:   URL.revokeObjectURL(file) 
 
+** code async trong callback của useEffect
+  - không được phép đặt async trên callback của useEffect
+  - tạo 1 async function trong callback đó, và gọi nó
+
 ** - luôn đảm bảo những thứ được đưa vào từ bên ngoài component (custom hooks) mà sử dụng trong callbackfn của useEffect phải được đưa vào mảng deps: từ custom hooks, từ context, từ props (component)
    - có thể đưa 1 state của component vào mảng deps nếu state đó được setState() trong callback fn và dùng để mounted 1 component khác (tác động đến thành phần khác ngoài component, custom hooks)
    - có thể đưa 1 state của component vào mảng dép nếu state đó được theo dõi để sửa 1 state khác trong callback fn  

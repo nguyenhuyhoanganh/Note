@@ -1,0 +1,173 @@
+Thread trong java
+==== Các cách tạo 1 thread và thực thi trong java ====
+C1: sử dụng instnace của class extends Thread
+    > Tạo 1 class extends Thread
+    > override lại method void run() của Thread
+    > thực thi logic cần chạy của thread trong method run() này
+    > trên main, tạo 1 instance của class vừa tạo
+    > gọi method .start() trên instance này
+C2: sử dụng annonymous class
+    new Thread() {
+      public void run() {
+        // thực thi logic trong thread
+      }
+    }
+C3: tạo 1 class implements lại Runnable, đưa instance của class này vào constructor lúc tạo 1 thread trên main
+   > tạo 1 class implements Runnable
+   > override lại method run() thực thi logic 1 thread
+   > tạo 1 instance của class vừa tạo, đưa vào constructor của thread khi tạo thread trong main
+C4: đưa annonymous class implements runnable vào constructor của Thread khi tạo thread trong main, cũng óc teher sử dụng lambda
+  - new Thread( new Runable() {
+      @Override
+      public void run() {
+        System.out.println("Printing something...")
+      }
+    })
+  - new Thread(() -> System.out.println("Printing something...")).start();
+
+==== lợi ích của implements runnable so với extends thread ====
+- mỗi 1 instance class extend thread được tạo ra nếu không thực thi method .start() sẽ gây lên rò rỉ bộ nhớ
+- mỗi 1 instance class extend thread chỉ được gọi .start 1 lần, chúng không thể thực thi lạị => mỗi 1 thread có 1 instance của riêng nó => có thread stack riêng
+- với class implements runnable, instance của nó có thể chia sẻ qua các thread, gọi được start nhiều lần => các thread chia sẻ chung 1 insatnce => thread stack chung
+- runnable là 1 function interface giúp thực thi được các biểu thức lambda
+- hơn hết triển khai 1 class implements tốt hơn là extends
+
+==== .interrupt() ngắt luồng và .join() ghép luồng ====
+- gọi các method này qua insatnce của 1 thread, gọi trong code thực thi của 1 thread khác
+- .join có thể nhận vào 1 đối số chỉ khaongr thời gian chờ đợi thực thi logic của thread vừa join trước khi thực thi tiếp logic
+- khi hết timeout của .join, thread sẽ không chờ đợi nữa, từ đó 2 thread sẽ thực thi tiếp song song
+
+==== Lưu ý ====
+- các thread được tạo ra do extends Thread sẽ chi sẻ 1 bộ nhớ heap chung với các object, ngoài ra mỗi thread có 1 bộ nhớ riêng của nó gọi là thread stack lưu trữ các biến local
+- cách đưa các pram vào thực thi trong method run:
+ > tạo instance properties ( khác với instance nhé) của class extend từ Thread
+ > đưa biến đó vào constructor của class
+ > lấy instance đó gọi các method của nó thực thi trong run()
+- tạo 2 instance của class extend thread, nếu 2 instance này chia sẻ cũng 1 object đưa vào constructor khi tạo => dẫn đến chia sẻ chung 1 object => cũng chia sẻ chung các thuộc tính của object đó => nếu 2 thread chạy song song dẫn đến việc có thể không nhất quán dữ liệu (do các hành vi 1 luồng bị ngắt bất ngờ để thực thi luồng khác)
+
+==== synchronized, wait, notify, notifyAll ====
+- synchronized thưucj chất để khai báo cho thread đang thực thi nó lock lại các biến tham chiếu (biến trong bộ nhớ heap dùng chung giữa các thread), dẫn đến 1 thời điểm chỉ 1 thread được sử dụng biến đó, các thread khác không được động vào
+- cách sử dung synchronized để đồng bộ hoá
+  - sử dụng trước 1 method để báo cho jvm biết sẽ không thực thi logic luồng khác sử dụng chung tham chiếu trong khi luồng này đang chạy method
+  - sử dụng synchonized(...) {// logic} để bao bọc 1 đoạn logic trong code của method thay vì cả method -> giúp chỉ đoạn logic đó được đồng bộ hoá
+  - khi sử dụng 1 khối synchonized yêu cần cần 1 biến tham chiếu truyền vào đó => thread thực thi nó sẽ lock lại tham chiếu đó. không thể đưa các biến kiểu dữ liệu nguyên thuỷ, hay các biến local vào
+  - cách dễ dàng nhất nếu không xác định được biến cần đưa vào, nến đưa vào từ khoá this => bởi vì khởi tạo 2 class sử dụng chung 1 object đưa vào nó
+  - cung có thể sử dụng các biến static, lúc này thread sẽ giữ biến thuộc về cả class thay vì chỉ 1 object => tất cả thread sử dụng gì liên quan đến class đó để bị dừng
+
+- notify(), notifyAll() : gọi trong các method sync, để đánh thức các thread đang ngủ biết có gì đó đang ngủ để nó thực thi tiếp, hầu hết sẽ sử dụng notifyAll() để báo cho tất cả các thread, sử dụng notify() khi các thread khác cũng thực thi 1 logic, nó sẽ chỉ bảo cho 1 thread ngẫu nhiên thức dậy do logic thực thi là như nhau
+
+- wait(): wait này được gọi sẽ dừng thực thi thread, nhả các lock nó đang giữ cho các thread khác sử dụng
+          sử dụng kèm notifyAll() -> báo động cho tất cả các thread ngoài nó biết nó đã thay đổi cái gì đó
+          các thread đang wait sẽ chờ đợi notify để thực thi tiếp
+          luôn dùng while để check điều kiện gọi wait dó không biết rõ vì 1 lý do gì thread đang wait có thể được đánh thức
+          lúc đánh thức while sẽ tiếp tục check điều kiện thay vì chỉ dùng if check lần đầu
+          (vì thread đang wait bị đánh thức sẽ thực thi tiếp từ wait, không thực thi phần code đã thực thi nữa) 
+          thực thi wait bắt buộc trong 1 khối try catch với InterruptedException
+
+
+==== gói java.util.concurrent ====
+- 1 vấn đề đặt ra khi sử dụng chung 1 object khi khởi tạo nhiều instance của các class được extends Thread hay implements Runnable
+  => có 2 trường hợp xảy ra: 
+  TH1: object sử dụng chung có class đã được đồng bộ hoá => thread safety: tất cả các method object đó sử dụng sẽ thực thi synchonized. 1 thread thực thi method của object sẽ lock obejct khi thực thi, không cho các thread khác đọc hay thay đổi object đến khi thực thi xong method sẽ nhả object đó ra, để các thread lại tiếp tục tranh giành object thực thi tiếp: như Vector
+  TH2: object sử dụng chung có class không được đồng bộ hoá, không an toàn vưới thread như ArrayList => các thread có thể tranh nhau object thực thi cùng lúc 1 method của object hay các method khác nhau thay đổi obejct cùng 1 lúc => lỗi
+
+- với class đã được đồng bộ hoá, an toàn với thread, cũng không hơn class chưa đồng bộ hoá là mấy do trong khối lệnh run của thread thực thi nhiều method trên class đó 1 lúc chứ không phải chỉ 1 method => vẫn có thể xung đột khi có chuỗi lệnh trong run không được thực thi 1 cách hoàn chỉnh trước khi nhảy sang thread khác để thực hiện 
+ => giải pháp có điều này là thực hiện bọc khối code thực thi tất cả các method của class đó ở run() {} trong synchonized, đưa object đang cần đó vào làm param của synchonized để lock nó lại 
+ => hạn chế: 
+  - các thread bị block khi đợi để thực thi mã đã được đồng bộ hoá không thể gián đoạn, bị kẹt cho đến tận khi có được lock của object trong code synchonized
+  - khối synchonous phải nằm trong 1 method, không thể bọc 1 khối synchonous vào nhiều method, không thể kiểm tra xem object hiện tại đã bị lock chưa
+  - không thể timeout khi không muốn wait object bị lock nữa, khi nhiều 
+  - khi rất nhiều thread bị lock, không thể chỉ định thread để phục vụ trước các thread khác, không có thứ tự xác định, thread đầu tiên bị lock có thể là thread cuối cùng nhận được object bị lock => rất rất lâu
+
+
+ReentrantLock: là 1 class implement interface Lock của java.util.concurrent, nó cung cấp tính đồng bộ cho các method truy cập trung nguồn tài nguyên
+ => class cung cấp 2 method: .lock; .unlock()
+ => đưa 1 instance variable của class ReentranctLock vào làm properties của class extends Thread hay implement Runnable > đưa chung 1 object vào constructor của các thread sửu dụng chung tài nguyên > trong code thực thi run(), khi muốn lock tài nguyên gọi .lock(), muốn giải phóng tài nguyên gọi .unlock() thông qua instrance của ReentrantLock
+ => object được unlock sau khi chiếm dụng bới 1 thread sẽ cung cấp cho thread có thời gian chờ lâu nhất bằng cách đưa true vào khi khởi tạo 1 object ReentrantLock: ReentrantLock rl = new ReentrantLock(true)
+  => không tự động unlock giống như synchonized => có thể có thread bị block mãi mãi nếu cứ chờ đợi 1 object không được unlock
+ => mỗi khi thread gọi .lock() > sẽ có 1 biến đếm đếm số lần lock(), tăng 1 khi mõi lần gọi lock, giảm 1 khi mỗi lần gọi unlock => 1 thread có thể chiếm dung object lock nhiều lần > đến khi biến đếm bằng 0, thread mới giải phóng tài nguyên  
+ => kết hợp sử dụng: .lock() try {  //code } finally { .unlock() }
+
+.tryLock() : giống .lock(); trả về giá trị true nếu nhận được object lock, luôn cố gắng giành lock trước mặc kệ có khởi tạo lock Reentrant là true
+
+https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/locks/ReentrantLock.html
+
+==== ExcutorService interface ====
+tập trung vưới code trong method run(), không quản lý thread và vòng đời của nó => cần class implement Runnable
+- tạo ra 1 implement của ExcutorService và cung cấp nó cho các tác vụ cần run, không quan tâm đến chi tiết cách các tác vụ thực sự được chạy
+- ExcutorSevice sử dựng thread pool (tập hợp các threa được quản lý, làm giảm chi phí tạo ra thread đặc biệt trong ứng dụng sử dụng lượng lớn các thread, thread pool cũng có thể giới hạn số lượng thread đang hoạt động, đang chạy và bị chặn ở bất kỳ thời điểm nào)
+
+// tạo 1 excutorSevice chấp nhận số Thread cố định hoạt động cùng lúc
+ExecutorService executorService = Executors.newFixedThreadPool(số_lượng_thread);
+
+// đưa 1 instance của class implement Runnable vào thực thi:
+executorService.excute(rb);
+
+// ngắt excutorservice khi thực thi xong task trên cấc thread, không tự động ngắt:
+executorService.shutdown();
+
+// dừng mọi tác vụ còn lại, ngay cả các tác vụ trên hàng đợi, tuy nhiên không đảm bảo sẽ chăc chắn dừng
+executorService.shutdownNow();
+
+// muốn nhận 1 giá trị từ 1 thread đang thực thi dưới background sử dụng .submit() chấp nhận 1 object callable giống với runnable ngoại trừ việc có thể trả về 1 giá trị, giá trị được trả về như 1 object của loại Future
+
+Future<String> future = excutorService.submit(
+  new Callable<String> {
+    @Override
+    public String call() throws Exception {
+      return "This is callable result";
+    }
+  })
+try {
+  System.out.println(future.get());
+} catch(ExcutionException e) {
+  System.out.pritln("Something went wrong");
+} catch(InterruptedException e) {
+  System.out.println("Thread running the task interrupted");
+}
+
+// future.get() gọi trong main thread, app sẽ bị đóng băng => không sử dụng cho UI
+// các ứng dụng UI sử dụng gói concurrent của riêng nó được tận lại của java thuần
+
+
+- deadlock: thread1 giữ lock1 chờ đợi lock2 của thread2 đang giữ để thực thi, trong khi thread2 cũng đang chờ đợi lock1 => xử lý bằng cách cho 2 thread cùng lock object theo 1 thứ tự
+
+ex:
+
+class Person
+  String name
+  Person client
+  constructor(name)
+  // getter, setter
+  method sync void sayHello(Persion client):
+    sout(this.name + " say hello " client.getName())
+    client.sayHelloBack(this)
+  method sync void sayHelloBack(Person client):
+    sout(client.getName + " say hello back " + this.name)
+
+Main:
+  final Person p1 = new Person("p1");
+  final Person p2 = new Person("p2");
+
+  new Thread(new Runnable() {
+    @Override
+    publci void run() {
+      p1.sayHello(p2);
+    }
+  })
+  new Thread(new Runnable() {
+    @Override
+    publci void run() {
+      p2.sayHello(p1);
+    }
+  })
+==============> dead look
+
+Thread Starvation
+thread hiếm khi có cơ hội run do ít nhận được lock, thường xuyên xyar ra khi chỉ định priority
+=> khắc phục bằng cách dùng ReentrantLock khởi tạo true
+
+LiveLock => giống như dead lock nhưng thay vì thread bị block nó sẽ liên tục hoạt động, thường chờ đợi tất cả các thread khác để hoàn thành nhiệm vụ:
+threadA loop cho đến khi threadB hoàn thành task của nó, threadB cũng tương tự
+
+

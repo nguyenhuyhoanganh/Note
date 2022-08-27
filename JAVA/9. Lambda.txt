@@ -1,0 +1,166 @@
+Function Interface: là interface chứa 1 abstract method duy nhất (có thế không hoặc có nhiều default/static method)
+- sử dụng @FunctionInterface để ký hiệu interface (không bắt buộc) => hướng đến cách tiếp cận functional progaming
+
+1 số functional interface hay dùng: 
+- Runable: có 1 abstact method: run
+    : sử dụng với Thread( class impl Runable || anonymous class Runnable ).start() : để chạy code trong luồng mới
+ 
+
+- Java 8 hỗ trợ Lambda để thực thi method của Function Interface giống JS
+ : () -> {}, cú pháp lamba được gán cho 1 tham số hoặc truyền vào làm đối số của 1 function
+
+- ex1: sử dụng thay method run của Runable trong Thread:
+ // cú pháp cũ sử dụng anonymous class
+ new Thread( new Runable() {
+    @Override
+    public void run() {
+      System.out.println("Printing something...")
+    }
+ })
+ -------------------------------------------------------------------
+ new Thread(() -> System.out.println("Printing something...")).start();
+ // System.out.println("Printing something...") là logic thực thi trong method run của interface Runable
+  
+- Loằng ngoằng về scope thì nói chung trong khối thực thi logic của 1 lambda (là khối code thực thi logic abstract method duy nhất của Funcinterface): chỉ chấp nhật biến global bên ngoài nếu nó bất biến (có hiệu ứng như 1 biến final)
+- với annonymous class thì chỉ chấp nhận sử dụng biến final (khác với lambda, vẫn cho sử dụng biến bình thường trong logic thực thi nhưng biến đó bắt buộc phải có hiệu ứng như final => na ná nhau)
+
+- ex2: sử dụng thay method compare của Comperator<T> trong Collections.sort
+  // cú pháp cũ sử dụng với anonymous class
+  List<Employee> employees = new ArrayList<>();
+  employees.add(john);
+  employees.add(tim);
+  employees.add(jack);
+  Collections.sort(employees, new Comperator<Employee>() {
+    @Override
+    public int compare(Employee empl1, Employee empl2) {
+      return empl1.getName().compareTo(empl2.getName());
+    }
+  });
+  -------------------------------------------------------------------
+  // C1:
+  Collections.sort(employees, (Employee empl1, Employee empl2) ->
+    empl1.getName().compareTo(empl2.getName()));
+  // C2:
+  Collections.sort(employees, (empl1, empl2) ->
+    empl1.getName().compareTo(empl2.getName()));
+  // C3:
+  Comperator<Employee> comp = (empl1, empl2) ->
+    empl1.getName().compareTo(empl2.getName());
+  Collections.sort(employees, comp)
+
+- package java.util.function
+  - cung cấp các functional interface:
+  1: - Consumer<T> có abstract method void accept(T t): cung cấp logic thực thi trong accept
+    ex: truyền vào method .forEach(Consumer<T>) của Iterable (dùng cho List, Map, Set, Tree)
+    employees.forEach(employee -> 
+      System.out.println(employee.getName())
+    )
+    // phương pháp forEach dưới screen sẽ gọi từng element trong List và thực thi method accept của Consumer
+  2: - Predicate<T> có abstract method test(T t): trả về giá trị true hoạc false
+    ex: in các employee có age > 30:
+    private static void printEmployeesByAge(List<Employee> employees, String Predicate<Employee> ageCodition) {
+      employees.forEach(em -> { 
+        if(ageCodition.test(em)) System.out.println(em.getName);
+      })
+    }
+    // gọi method:
+    printEmployeesByAge(employees, employee -> employee.getAge() > 30);
+     - Có các class extends từ Prdicate: IntPredicate, LongPredicate, ... để áp dụng cho 1 kiểu dữ liệu nhất đinh thay vì kiểu generic
+     - kết hợp nhiệu Predicate bằng .and() và .or()
+    ex: IntPredicate greaterThan15 = i -> i > 15;
+        IntPredicate lessThan100 = i -> i < 100;
+        System.out.println(greaterThan15.and(lessThan100).test(30)); // true 
+  3: - Supplier<T> có abstract method get(): trả về 1 object bất kỳ được thực thi trong get()
+    ex: Random random = new Random();
+        Supplier<Integer> randomSupplier = () -> random.nextInt(1000);
+        for(int i = 0; i < 10; i++) { System.out.println(randomSupplier.get()); }
+  4: - Function<T, R> cung cấp method apply(T) nhận vào đối số type T và trả về giá trị type R
+    ex: Function<Employee, String> getLastName = (Employee em) -> {
+          return em.getName().substring(em.getName().indexOf('') + 1);
+        }
+        System.out.println(getLastName.apply(empl1));
+     - tạo chaining function: 
+       Function<Employee, String> upperCase = em -> em.getName().toUpperCase();
+       Function<String, String> getFirstName = name -> name.substring(0, name.indexOf(' '));
+       Function chainedFunction = upperCase.andThen(firstName);
+     - ngoài .andThen() để tạo chaining function, còn có .compose() cũng tương tự
+     - interface BiFunction chấp nhận 2 arg
+       BiFucntion<String, Employee, String> concatAge = (String name, Employee em) -> {
+           return name.concat(" ", em.getAge());
+         }
+     - trong 1 chaining function, có thể đặt BiFunction ổ đầu chain, không thể đặt nó làm sub function
+
+  5: - Cũng có các phiên bản của Preidcate và Consumer chấp nhận 2 arg truyền vào method, Supplier thì không
+  6: - UnaryOperator<T> có method static T appply(T t) chấp nhận 1 arg duy nhất và trả về cùng loại với arg (đươc extends từ function)
+
+
+- Stream: chuỗi các phần tử hỗ trợ các hoạt động tỏng hợp, tuần tự song song
+    - là tập hợp các object
+    - phương pháp .stream() được thêm vào Collection tạo ra 1 Stream từ Collection, mỗi object tham chiếu trong Stream tương ứng với 1 object trong collection, thứ tự tham chiếu giống với thứ tự trong collection. 
+    - Collection sử dung làm nguồn tham chiếu qua Stream không được thay đổi theo bất kỳ cách nào
+    - hoạt động trong stream cần Stateless: kết quả 1 hoạt động không phụ thuộc vào bất kỳ trạng thái nào ngoài hoạt động (không phụ thuộc vào giá trị biến đổi của hoạt động trước đó), mỗi hoạt động là độc lập
+
+  - ký hiệu :: là phương pháp tham chiếu thay thế cho biểu thức lambda, để trình biên dịch tự suy đoán tham số truyền vào method và thực thi method đó: Class::Method
+    ex:
+    listStrings
+      .stream()
+      .map(s -> s.toUpperCase())
+      .filter(s -> s.startsWith("G"))
+      .forEach(s -> System.out.println(s));
+      ///// chuyển thành
+    listStrings
+      .stream()
+      .map(String::toUpperCase)
+      .filter(s -> s.startsWith("G"))
+      .forEach(System.out::println);
+      // filter không dùng được phương pháp tham chiếu do không thể tự suy luận arg truyền vào là G
+
+======================================
+CÁC PHƯƠNG PHÁP STREAM
+1: intermediate operations : các hoạt động chung gian
+  - .map() nhận vào 1 Function<T, R>, phần tử đi qua biến đổi thành kết quả từ Function
+  - .filter() nhận vào 1 Predicate<T> phần tử đi qua là các phần tử mà Predicate có kết quả true
+  - .peek() nhận vào 1 Consumer<T> thực thi logic trả về đúng phần từ vượt qua Consumer đó
+      peek phải đặt ở giữa chain, sẽ không thực thi nếu đặt ở cuối, thường dùng để kiểm tra thay đổi của stream
+  - .flatMap() nhận vào 1 Function<T, R>, phần tử đi qua biến đổi thành kết quả của Function, nếu Function trả về 1 stream, stream này được ghép nối với nhau tạo thành 1 Stream mới: thường dùng làm phẳng các mảng lồng nhau
+     ex: // lấy hết employee trong stream departments trả về stream employee mới
+     departments.stream().flatMap(department -> department.getEmployees().stream())    
+
+  - .sorted() nhận vào 1 Comparator<T> trả về 1 stream mới đã sắp xếp (có thể không cần truyền vào Comparator vẫn sắp xếp theo mặc định)
+  - .distinct() trả về 1 stream gồm các phần tử không trùng lặp
+
+2: terminal operations: các hoạt động đầu cuối, nó trả về void hoặc kết quả non stream
+  - .count() trả về số lượng phần tử trong stream
+  - .forEach() nhận vào 1 Consumer<T> thực thi logic, không trả về gì hết (khác với forEach trong Iterable)
+  - .collect() nhận vào 1 Collector chuyển Stream thành 1 List, Set hay Map
+    ex // trả về 1 List
+    .collect(Collectors.toList());
+    ex: // trả về 1 map có key là age và value là list employee có cùng age
+    Map<Interger, List<Employee>> groupedByAge = employees.stream()
+      .collect(Collectors.groupingBy(em -> em.getAge()));
+  - .collect cũng chấp nhận 3 arg (Supplier<T> supplier, BiConsumer<T> accumulator, BiConsumer<T> combiner) để trả về 1 kiểu collection cụ thể
+      ex: // trả về cụ thể 1 ArrayList
+      .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
+  - reducer() kết hợp tất cả các elment của stream thành 1 kết quả duy nhất trả về Optinal, có 3 phiên bản nhận vào các kiểu arg khác nhau
+   - arg là 1 BiFunction
+     ex: // return employee có tuổi nhỏ nhất
+     employees.stream().reducer((e1, e2) -> e1.getAge() < e2.getAge() ? e1 : e2) 
+       .ifPresent(System.out::println); // ifPresent() là method của 1 Optional
+
+*** từng phần từ 1 của stream sẽ tuần tự đi qua chain chứ không phải mỗi bước sẽ trả về 1 stream mới (trừ .sorted, ...) 
+*** không tái sử dụng 1 stream
+*** các hoạt động của stream được đánh giá là lazy: sẽ không thực hiện các intermediate operations nếu không kết thúc bằng 1 terminal operations
+*** có các Interface extends từ Stream cụ thể hơn như IntStream, LongStream, ... các interface này có các phương pháp bổ sung như .sum, .min, .max
+*** Parallel Stream: Là dạng thức song song của Stream. Tức là nó chia các phần tử của Stream thành nhiều khối, xử lý song song giống nhau trên từng khối phần tử ấy rồi xử lý một lần cuối với kết quả xử lý của từng khối hợp lại:
+  ex: // thực hiện tính tổng giá trị các phần tử
+  List<Integer> ints = new ArrayList<Integer>(1,2,4,5,6,7,8,9);
+  Integer total = ints.parallelStream()
+    .reduce(0, Integer::sum);
+
+=================================
+  - khai báo 1 Stream không qua Collection:
+    Stream<String> ioNumberStream = Stream.of("A", "b", "D");
+  - nối 2 Stream
+    Stream<String> concatStream = Stream.concat(stream1, stream2);
+    // concat là static method nên không thể sử dụng trong chain, thay vào đó có thể sủ dụng làm source của 1 chain
+

@@ -1,0 +1,45 @@
+chuyển định dạng đuổi video
+ffmpeg -i input.mkv output.mp4
+
+giảm bitrate, framerate
+ffmpeg -i input.mkv -c:a copy -c:v libx264 -b:v 1M output.mp4
+: giữ nguyên âm thanh, video, giảm framerate xuống để có kích cỡ dưới 1M
+: -b:v là bitrate
+
+giảm khung hình xuống 24fps:
+ffmpeg -i input.mkv -c:a copy -c:v libx264 -r 24 output.mp4
+
+giảm độ phân giải video xuống 848x480
+ffmpeg -i input.mkv -c:a copy -c:v libx264 -s 848x480 output.mp4
+
+lấy ra 1 phần của video độ dài 10s
+ffmpeg -i input.mkv -ss 00:00:10 -t 10 output.mkv
+: -ss 00:00:10 bắt đầu từ giấy thứ 10
+: -t 10 độ dài 10s
+
+lấy ra âm thanh của video
+ffmpeg -i input.mkv -vn output.mp3
+: -vn là no video
+
+thêm âm thanh vào video
+ffmpeg -i input.mkv -i audio.m4a -map 0:v:0 -map 1:a:0 -c:v copy output.mp4
+: -map 0:v:0 map video từ 0 sang 0 (index của input và output)
+: -map 1:a:0 map âm thanh từ 1 sang 0
+
+thêm bộ lọc âm thanh để âm thanh được thêm vào giảm độ lớn = 1 nửa video
+ffmpeg -i input.mkv -i audio.m4a -map 0:v:0 -map 1:a:0 -filter:a "volume=0.5" -c:v copy output.mp4
+
+tăng 2 lần âm thanh video có sẵn
+ffmpeg -i input.mkv -filter:a "volume=2.0" output.mkv
+
+crop video với độ phân giải 1280x720 từ top : 0, left 0
+ffmpeg -i input.mkv -filter:v "crop=1280:720:0:0" output.mkv
+
+thêm logo lên video ví trí top 50, left 50
+ffmpeg -i input.mkv -i image.png -filter_complex "overlay=50:50" output.mkv
+
+hiển thị độ phân giải video
+ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 input.mp4
+
+
+https://ottverse.com/change-resolution-resize-scale-video-using-ffmpeg/

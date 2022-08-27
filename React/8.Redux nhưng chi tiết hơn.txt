@@ -371,23 +371,144 @@ export default store;
  có thể import trực tiếp createSelector từ @reduxjs/toolkit mà không cần install reselect
  -> viết selector như bình thường giống redux
  -> createSelector giúp không thực thi lại các selector nếu không có thay đổi từ selector khác, làm component không re-render lại nếu không cần thiết, giống như useCallback và useMemo
-
-
-
+------------------------------------------------
+------------------------------------------------
+** Cần lưu ý là chỉ được thay đổi state trong reducer, và phải thay đổi theo kiểu immutation
+** trong 1 slice reducer của redux/toolkit, nội bộ nó cũng thay đổi state theo kiểu immutation
+** khi lấy 1 phần của state trong store bằng useSelector(), thay đổi trực tiếp phần state đó ngoài reducer => dẫn đến 1 số silde effect, state thay đổi không được theo dõi bới redux (KHÔNG BAO GIỜ THỰC HIỆN)
 
 ================================================
 ================================================
-REDUX THUNK:
--> khi các action creator là 1 async function để trả về action, action này được dispatch giử đến reducer như việc fetchAPI trả về data vào payload cho action
+REDUX THUNK: sử dụng async code với redux
+* do không được phép thực thi async code trong reducer 
+ => có 2 nơi để đặt async code là trong components hoặc trong action creators
+------------------------------------------------
+1. đặt logic phía component 
+ - fat component => thin reducer
+  - logic component lấy state qua selector
+  - clone lại state, sửa lại state clone
+  - giử state đến đồng thời reducer và back-end
+  - reducer không thực hiện logic, chỉ đơn giản thay thế state bằng state mới (action được component giử đi là cả state mới rồi)
 
--> redux thunk đóng vai trò là 1 middleware, đặt trước thời điểm reducer nhận request, đợi async function trong action creator trả về giá trị rồi giử cho reducer: xen giữa dispatch và reducer
+ - useEffect giử request khi theoo dõi state trong store của redux, giúp Fat reducer, thin component
+  - lấy 1 phần state qua useSlice
+  - tạo 1 useEffect giử resuest lên backend mang body là state đó
+  - đưa state đó làm phụ thuộc của useEffect
+  => cập nhật state trong store, state thay đổi, useEffect lại giử request lên backend
+  - trong useEffect, tạo 1 async function
+  - trong async function này có thể gọi fetchAPI, tuỳ thuộc response trả về của API có thể tiếp tục thực thi dispatch 1 action trong này
+  - gọi ayncfunction sau khi tạo, bắt err bằng .catch()
+  - để useEffect không thực hiện ngay lần đầu chạy App, đặt 1 biến isInitial = true ngoài component, và check isInital trong useEffect, nếu true sẽ bỏ qua thực thi logic useEffect lần đầu và chuyển nó thành false
+
+------------------------------------------------
+2. đặt logic phía cation creator
+
+-> thunk chỉ là 1 function sẽ deley 1 action cho đến khi 1 cái gì đó kết thúc, có thể viết action cretor như 1 thunks mà không trả về action ngay lập tức (return 1 object), mà thay vào đó return 1 function, function này cuối cùng có thể trả lại 1 action: giống như có thể chạy 1 số logic khác trước khi dispacth() một action object
+
+-> cách viết 1 thunks trong redux/toolkit:
+
+THUNKS:
+// do redux/toolkit đã tạo sẵn cho ta 1 action bằng cách chúng a khai báo 1 field (function) trong reducer của 1 slice
+// ví dụ: gọi action creator đó là: _nameSlice.actions._nameActioncreator  : cartSlice.actions.addToCart
+// tạo 1 async function, nhận vào data trả về 1 function
+// function trả về nhận vào dispatch (từ useDispatch()) và thực thi dispatch, và fecthAPI
+
+const sendCartData = (cart) => {
+  return async (dispatch) => {
+    // có thể dispacth 1 action từ uiSlice để hiển thị thông báo 
+    dispatch(
+      uiSlice.actions.sendMessage({
+        status: 'pending',
+        title: 'Sending...',
+        message: 'Sending cart data!',
+      })
+    );    
+
+    const sendRequest = async () => {
+      const response = await fetch('url', {
+        method: 'POST', 
+        body: JSON.stringify(cart),
+      });
+      if(!response.ok) throw new Error('Send cart data failed.');
+    }
+    
+    try {
+      // send request
+      await sendRequest();
+      // ở đây không cần dispatch cart tới store
+      // vì sau đó sẽ sử dụng useEffect, để 1 event khác dispatch cart
+      // nhận vào thay đổi của car để giử request
+
+      // có thể dispatch để cập nhật state ui, hiển thị thrrm hàng thành công
+      dispatch(
+        uiActions.showNotification({
+          status: 'success',
+          title: 'Success!',
+          message: 'Sent cart data successfully!',
+        })
+      );
+    } catch (err) {
+      /*handle error*/ 
+      dispatch(
+        uiActions.showNotification({
+          status: 'error',
+          title: 'Error!',
+          message: 'Sending cart data failed!',
+        })
+      );
+    }
+  }
+}
 
 
+COMPONENT:
+ const [cart] = useSelector((state) => state.cart);
+
+ useEffect(() => {
+   if (isInitial) {
+     isInitail = fasle;
+     return;
+   } // check bỏ qua lần đầu khi khởi tạo app
+     // isInitial = true được kahi báo ngoài component
+
+   dispatch(sendCartData(cart));
+ }[cart, dispatch]);
+
+ // dispatch cũng là 1 phụ thuộc của useEffect tuy nhiên redux đảm bảo nó sẽ không bao giờ thay đổi
+
+ // reduxtoolkit chấp nhận các action object, cùng chấp nhận luôn action creator function, redux/toolkit sẽ thực thi luôn function được đưa vào: Thunks như 1 middle ware
 
 
+khi mới khởi đầu ứng dụng, fetchData để lấy dữ liệu về store:
+THUNK:
+
+ const getCartData = () => {
+   return async (dispatch) => {
+     const sendRequest = async () => {
+       const response = await fetch('url', {
+         method: 'GET', 
+       });
+       if(!response.ok) throw new Error('Send cart data failed.');
+       const data = await response.json();
+       return data;
+     }
+    
+     try {
+       // send request
+       const cartData = await sendRequest();
+       dispatch(
+         cartActions.replaceCart({
+           items: cartData.items || [],
+           totalQuantity: cartData.totalQuantity,
+         })
+       );
+     } catch (err) { /*handle error*/ }
+   }
+ }
 
 
+COMPONENT:
 
-
-
-
+  useEffect(() => {
+    dispatch(getCartData());
+  }, [dispatch]) // sẽ chỉ gọi lần đầu tiên, dispatch không bao giờ thay đổi

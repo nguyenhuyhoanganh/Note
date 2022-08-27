@@ -1,0 +1,62 @@
+đơn đồ thị vô hướng n đỉnh và m cạnh, danh sách các cạnh được nhập theo dạng (u,v) với u, v là các đỉnh thuộc đồ thị (1 <= u != v <= n). đưa ra đường đi từ đỉnh s đến đỉnh f cho trước
+===========================================
+DFS: tìm kiếm theo chiều sâu
+- xây dựng 1 hàm tìm kiếm DFS(u) duyệt các đỉnh kề đỉnh u => gọi lại đệ quy duyệt liên tục các đỉnh kế tiếp
+- đánh dấu các đỉnh đã duyệt bằng 1 mảng. mảng này chứa các đỉnh liền trước đỉnh đang duyệt:
+  1. số phần tử của mảng bằng số đỉnh cần duyệt
+  2. mỗi đỉnh tương ứng với chỉ số của phần tử trong mảng
+  3. giá trị cho phần tử đại diện đỉnh chưa duyệt bằng 0, giá trị cho phần tử đại diện đỉnh đã duyệt bằng chỉ số phần tử cha của nó ( thể hiện đỉnh liền trước đỉnh đã duyệt )
+
+code:
+--------------------------------------------------------------------------------------
+void dfs(int u) // Tìm kiếm theo chiều sâu từ u.
+{
+    for (int v: adj[u])
+    {
+        if (v == par[u]) // Kiểm tra v không được trùng với cha của u.
+            continue;
+
+        par[v] = u; // Đặt cha của v là u.
+        dfs(v); // Tiếp tục tiến vào con của u.
+    }
+}
+
+void trace(int s, int f)
+{
+    vector < int > path; // Lưu đường đi từ s tới f.
+    while (f != 0)
+    {
+        path.push_back(f);
+        f = trace[f];
+    }
+
+    for (int i = path.size() - 1; i >= 0; --i) // In ngược lại để thu được thứ tự từ s -> f.
+        cout << path[i] << "->";
+}
+
+int main()
+{
+    // Nhập dữ liệu đồ thị.
+    cin >> n >> m >> s >> f;
+
+    for (int i = 1; i <= m; ++i)
+    {
+        int u, v;
+        cin >> u >> v;
+
+        adj[u].push_back(v);
+        adj[v].push_back(u);
+    }
+
+    dfs(s); // Tìm kiếm theo chiều sâu bắt đầu từ s.
+
+    if (trace[f] == 0) // Đỉnh f chưa được thăm thì thông báo không tìm được đường đi.
+        cout << "Can't find a path from s to f";
+    else
+        trace(s, f); // Truy vết đường đi từ s tới f.
+}
+--------------------------------------------------------------------------------------
+
+
+
+ 

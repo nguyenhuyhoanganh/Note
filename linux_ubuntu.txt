@@ -1,0 +1,183 @@
+ls: quan sát trong 1 thư mục có thư mục con nào
+$ ls _file_path
+$ ls _file_path -l : hiển thị các folder con theo chiều dọc
+* ubunu bắt đầu đường dẫn các folder bằng /mnt
+* lệnh không hiển thị các file ẩn bắt đầu bằng .
+$ ls _file_path -a : hiển thị file ẩn
+$ ls _file_path -la : hiển thị file ẩn thao list
+$ ls -R : hiển thị cả các thư mục cấp con của folder
+=================================================================
+cd: di chuyển qua lại những folder
+$ cd _file_path : đi đến các thư mục con
+$ cd .. : quay trở lại 1 cấp
+$ cd ../.. : quay trở lại 2 cấp
+$ cd - : quay lại thư mục trước đó
+$ cd / : quay lại thư mục root
+$ cd /_file_path : đi đến folder từ root
+$ cd : đi đến home/_name_account/ tương đương với ~
+* sử dụng 2 tab đi kèm cd sẽ list ra những thu mục con của folder
+* sử dụng 1 tab kèm cd giúp hoàn thành nhanh câu lệnh
+=================================================================
+clear: xoá cửa sổ dòng lệnh
+=================================================================
+mkdir: sử dụng khi muốn tạo ra các thư mục
+$ mkdir _name_folder : tạo folder con trong folder
+$ rmdir _name_folder : xoá folder con trống
+$ rm -r _name_folder : xoá toàn bộ folder mặc dù không rỗng
+$ mkdir _parent/_children1/_children2 -p : tạo folder lồng nhau
+=================================================================
+touch: muốn tạo ra 1 file
+$ touch _name_file : tạo ra 1 file 
+$ rm _name_file : xoá 1 file
+$ touch _path_file : tạo file trong các folder, tuy nhiên folder cần tồn tại trước
+=================================================================
+vi: là 1 editor được dùng trên ubuntu
+$ vi : vào chế độ view
+$ vi demo.html : tạo file demo.html và vào xem file (chưa lưu file)
+   :q + enter : thoát editor trong normal mode(chế độ ban đầu khi dùng vi cho phép)
+   i : vào chế độ insert để chỉnh sửa
+   esc : thoát insert mode trở lại normal mode
+   _arrow : ngoài insert mode, sử dụng các phím arrow để chọn vị trí muốn chỉnh sửa => ấn i (trở lại insert mode tại vị trí vừa chọn) ấn a (trở lại insert mode lùi sang phải 1 ký tự)
+   :q! + enter : thoát không lưu lại những thay đổi ở chế độ normal mode
+   :w + ennter : lưu lại file ở chế độ normal mode
+   :wq + enter : vừa lưu vừa thoát
+   :x : vừa lưu vừa thoát
+$ vi run.sh : tạo file .sh để gán các lệnh thực thi
+  - ghi các lệnh thực thi vào file
+$ ./run.sh : thực thi file sh
+=================================================================
+cat: dùng xem nội dung của 1 file hoặc ghép nội dung của nhiều file vào 1 file
+$ cat _file_name : in nội dung ra terminal ở đầu ra tiêu chuần : standard output stout
+$ cat _filename1 _filename2 : in nội dung 2 file
+$ cat _filenamm1 _filename2 > _new_file : đẩy nội dung các file vào file mới
+=================================================================
+echo: in ra stout
+$ echo "_text" : in ra _text đầu ra stout
+$ echo "_any_thing_conetent" > _file_name : đưa nội dung vào file, file tồn tại thì ghi đè nội dung
+$ echo "_more_content" >> _file_name : thêm nội dung vào sau : append
+=================================================================
+tail: dùng khi muốn xem dòng cuối trong file
+$ tail _file_name : hiển thị 10 dòng cuối của file
+$ tail -n _numColumn _fileName : lấy số dòng cuối tuỳ chỉnh của file
+$ tail -f _fileName : theo dõi sự thay đổi của file, hiển thị lên terminal, ấn  ctrl C để thoát
+=================================================================
+grep: lọc tìm kiếm keyword, the pattern, regex trong stout, kết hợp câu lệnh hiển thị stout
+$ cat _fileName  | grep "_keyWord" : hiển thị line có key word cần tìm
+=================================================================
+cp: dùng để copy file hoặc folder
+$ cp _fileName _newFile : tạo file mới, copy nội dung file này sang file mới
+$ cp _pathFile _pathFolder : copy 1 file mới cùng tên vào folder
+$ cp _pathFile _pathNewFile : copy nội dung file theo path
+$ cp -r _pathFolder _pathNewFolder : copy folder và nội dung folder vào folder mới
+* nếu cần tương tác với quyền root như thao tác folder /home/ : thêm sudo vào đầu command
+=================================================================
+mv: dùng để di chuyển file hoặc folder sang vị trí khác, cũng có thể dùng để đổi tên ~ cp
+$ mv _fileName1 _fileName2 : đổi tên file khi file cùng folder
+=================================================================
+rm: để xoá file
+$ rm _fileName : xoá file, không xoá được thư mục
+$ rm -r _pathFolder : xoá toàn bộ folder lẫn nội dung của nó
+=================================================================
+rmdir: để xoá thư mục
+$ rmdir _pathFolder : xoá thư mục trống
+=================================================================
+sudo: giúp sử dụng quyền hạn dưới dạng super user can thiệp sâu vào hệ thống
+=================================================================
+chmod: thay đổi chế độ, quyền hạn
+https://www.computerhope.com/unix/uchmod.htm
+`````````````````````````````````````````````````````````````````
+* 3 vai trò trong ubuntu:
+  - chủ sở hữu owner: là 1 người dùng cụ thể
+  - nhóm sở hữu group: chứa nhiều người
+  - còn lại other: ngoài group
+  $ ls -l / : hiển thị các folder trong thư mục gốc theo list
+    - từng phần tử trong danh sách hiển thị tuân theo quy tắc:
+    _permissions __ _ownerName _groupName _size _createAt _name
+`````````````````````````````````````````````````````````````````
+* quyền hạn:
+  - read: r đọc
+  - write: w ghi
+  - excute: x thực thi
+  - phân tích _permissions: 
+    - ký tự đầu: d: thư mục
+                 -: file
+                 l: shortcut
+    - 9 ký tự tiếp theo thể hiện quyền hạn phân ra:
+      - 3 ký tự đầu là quyền của owner
+      - 3 ký tự tiếp là quyền của group
+      - 3 ký tự tiếp là quyền của other
+`````````````````````````````````````````````````````````````````
+cú pháp: chmod options permissions filename
+ - option (không bắt buộc): -R: chọn tất cả thư mục và file trong thư mục
+           -f: ngăn chặn thông báo lỗi
+           -v: xuất thông báo
+$ chmode u=rwx,g=rx,o=r _fileName : đặt quyền chon owner, group other lần lượt cho file,ký tự = là ghi đè lại quyền , ký tự - là bỏ quyền, + là thêm quyền với quyền cũ
+* sử dụng hệ số octal để phân quyền
+  - 4 là đọc
+  - 2 là ghi
+  - 1 là thực thi
+  - 0 là không quyền
+  - cộng hệ số để lấy ra giá trị quyền
+$ chmod 777 _fileName : đặt file quyền cho 3 vai trò của file
+$ chmod 754 _fileName : tương tự u=rwx,g=rx,o=r
+`````````````````````````````````````````````````````````````````
+* dùng wsl không hỡ trợ phân quyền, gán owner chính xác với chmod => sửa bằng lệnh
+B1: $ sudo vi /etc/wsl.conf
+  > i : để insert file
+B2: copy nội dung sau dán vào file
+[automount]
+opptions = "metadata"  
+B3: lưu nội dung vừa copy
+  > esc
+  > :x
+B4: chuyển qua PowerShell shutdown ubuntu: wsl --shutdown
+B5: khởi động lại wsl
+`````````````````````````````````````````````````````````````````
+=================================================================
+chown: thay đổi chủ sở hữu
+$ chown _accountOwner _fileName : thay đổi owner cho owner mởi
+$ chown _accountOwner:_groupOwner _fileName : thay đổi owner và group
+* các lệnh về group:
+https://linuxapt.com/blog/161-find-out-which-groups-a-user-belongs-to-in-ubuntu-20-04
+=================================================================
+man: tra cứu lệnh trong linux
+$ man _nameCommand : hiển thị chi tiết của command
+=================================================================
+wget: tải xuống file
+$ wget _linkFile : tải file xuống
+=================================================================
+apt: dùng quản lý các thư viện trên ubuntu, dung cài thư viện mới, nâng cấp thư viện
+> sudo apt install _tênThưViện : cài thư viện
+> sudo apt install nodejs : cài nodejs
+=================================================================
+kill: dùng để end task 1 app
+$ ps aux : hiển thị các tiến trình đang chạy ~ ctrl+shift+esc mở task manager xem tab process
+* mỗi process trong ubuntu có process ID ở cột PID
+* kill đi kèm với 64 tín hiệu những thường chỉ sử dung 2 loại
+  - sigterm (15): giử 1 yêu cầu cho process, yêu cầu tắt, chờ cho process kịp lưu lại thông tin: mặc định
+  - sigkill (9): bắt process ngắt lập tức
+$ kill _tínHiệu _PID : kill process, tín hiệu là tuỳ chọn, mặc định không có là 15
+=================================================================
+ping: kiểm tra kết nối tới máy chủ
+>  ping google.com : kiểm tra ping tới server
+=================================================================
+uname: show tên của kernal 
+$ uman -a : show chi tiết máy chủ
+=================================================================
+passwd: đổi mật khẩu account hiện tại
+=================================================================
+top: giống task manager trên window, cập nhật liên tục, chi tiếp hơn ps aux
+htop: tương tự top nhưng xịn hơn
+=================================================================
+df: kiểm tra dung lượng trống
+=================================================================
+free: kiểm tra ram
+
+
+
+
+ 
+
+
+
+

@@ -92,6 +92,8 @@ B1: thêm dependency: Eureka Client (hỗ trợ kết nối với eureka server)
 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 B2: thêm các properties vào application.properties giúp connect với eureka server
 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  # eureka dùng tên này làm tên cho application đăng ký với nó
+  spring.application.name=accounts
   # mặc đinh microservice khơi động với hostname , sử dụng hostname cùng DNS mapping trong enviroment, tuy nhiên sẽ luôn khởi động lại, ip address sẽ thay đổi => đặt true hạn chế Eureka server thay đổi IP
   eureka.instance.preferIpAddress = true 
   # cấu hình tự đăng ký với eureka và lấy các đăng ký khác trên nó
@@ -105,14 +107,182 @@ B2: thêm các properties vào application.properties giúp connect với eureka
   info.app.description=Eazy Bank Accounts Application
   info.app.version=1.0.0
   
-  # nói với actuator/enable hiển thị các endpoint shutdown để 
+  # nói với actuator hiển thị endpoint /actuator/shutdown method POST để ngắt service 1 cách chuẩn mực
   endpoints.shutdown.enabled=true
-  # cho phép bên ngoài truy cập các endpoint shutdown hiển thị trên actuator => để eureka ngắt instance chuẩn mực
+  # cho phép bên ngoài truy cập các endpoint shutdown hiển thị trên actuator => thông qua eureka truy cập được endpoint có thể ngắt service chuẩn mực (huỷ đăng ký eureka với status DOWN)
   management.endpoint.shutdown.enabled=true
 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-=> giao diện Eureka sẽ hiển thị lên instance được config, trong STATUS của instance sẽ hiển thị 1 url lấy ra tất cả info đã cấu hình với key info bên trên (tương tự như truy cập vào actuator/info)
+=> giao diện Eureka sẽ hiển thị lên instance được config, tên instance tương ứng property spring.application.name được khai báo trong application.properties của microservice, trong STATUS của instance sẽ hiển thị 1 url lấy ra tất cả info đã cấu hình với key info bên trên (tương tự như truy cập vào actuator/info)
+=> truy cập các service khác qua eureka nếu máy có cài sẵn docker thì uri bắt đầu bằng: http://host/docker/internal:_applicationName:_portMicroservice/...
+=> triển khai trên docker thì phần http://host/docker/internal sẽ là các dãy CONTAINER ID do docker tạo ra
 
+=> truy cập vào endpoint: localhost:_portEurekaServer/eureka/apps/_nameMicroservice  sẽ hiển thị toàn bộ thông tin của microservice đăng ký trên eureka dưới dạng xml: số instance, ip, port, status, ...
+=> nếu muốn hiển thị thông tin dưới dạng json, cần truy cập với header kèm key-value: Accept : application/json
 
+=> truy cập qua /actuator/shutdown để tắt instance microservice đăng ký với eureka 1 cách chuẩn mực => trước khi tắt sẽ giử thông báo cho eureka để shutdown với trạng thái DOWN
+=> tắt các microservice không chuẩn mực, eureka theo mặc định 30s nhận heartbeat từ instance 1 lần, nếu không được sẽ đượi tiếp đến 60s, 90s phòng trường hợp nhất đinh, sau 90s không nhận lại, eureka sẽ tự động chuyển tình trạng của instance thành không tốt, không nhận bất kỳ request nào
+===========================================================
+xây dựng 1 endpoint envoke các microservice khác sử dụng openfeign
+B1: cần thêm dependency: 
+<dependency>
+  <groupId>org.springframework.cloud</groupId>
+  <artifactId>spring-cloud-starter-openfeign</artifactId>
+</dependency>
+B2: tạo 1 package service.client
+B3: trong package tạo các interface FeignClient 
+B4: sử dụng annotation @FeignClient("_applicationName") trên đầu interface, _applicationName là tên microservice đăng ký với eureka
+B5: khai báo method muốn invoke trong interface tương ứng với method trong controler của bên microservice được invoke
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+Ex: accounts invoke cards
+- CardsController.java trong cards microservice
+  method:
+    @PostMapping("/myCards")
+    public List<Cards> getCardDetails(@RequestBody Customer customer) {
+      List<Cards> cards = cardsRepository.findByCustomerId(customer.getCustomerId());
+      if (cards != null) {
+        return cards;
+      } else {
+        return null; 
+      }
+    }
+- CardsFeignClient.java trong accounts microservice
+  interface:
+  @FeignClient("cards")
+  public interface CardsFeignClient {
+    @RequestMapping(method = RequestMethod.POST, value = "myCards", consumes = "application/json")
+    // value chính là path cửa method bên microservice được invoke
+    // cousumes là loại respone nhận được, ở đây là json
+    List<Cards> getCardDetails(@RequestBody Customer customer);
+  }
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+B6: tạo ra 1 model với các thuộc tính giống hệt với model được sử dụng để nhận, trả về trong method được invoke 
+=> như ví dụ trên ta sẽ tạo ra 1 model là Cards 
+B7: Autowire interface ở class cần lấy thông tin và gọi method 
+=> không hề đề cập tới các endpoint của service khác, chỉ cần khai báo đúng tên service trong @FeignClient và để cho openfeign cùng eureka tự kết nối với các service tương ứng
+===========================================================
+triển khai lên docker
+B1: tạo docker image
+B2: đẩy lên docker hub
+B3: thay đổi docker-compose file
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+Ex:
+version: "3.8"
 
+services:
 
+  configserver:
+    image: eazybytes/configserver:latest
+    mem_limit: 700m
+    ports:
+      - "8071:8071"
+    networks:
+     - eazybank
+   
+  eurekaserver:
+    image: eazybytes/eurekaserver:latest
+    mem_limit: 700m
+    ports:
+      - "8070:8070"
+    networks:
+     - eazybank
+    depends_on:
+      - configserver
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 15s
+        max_attempts: 3
+        window: 120s
+    environment:
+      SPRING_PROFILES_ACTIVE: default
+      SPRING_CONFIG_IMPORT: configserver:http://configserver:8071/
+      
+  accounts:
+    image: eazybytes/accounts:latest
+    mem_limit: 700m
+    ports:
+      - "8080:8080"
+    networks:
+      - eazybank
+    depends_on:
+      - configserver
+      - eurekaserver
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 30s
+        max_attempts: 3
+        window: 120s
+    environment:
+      SPRING_PROFILES_ACTIVE: default
+      SPRING_CONFIG_IMPORT: configserver:http://configserver:8071/
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eurekaserver:8070/eureka/
+  
+  loans:
+    image: eazybytes/loans:latest
+    mem_limit: 700m
+    ports:
+      - "8090:8090"
+    networks:
+      - eazybank
+    depends_on:
+      - configserver
+      - eurekaserver
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 30s
+        max_attempts: 3
+        window: 120s
+    environment:
+      SPRING_PROFILES_ACTIVE: default
+      SPRING_CONFIG_IMPORT: configserver:http://configserver:8071/
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eurekaserver:8070/eureka/
+    
+  cards:
+    image: eazybytes/cards:latest
+    mem_limit: 700m
+    ports:
+      - "9000:9000"
+    networks:
+      - eazybank
+    depends_on:
+      - configserver
+      - eurekaserver
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 30s
+        max_attempts: 3
+        window: 120s
+    environment:
+      SPRING_PROFILES_ACTIVE: default
+      SPRING_CONFIG_IMPORT: configserver:http://configserver:8071/
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eurekaserver:8070/eureka/
+      
+networks:
+  eazybank:
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+=> thêm depends_on: eurekaserver để khởi tạo conatiner sau eureka
+=> thêm enviroment EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eurekaserver:8070/eureka/ cho từng service đó chính là euraka client mà service cần connect (không sử dụng localhost do đang trên cùng 1 network)
 
+=> tạo thêm instance của 1 service => trong docker compose, tạo thêm 1 service accounts1 tương tự accounts chỉ cần khác port
+=> chạy docker compose, mặc dù tên container service khác nhau nhưng trên eureka sẽ nhận biết là 2 instance cùng tên accounts do trong application.properties của 2 service có cùng properties spring.application.name
+===========================================================
+Self-Preservation trên eureka
+- đây là 1 mode trên eureka để tránh bất cứ tráp hoặc issues nào bên trong network
+- eureka nhận heartbeat mỗi 30s từ các instances, bất cứ instance nào sau 90s không giử heatbeat thì sẽ bị loại bỏ khởi registry 
+- nếu có 1 vấn đề xảy ra trong network, tất cả các instance không thể giử heartbeat tới eureka, eureka tiếp tục loaaij bỏ các instance lên 1 giới hạn nhất định, đến khi đặt 15% số lượng các instance bị eureka cho hết hạn thì eureka sẽ vào chế độ Self-Preservation. Do eureka phát hiện ra 1 cái gì đó có thể do vấn đề network, các instance đó có thể up và chạy lại. lúc này eureka sẽ không cho instance hết hạn nữa. 
+- Euraka không đảm bảo rằng các microservice thực sự DOWN, có thể các service gặp vấn đề mặng, và sẽ trở lại trạng thại up và tiếp tục running, có thể do kết nối giữa microservice với eureka gặp lỗi nhưng giữa các microservice vẫn duy trì kết nối với nhau
+
+* Các properties default được euraka duy trì
+ eureka.instance.lease-renewal-interval-in-seconds = 30
+ ## thời gian cho biết instance phải giử heartbeat đều đặn 
+ eureka.instance.lease-expiration-duaration-in-seconds = 90
+ ## thời gian tối đa eureka server chờ để nhận heartbeat từ 1 instance nếu không sẽ loại bỏ nó
+ eureka.server.eviction-interval-timer-in-ms = 60 * 1000
+ ## mỗi 60s eureka server sẽ run các task xác định tất cả các instance không giửu heartbeat trong 90s, và nó bắt đầu cho chúng hết hạn trong registry, nó cũng xem server đạt đến ngưỡng 85% không để chuyển qua self-preservation
+ eureka.server.renewal-percent-threshold = 0.85
+ eureka.server.renewal-threshold-update-interval-ms = 15*60*1000
+ ## thời gian server kiểm tra lại để xem có tiếp tục trong chế độ self-preservation
+ eureka.server.enable-self-preservation = true

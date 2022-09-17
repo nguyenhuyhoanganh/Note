@@ -10,6 +10,8 @@ https://viblo.asia/p/phan-biet-docker-image-vs-container-bJzKmz4wZ9N
 > mvn --version : check version của mvn
 //đứng trong folder project 
 > mvn clean install : xoá file target và tạo lại file target theo pom.xml (trong đó có file .jar)
+> mvn clean install -Dmaven.test.skip=true : thực hiện tương tự như trên nhưng bỏ qua testing
+// kết hợp -Dmaven.test.skip=true để bỏ qua testing (service phụ thuộc vào service khác như có service phụ thuộc eureka service, mà eureka chưa được tạo container => cần bỏ qua test)
 > mvn spring-boot:run : chạy code spring boot 
 > java -jar target/_nameProject_versionProject.jar : chạy file jar ~~ chạy code spring boot
 =================================================================

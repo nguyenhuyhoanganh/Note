@@ -1,0 +1,118 @@
+Có hàng trăm microservice với các instances riêng, mỗi instance có IP address và port number riêng
+=> để các service định vụ nhau bên trong network, kết nối với nhau, cân bằng tải giữa các instance, chia sẽ thông tin giữa các instance trong 1 microservice: service discovery & registration
+- giải quyết các vấn để như làm cách microservice nói chuyện với nhau: thực hiện appi call
+- trong kiến trúc  microservice , việc xác định đúng vị trí mạng (IP, port) của 1 application rất phức tạp do các service instance có địa chỉ IP được gán động, số lượng các insatnce của service coe thể thay đổi do lỗi hoặc tự động mở rộng => service discovery & registration giúp xác định vị trí của chúng trên mạng
+  - 1 hoặc nhiều máy chủ trung tâm (cental server) sẻ duy trì chế độ xem địa chỉ toàn cục
+  - microservice/client sẽ connect tới nó và đăng ký địa chỉ khi khởi động và sẵn sàng
+  - microservice/client cần giử đều đặn tình trạng tới server cental 
+
+- với bộ cận bằng tải truyền thống: traditional load balancers
+  - có routing table chứa các logical service name map tới tình service theo ip và port tương ứng
+  - khi gọi đến load balancer với logical service name, load balancer sẽ kiểm tra routing table và gọi đến service tương ứng, load balancer có logic riêng cân bằng các request từ bên ngoài hướng tới từng instance của service đang được maintain. Nếu loadbalancer bị lỗi sẽ có thêm second loadbalancer thay thế, second loadbalancer này liên tục giử request health check xem loadbalancer primary có ổn không
+... linh tinh đéo qaun trong, nói chung là do số lượng các microservice lơn, request đến lớn, loadbalancer truyền thống không cân bằng được nổi, khó mở rộng theo chiều ngang, quản lý IP và config thủ công mà không biết insatnce nào mới tạo ra hay sức khoẻ của instance, không tốt với docker container
+===========================================================
+service discovery & registration architecture
+- cách các microservice xác định các microsources bên trong network, tự đăng ký và đi vào network để các microservice khác có thể tiếp cận, cách cân bằng tải và chia sẻ thông tin giữa các microservice
+- có 3 layer:
+  - clinet applications (microservice): đây không phải UI application mà là các service backend giao tiếp với nhau, một microservice gọi 1 microservice khác, nó sẽ gọi qua service discovery, service discovery kiểm tra xem có bao nhiêu instance của service được gọi, kiểm tra load balancer,... dựa trên đó sẽ giử request đến instance cụ thể trong network
+  - service discovery server: bao gồm nhiều service discovery node, duy trì tất cả các thông tin về địa chỉ vị trí thực tế của instance microservice trong network, các vị trí này được các microservice tự động đăng ký với service discovery node, và đều đặn giử heartbeat cho biết tình trạng instance. giữu các node discovery giao tiếp peer to peer, có thể mở rộng theo chiều ngang, cùng hoạt động
+  - microservices network: là các instance của các microservice nhận request
+
+- client applications (microservice) sau lần đầu lấy được thông tin về các microservice khác của discovery, nó cũng tự lưu thông tin đó vào local cache, dựa trên những thông tin được lưu, nó có thể tự thực hiện load balancing mà không phụ thuộc vào discovery ở lần kế tiếp => giảm tải request tới discovery, không cần duy trì quá nhiều node discovery. nếu gặp lỗi với dữ liệu trong cache khi ip microservie thay đổi hay gì đó client sẽ thực hiện lại request qua discovery. định kỳ client cũng giử requets tới discovery để làm mới lại thông tin đã lưu trong cache
+===========================================================
+spring cloud hỗ trợ service dĩovery & registration
+- Spring Cloud Netflix's Eureka service sẽ hoặt động như 1 đại lý service discovery (cũng có các agent khác như Apache Zookeeper)
+- có thư viên Spring Cloud Load Balancer cho phía client để load balancing
+===========================================================
+Tạo discovery service với Eureka Server
+B1: thêm 3 dependencies là Spring Boot Actuator và Eureka Server, Config Client
+B2: sử dụng Spring Cloud Load Balancer thay thế cho Ribbon của Eureka Server => thêm cặp thẻ exclusions các sub-depen không cần của Eureka Server là spring-cloud-starter-ribbon và ribbon-eureka
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-actuator</artifactId>
+</dependency>
+<dependency>
+  <groupId>org.springframework.cloud</groupId>
+  <artifactId>spring-cloud-starter-config</artifactId>
+</dependency>
+<dependency>
+  <groupId>org.springframework.cloud</groupId>
+  <artifactId>spring-cloud-starter-netflix-eureka-server</artifactId>
+  <exclusions>
+    <exclusion>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-ribbon</artifactId>
+    </exclusion>
+    <exclusion>
+      <groupId>com.netflix.ribbon</groupId>
+      <artifactId>ribbon-eureka</artifactId>
+    </exclusion>
+  </exclusions>
+</dependency>
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+B3: cung cấp configuration.image.name cho cặp thẻ plugin để hỗ trợ generate docker (tìm hiểu docker)
+B4: thêm annotation @EnableEurekaServer trên cùng của springboot aplication main
+B5: khai báo 1 số properties cho application.properties giúp kết nối với config server
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  # cấu hình connect với configserver
+  spring.application.name=eurekaserver
+  spring.config.import=
+         optional:configserver:http://localhost:8071/
+  # ngăn chọn sử dụng ribbon
+  spring.cloud.loadbalancer.ribbon.enabled=false
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+B6: thêm các config cho eureka server trên github repo để configserver load:
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  server.port=8070
+
+  eureka.instance.hostname=localhost
+  # nói với eureka không cần đăng chính nó làm client
+  eureka.client.registerWithEureka=false
+  # không cần lấy thông tin có nó đều đặn như client
+  eureka.client.fetchRegistry=false
+  # các service sử dụng url này để lấy thông tin đăng ký
+  eureka.client.serviceUrl.defaultZone=http://  ${eureka.instance.hostname}:${server.port}/eureka/
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+Eureka server cung cấp UI dashboard tại uri: http://  ${eureka.instance.hostname}:${server.port}
+ => có thể kiểm tra instance nào đăng ký, sức khoẻ của các instance
+===========================================================
+Cấu hình ở các microservice kết nối đến Eureka Server
+B1: thêm dependency: Eureka Client (hỗ trợ kết nối với eureka server) và OpenFeign (hỗ trợ load balancing phía client) 
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+<dependency>
+  <groupId>org.springframework.cloud</groupId>
+  <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+</dependency>
+<dependency>
+  <groupId>org.springframework.cloud</groupId>
+  <artifactId>spring-cloud-starter-openfeign</artifactId>
+</dependency>
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+B2: thêm các properties vào application.properties giúp connect với eureka server
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  # mặc đinh microservice khơi động với hostname , sử dụng hostname cùng DNS mapping trong enviroment, tuy nhiên sẽ luôn khởi động lại, ip address sẽ thay đổi => đặt true hạn chế Eureka server thay đổi IP
+  eureka.instance.preferIpAddress = true 
+  # cấu hình tự đăng ký với eureka và lấy các đăng ký khác trên nó
+  eureka.client.registerWithEureka = true
+  eureka.client.fetchRegistry = true
+  # khai báo endpoint url của eureka server
+  eureka.client.serviceUrl.defaultZone =   http://localhost:8070/eureka/
+
+  # các giá trị này được hiển thị trên uri /actuator/info và cùng dùng hiển thị trên dashboard của eureka
+  info.app.name=Accounts Microservice
+  info.app.description=Eazy Bank Accounts Application
+  info.app.version=1.0.0
+  
+  # nói với actuator/enable hiển thị các endpoint shutdown để 
+  endpoints.shutdown.enabled=true
+  # cho phép bên ngoài truy cập các endpoint shutdown hiển thị trên actuator => để eureka ngắt instance chuẩn mực
+  management.endpoint.shutdown.enabled=true
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+=> giao diện Eureka sẽ hiển thị lên instance được config, trong STATUS của instance sẽ hiển thị 1 url lấy ra tất cả info đã cấu hình với key info bên trên (tương tự như truy cập vào actuator/info)
+
+
+
+
+

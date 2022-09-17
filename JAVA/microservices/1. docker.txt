@@ -1,0 +1,119 @@
+- Docker image là một file bất biến - không thay đổi, chứa các source code, libraries, dependencies, tools và các files khác cần thiết cho một ứng dụng để chạy
+- Sử dụng các images như mẫu làm cơ sở xây dựng container. Container chỉ là 1 image đang thực thi, khi tạo 1 container, docker thêm 1 lớp ghi lên image bất biến, cho phép sửa đổi nó
+- Có thể tạo số lượng Docker image không giới hạn từ một image base. Mỗi khi thay đổi trạng thái ban đầu của một image và lưu trạng thái hiện có là tạo một image mới với một layer mới ở trên nó
+=================================================================
+- Docker container là một run-time environment mà ở đó người dùng có thể chạy một ứng dụng độc lập. Những container này rất gọn nhẹ và cho phép bạn chạy ứng dụng trong đó rất nhanh chóng và dễ dàng
+.... 1 loạt tính năng ...
+https://viblo.asia/p/phan-biet-docker-image-vs-container-bJzKmz4wZ9N
+=================================================================
+1 số command chạy mvn và java trên terminal:
+> mvn --version : check version của mvn
+//đứng trong folder project 
+> mvn clean install : xoá file target và tạo lại file target theo pom.xml (trong đó có file .jar)
+> mvn spring-boot:run : chạy code spring boot 
+> java -jar target/_nameProject_versionProject.jar : chạy file jar ~~ chạy code spring boot
+=================================================================
+- Docker file là 1 đoạn script định nghĩa cách để tạo ra 1 docker image.
+ex docker file:
+`````````````````````````````````````````````````````````````````
+#Start with a base image containing Java runtime
+FROM openjdk:11-slim as build
+
+#Information around who maintains the image
+MAINTAINER eazybytes.com
+
+# Add the application's jar to the container
+COPY target/accounts-0.0.1-SNAPSHOT.jar accounts-0.0.1-SNAPSHOT.jar
+
+#execute the application
+ENTRYPOINT ["java","-jar","/accounts-0.0.1-SNAPSHOT.jar"]
+`````````````````````````````````````````````````````````````````
+> docker images : check xem list images hiện có
+> docker build . -t _nameTagImage : xây dựng 1 image đứng tại thư mục hiện tại (dấu .) tìm file Docker cung cấp cho image 1 tagname với flag là -t
+> docker image inspect _imageID : kiểu tra tất cả chi tiết của image có id tương ứng
+> docker run -p 8000:8080 _dockerImageName : tạo ra 1 container dựa trên mẫu image, thực thi command được liệt kê trong docker file có key ENTRYPOINT, chỉ định port chạy với flag -p, với 8000 là port trên local map sang port 8080 của docker container
+> docker ps : show list container và status của container đang up hoặc pause
+> docker logs _containerId : hiển thị log của container 
+> docker logs -f _containerId : hiển thị log và theo dõi log đó
+> docker stop _containerId : exit container
+> docker ps -a : hiển thị list tất cả conatainer ngay cả container đã  exit
+> docker start _idContainer : kích hoạt lại các container đã exit
+> docker pause _idContainer : tạm dựng container
+> docker unpause _idConatiner : tiếp tục container
+> docker container inspect _idContainer : hiển thị details của container
+> docker kill _idContainer : exit container ngay lập tức, không cho các tác vụ đang thực thi được ngắt đúng cách, khác stop
+> docker stats : hiển thị stats của container: cpu, memory, ...
+> docker rm _idContainer : xoá hẳn container trong docker, không còn hiển thị lên list container docker ps -a
+> docker run -d -p 8000:8080 _dockerImageName: thêm flag -d sẽ không hiển thị log của container vừa tạo, thông thường tạo container sẽ hiển thị log của contai nẻ đó ở chế độ folow
+=================================================================
+Tự động tạo image mà không cần định nghĩa docker file trong project => sử dụng paketo buildpacks
+B1: trong file pom.xml, thêm 1 plugin của build với artifactId là 
+spring-boot-maven-plugin và cần cung cấp image name cho configuration
+`````````````````````````````````````````````````````````````````
+<plugin>
+   <groupId>org.springframework.boot</groupId>
+   <artifactId>spring-boot-maven-plugin</artifactId>
+   <configuration>
+      <image>
+         <name>hoanganh/${project.artifactId}</name>
+      </image>
+   </configuration>
+</plugin>
+`````````````````````````````````````````````````````````````````
+B2: tại project thực hiện command: : mvn spring-boot:build-image
+nội bộ mvn sẽ sử dụng paketo buildpacks để genarate ra image, đông thời generate thêm vài image của paketo hỗ trợ cài đặt nhanh docker image những lần sau, có thể tự do xoá chúng đi
+=================================================================
+Đẩy docker image lên docker hub
+> docker push docker.io/_nameImage : đẩy image lên hub
+=================================================================
+docker compose: dùng để định nghĩ và share cấu hình với nhiều container, giúp thực hiện 1 lệnh duy nhất tác động lên nhiều container 1 lúc
+`````````````````````````````````````````````````````````````````
+ex file yaml cấu hình cho docker compose (đám bảo các space trong yaml file):
+version: "3.8" # compose specification vesion, 3.8 tương ứng docker  19.03
+
+services:
+
+  accounts:
+    image: eazybytes/accounts:latest # tên image
+    mem_limit: 700m # bộ nhớ tối đa 700mb
+    ports: # mapping poeet local với docker, cung cấp nhiều giá trị ports tương ứng với nhiều container
+      - "8080:8080"
+    networks:
+      - eazybank-network
+    
+  loans:
+    image: eazybytes/loans:latest
+    mem_limit: 700m
+    ports:
+      - "8090:8090"
+    networks:
+      - eazybank-network
+    
+  cards:
+    image: eazybytes/cards:latest
+    mem_limit: 700m
+    ports:
+      - "9000:9000"
+    networks:
+      - eazybank-network
+    
+networks:
+  eazybank-network: #tạo ra netwwork để liên kết các service lại nếu trùng tên network
+`````````````````````````````````````````````````````````````````
+docker compose sẽ tự động tìm kiếm các tệp có tên docker-compose.yml, docker-compose.yaml, compose.yml, compose.yaml
+=> lưu file yml với tên file đúng định dạng
+=> tại thư mục cung cấp với file yml, thực thi command: 
+> docker-compose up : thực thi các service triển khai thành các container tương ứng
+> docker-compose stop : exit các container  
+
+
+
+
+
+
+
+
+
+
+
+

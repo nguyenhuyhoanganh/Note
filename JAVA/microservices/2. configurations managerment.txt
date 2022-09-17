@@ -1,0 +1,243 @@
+Configuration managerment in microservice
+- tạo 1 service configuration riêng để quản lý các config chung của toàn bộ hệ thống microservice, nhiệm vụ là để tải tất cả các cấu hình được duy trì cho tất cả service trong các môi trường khác nhau như môi trường develop, test, product lưu trữ ở kho tập trung như sử dụng github
+
+- spring cloud config: giúp duy trì configuration management service
+  - cung cấp 2 loại tính năng
+    - tính năng cho server đọc tất cả các cấu hình từ github, cung cấp mã hoá và giải mã properties file ..........
+
+==================================================================
+- cấu hình cho config server:
+B1: tạo 1 spring boot project với dependencies : 
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-actuator</artifactId>
+</dependency>
+<dependency>
+  <groupId>org.springframework.cloud</groupId>
+  <artifactId>spring-cloud-config-server</artifactId>
+</dependency>
+B2: file pom.cml sẽ có cặp tag dependencyManagerment, với spring boot version 2.4.5 sẽ đi kèm với tag properties>spring-cloud.version 2020.0.2 (được sping initializer tự động cấu hình), dependencyManagerment yêu cầu tải xuống tất cả các spring cloud dependencies từ spring cloud verion này
+------------------------------------------------------------------
+Ex: pom.xml
+...
+<properties>
+  <java.version>11</java.version>
+  <spring-cloud.version>2020.0.2</spring-cloud.version>
+</properties>
+<dependencies>
+...
+  <dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-actuator</artifactId>
+  </dependency>
+  <dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-config-server</artifactId>
+  </dependency>
+...
+</dependencies>
+<dependencyManagement>
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-dependencies</artifactId>
+      <version>${spring-cloud.version}</version>
+      <type>pom</type>
+      <scope>import</scope>
+    </dependency>
+  </dependencies>
+</dependencyManagement>
+<build>
+...
+</build>
+------------------------------------------------------------------
+B3: thêm annotation @EnableConfigServer vào main class
+B4: tạo 1 folder config chứa các file .properties cho từng service và từng enviroment
+B5: cấu hình application.properties cho chính conifigserver
+  spring.application.name=configserver  
+  spring.profiles.active=native
+  # khai báo server đọc cấu hình từ file system location
+  # nếu có giá trị git thì là đọc từ github
+  spring.cloud.config.server.native.search-location=classpath:/config
+  # khai báo vị trí các file và tải cấu hình
+  # classpath:/config tương ứng với đường dẫn src/main/resources/config/
+  server.port=8000
+B6: config server sẽ đưa tất cả config properties thông qua rest endpoint url
+Ex:
+- với account serervice, ta cấu hình 3 file
+  - accounts.properties tương ứng với enviroment default
+  - accounts-dev.properties tương ứng với enviroment develop
+  - accounts-prod.properties tương ứng với enviroment product
+=> ta truy cập endpoint tương ứng để lấy thông tin 3 file cấu hình là
+  - http://localhost:8000/accounts/default
+  - http://localhost:8000/accounts/dev
+  - http://localhost:8000/accounts/prod
+* khi truy cập endpoint khác ngoài default cũng tải luôn cấu hình của file default theo mặc định ngoài cấu hình file cần tải (nếu có properties nào thiếu trong file config nó sẽ dùng của file default)
+
+- 1 số cấu hình lưu trữ file config ở ngoài project trên local
+application.properties
+  spring.cloud.config.server.native.search-locations=file:///C://config
+  # dùng để truy cập file config nằm ngoài project
+
+- config lưu trên git
+  spring.profiles.active=git
+  spring.cloud.config.server.git.uri=_links_http_git
+  # vị trí github repository lưu trữ file config
+  spring.cloud.config.server.git.clone-on-start=true
+  # clone repostory, start để có quyền truy cập đọc các config
+  spring.cloud.config.server.git.default-label=main
+  # label của branch lưu trữ config, thương lưu luôn trên branch main
+==================================================================
+kết nối các microservices đến config server, đọc các properties dựa trên từng enviroment
+B1: các microserrvice cũng đảm bảo có  properties spring-cloud.version trong pom.xml giống với config của configuration server
+B2: cung cấp cho fiel pom 1 dependency là spring-cloud-starter-config
+------------------------------------------------------------------
+Ex:
+...
+<properties>
+  <java.version>11</java.version>
+  <spring-cloud.version>2020.0.2</spring-cloud.version>
+</properties>
+<dependencies>
+...
+  <dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-config</artifactId>
+  </dependency>
+...
+</dependencies>
+<dependencyManagement>
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-dependencies</artifactId>
+      <version>${spring-cloud.version}</version>
+      <type>pom</type>
+      <scope>import</scope>
+    </dependency>
+  </dependencies>
+</dependencyManagement>
+<build>
+...
+</build>
+------------------------------------------------------------------
+B3: thay đổi application.properties:
+  spring.application.name=_name_microservice
+  spring.profiles.active=_name_enviroment_(prod,dev,default)
+  spring.config.import=optional:configserver:http://localhost:8000/
+  # uri endpoint của server config
+  # optional cho biết nếu config server bị hỏng, thì microservice khởi động lại ??? không bị ảnh hưởng
+B4: đấy tất cả service lên docker image
+B5: đấy các docker image lên docker hub
+B6: cấu hình docker compose (hạn chết hard code trong application.properties, dùng docker compose config port, uri enpoint configserver và enviroment)
+=> tạo 1 folder docker-compose
+=> trong folder tạo 3 folder tương ứng 3 enviroment là dev, prod, default 
+=> tạo file docker-compose.yml tương ứng cho từng enviroment
+--------------------------------------------------------------------Ex: với 1 config server và 3 service account loan card
+version: "3.8"
+
+services:
+
+  configserver:
+    image: eazybytes/configserver:latest
+    mem_limit: 700m
+    ports:
+      - "8071:8071"
+    networks:
+     - eazybank
+      
+  accounts:
+    image: eazybytes/accounts:latest
+    mem_limit: 700m
+    ports:
+      - "8080:8080"
+    networks:
+      - eazybank
+    depends_on:
+      - configserver
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+    environment:
+      SPRING_PROFILES_ACTIVE: default
+      SPRING_CONFIG_IMPORT: configserver:http://configserver:8071/
+  
+  loans:
+    image: eazybytes/loans:latest
+    mem_limit: 700m
+    ports:
+      - "8090:8090"
+    networks:
+      - eazybank
+    depends_on:
+      - configserver
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+    environment:
+      SPRING_PROFILES_ACTIVE: default
+      SPRING_CONFIG_IMPORT: configserver:http://configserver:8071/
+    
+  cards:
+    image: eazybytes/cards:latest
+    mem_limit: 700m
+    ports:
+      - "9000:9000"
+    networks:
+      - eazybank
+    depends_on:
+      - configserver
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+    environment:
+      SPRING_PROFILES_ACTIVE: default
+      SPRING_CONFIG_IMPORT: configserver:http://configserver:8071/
+      
+networks:
+  eazybank:
+------------------------------------------------------------------
+* lưu ý:
+những config trong docker-compose sẽ không được ưu tiên bằng các properties đã có trong image (là những properties có trong application.properties) => cần để các properties trong image là rỗng
+- depends_on: đảm bảo configservice khởi động trước tiên
+
+- deploy.restart_policy: cung cấp các chính sách để microservice khởi động lại
+- condition: on-failure : điều kiện khởi động thất bại
+- delay: cung cấp thời gian khởi động delay là thời gian configserver chắc chắn đã khởi chạy app để nhận 1 request (depends_on chỉ là đợi đến khi configservice bắt đầu khởi động)
+- max_attempts: số lần khởi động lại
+
+- environment: là khai báo các giá trị trong cấu hình của microservice trong application.properties
+  - SPRING_CONFIG_IMPORT: đặt uri endpoint tới configserver => configserver:http://configserver:8071/ (không dùng localhost mà dùng configserver do tất cả các microservice được khai báo cùng key network => cùng trên 1 network của docker với tất cả service, không phải localhost)
+
+B7: docker compose up
+==================================================================
+làm mới các properties khi đan running mà không cần restart service
+B1: cần có depen actuator trong pom.xml
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-actuator</artifactId>
+</dependency>
+B2: spring-cloud-config hỗ trợ 1 annotation @RefreshScope đặt ở main class, giúp tải lại các thuộc tính đã được thay đổi mà không cần khởi động lại service
+B3: đi kèm cấu hình trong application.properties
+  management.endpoints.web.exposure.include=* => để actuator sẽ cho phép truy cập endpoint /refresh với method POST để cập nhật các properties (ex: http://localhost:8080/actuator/refresh)
+
+=> khi truy cập endpoint của configserver sẽ cập nhật thường xuyên theo github, nhưng không cập nhật lại properties của các service phụ thuộc (chỉ lấy thuộc tính khi lần đầy tiên khởi động) 
+=> thay đổi thuộc tính trên github configserver của 1 service bất kỳ phụ thuộc nó => gọi đến endpoint http://localhost:8080/actuator/refresh method POST => respone sẽ trả về các properties được thay đổi
+* sẽ không thế cập nhất tất cả các loại thuộc tính nếu có thuộc tính cần thiết được dùng cho quá trình khởi động service như hostname, deeppassword, endpoint url phải connect db, email SMTP...
+==================================================================
+mã hoá 1 số thuộc tính nhạy cảm như password, folder location, email hostname...
+B1: trên application.properties của config server thêm thuộc tính
+  encrypt.key=hoanganh
+  # thuộc tính này được coi là chìa khoá để mã hoá và giải mã các giá trị, cùng có thể khởi tạo giá trị này như 1 biến môi trường bên trong máy chủ docker
+B2: gọi endpoint /encrypt, nhận vào 1 chuỗi text, sẽ trả về giá trị đã mã hoá, nếu muốn giải mã truy cập endpoint /decrypt
+B3: thay đổi properties trên github bằng giá trị mã hoá nhận được
+  => để phân biệt giá trị được mã hoá đặt trên repository, trươc giá trị mã hoá cần có chuỗi ký tự {cipher}

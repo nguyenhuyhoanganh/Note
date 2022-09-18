@@ -1,0 +1,120 @@
+Réilient (Tự động phục hồi)
+- tránh gián đoạn chuỗi giao tiếp giữa các microservice trong network (như 1 microservice có hành vi chậm dần, hoặc gián đoạn mạng dẫn đến không phản hồi microservice khác -> tạo ra phản ứng dây chuyền khiến các microservice kết nối với nó cũng hành xử chậm đi)
+  => cần khả năng tự  phục hồi bên trong các microservice (self healing capable), các microsevice khác kết nối đến microservice bị gián đoạn cũng cần đủ thông mình để phản hồi lại những giá trị default nếu không nhận được kết quả (fallback mechanism)
+
+- trước đó nhà phất triển hay sử dụng Netflix Hystrix để triển khai các pattern tự phục hồi trong microservice tuy nhiên do không còn phát triển => sử dụng Resilience4j để thay thế
+- thư viện Resilience4j giống Netflix Hystrix tuy nhiên rất nhẹ thiết kế cho java 8 và function programming, thư viện không có phụ thuộc bất kỳ thư viên nào khác, thư viên cung cấp các pattern giúp tăng khả năng chịu lỗi do sự cố mạng hoặc lỗi của bất kỳ service nào trong multiple services:
+  - Circuit breaker: sử dụng để ngừng thực hiện request khi 1 service được gọi đến không thành công
+  - Fallback: thay thế paths cho các request không thất bại
+  - Retry: sử dụng để thử lại khi 1 service tạm thời lỗi
+  - Rate limit: giới hạn số lượng cuộc gọi mà 1 service nhận được trong 1 khoảng thời gian
+  - Bulkhead: giới hạn số lượng request giử đi đồng thời tới 1 service để tránh quá tải
+==========================================================
+Circuit breaker pattern: theo dõi từng cuộc gọi xảy ra, nếu có cuộc gọi mất quá nhiều thời gian, circuit breaker sẽ kill cuộc gọi đó, ...
+- Circuit breaker có 3 trạng thái: 
+  - closed: cho phép request từ các clients gọi đến, nếu tủe lệ thất bại ở trên 1 ngưỡng nhất định nó sẽ chuyển sang open
+  - open : bất cứ ai đang gọi đến microservice thì nhận được 1 phản hồi nhanh rằng không chấp nhận request nữa để client không phải đợi, nếu có cơ chế dự phòng (fallback mechanism) thì Circuit breaker sẽ gọi và giử response đi từ cơ chế dự phòng. dựa trên 1 thời lượng chờ được cấu hình, nó sẽ chuyển qua half open
+  - half open: cho phép 1 lượng request nhất định đến microservice, nếu tỷ lệ thất bại giảm dưới ngưỡng sẽ quay lại chế độ closed, nếu không thì quay lại open
+
+- cấu hình bên client gọi service
+B1: thêm 4 dependencies
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+<dependency>
+  <groupId>io.github.resilience4j</groupId>
+  <artifactId>resilience4j-spring-boot2</artifactId>
+</dependency>
+<dependency>
+  <groupId>io.github.resilience4j</groupId>
+  <artifactId>resilience4j-circuitbreaker</artifactId>
+</dependency>
+<dependency>
+  <groupId>io.github.resilience4j</groupId>
+  <artifactId>resilience4j-timelimiter</artifactId>
+</dependency>
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-aop</artifactId>
+</dependency>
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+- thêm aop do resilience4j sử dụng nhiều đến lập trình hướng khía cạnh
+B2: đến method sẽ invoke những microservice khác trong controller, thêm annotation @CircuitBreaker(name ="_nameCircuitBreakerCustom")
+B3: thêm 1 số properties trong application.properties để thay đổi hành vi mặc định của circuitbreaker cho testing
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+## thông báo cho resilience4j đăng ký toàn bộ thông tin liên quan đến sức khoẻ của circuitbreaker đến actuator => actuator có thể thất loại, trạng thái, tên của circuitbreaker được sử dụng 
+resilience4j.circuitbreaker.configs.default.registerHealthIndicator= true
+## số lương cuộc gọi tối thiểu là 5 để circuit bắt đầu theo dõi và đưa ra quyết định có chuyển sang state open hay không , giá trị default là 50
+resilience4j.circuitbreaker.instances._nameCircuitBreakerCustom.minimumNumberOfCalls= 5
+## ngưỡng tỷ lệ thất bại để mở circuit là 50%
+resilience4j.circuitbreaker.instances._nameCircuitBreakerCustom.failureRateThreshold= 50
+## thời gian circuit trong trạng thái open : 30s, default là 60s
+resilience4j.circuitbreaker.instances._nameCircuitBreakerCustom.waitDurationInOpenState= 30000
+## số reqquest cho phép trong trạng thái haft open, nếu 1 request thất bại là 1/2 là 50% thì quay lại open, nếu không thì closed
+resilience4j.circuitbreaker.instances._nameCircuitBreakerCustom.permittedNumberOfCallsInHalfOpenState=2
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+=> kết quả nhận được: gọi đến endpoint theo method đã cấu hình 5 lần, nếu lỗi quá 50% (lỗi throw ra feign execption của feign netflix) thì circuit sẽ chuyển sang state open và chờ đợi 30s (trong thời gian này, gọi đến method sẽ kết thúc ngay lập tức, không đợi 1 khoảng thời gian để thực thi logic trong request nữa. phía microservice bị fail được client gọi đến trong logic method cũng có 1 khaonrg thời gian để phục hồi lại ), sau 30s, nó chuyển qua state half open, lúc này nó chỉ chấp nhận 2 request, nếu 2 reqquest này có số reqquest thất bại vượt trên 50% thì circuit sẽ lại chuyển sang state open và chờ 30s, cứ lặp lại cho đến khi ở state  half open, số request thất bại thấp hơn 50% sẽ chuyển sang state closed và chấp nhận thực thi logic mỗi khi gọi tới method 
+
+B3: tạo fallbaack mechanism tránh exception:
+  - trong annotation @CircuitBreaker thêm giá trị fallbackMethod: @CircuitBreaker(name ="_nameCircuitBreakerCustom", fallbackMethod="_nameFallbackMethodCustom")
+B4: tạo private method với tên tương ứng trong CÙNG 1 CLASS với nới sử dụng circuit, method này chấp nhận các parameters giống hệ với method được đính kèm @CircuitBreaker và 1 parameter nữa thuộc kiểu Throwable. parameter kiểu Throwable này sẽ sử dụng để tuỳ loại exception mà hành xử khác nhau. method cũng cần return về cùng 1 kiểu với method sử dụng nó
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -15,12 +15,12 @@ service discovery & registration architecture
 - cách các microservice xác định các microsources bên trong network, tự đăng ký và đi vào network để các microservice khác có thể tiếp cận, cách cân bằng tải và chia sẻ thông tin giữa các microservice
 - có 3 layer:
   - clinet applications (microservice): đây không phải UI application mà là các service backend giao tiếp với nhau, một microservice gọi 1 microservice khác, nó sẽ gọi qua service discovery, service discovery kiểm tra xem có bao nhiêu instance của service được gọi, kiểm tra load balancer,... dựa trên đó sẽ giử request đến instance cụ thể trong network
-  - service discovery server: bao gồm nhiều service discovery node, duy trì tất cả các thông tin về địa chỉ vị trí thực tế của instance microservice trong network, các vị trí này được các microservice tự động đăng ký với service discovery node, và đều đặn giử heartbeat cho biết tình trạng instance. giữu các node discovery giao tiếp peer to peer, có thể mở rộng theo chiều ngang, cùng hoạt động
+  - service discovery server: bao gồm nhiều service discovery node, duy trì tất cả các thông tin về địa chỉ vị trí thực tế của instance microservice trong network, các vị trí này được các microservice tự động đăng ký với service discovery node, và đều đặn giử heartbeat cho biết tình trạng instance. giữa các node discovery giao tiếp peer to peer, có thể mở rộng theo chiều ngang, cùng hoạt động
   - microservices network: là các instance của các microservice nhận request
 
 - client applications (microservice) sau lần đầu lấy được thông tin về các microservice khác của discovery, nó cũng tự lưu thông tin đó vào local cache, dựa trên những thông tin được lưu, nó có thể tự thực hiện load balancing mà không phụ thuộc vào discovery ở lần kế tiếp => giảm tải request tới discovery, không cần duy trì quá nhiều node discovery. nếu gặp lỗi với dữ liệu trong cache khi ip microservie thay đổi hay gì đó client sẽ thực hiện lại request qua discovery. định kỳ client cũng giử requets tới discovery để làm mới lại thông tin đã lưu trong cache
 ===========================================================
-spring cloud hỗ trợ service dĩovery & registration
+spring cloud hỗ trợ service discovery & registration
 - Spring Cloud Netflix's Eureka service sẽ hoặt động như 1 đại lý service discovery (cũng có các agent khác như Apache Zookeeper)
 - có thư viên Spring Cloud Load Balancer cho phía client để load balancing
 ===========================================================

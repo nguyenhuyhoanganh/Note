@@ -1,4 +1,4 @@
-Réilient (Tự động phục hồi)
+Resilient (Tự động phục hồi)
 - tránh gián đoạn chuỗi giao tiếp giữa các microservice trong network (như 1 microservice có hành vi chậm dần, hoặc gián đoạn mạng dẫn đến không phản hồi microservice khác -> tạo ra phản ứng dây chuyền khiến các microservice kết nối với nó cũng hành xử chậm đi)
   => cần khả năng tự  phục hồi bên trong các microservice (self healing capable), các microsevice khác kết nối đến microservice bị gián đoạn cũng cần đủ thông mình để phản hồi lại những giá trị default nếu không nhận được kết quả (fallback mechanism)
 
@@ -9,10 +9,14 @@ Réilient (Tự động phục hồi)
   - Retry: sử dụng để thử lại khi 1 service tạm thời lỗi
   - Rate limit: giới hạn số lượng cuộc gọi mà 1 service nhận được trong 1 khoảng thời gian
   - Bulkhead: giới hạn số lượng request giử đi đồng thời tới 1 service để tránh quá tải
+
+
+
+
 ==========================================================
 Circuit breaker pattern: theo dõi từng cuộc gọi xảy ra, nếu có cuộc gọi mất quá nhiều thời gian, circuit breaker sẽ kill cuộc gọi đó, ...
 - Circuit breaker có 3 trạng thái: 
-  - closed: cho phép request từ các clients gọi đến, nếu tủe lệ thất bại ở trên 1 ngưỡng nhất định nó sẽ chuyển sang open
+  - closed: cho phép request từ các clients gọi đến, nếu tỷ lệ thất bại ở trên 1 ngưỡng nhất định nó sẽ chuyển sang open
   - open : bất cứ ai đang gọi đến microservice thì nhận được 1 phản hồi nhanh rằng không chấp nhận request nữa để client không phải đợi, nếu có cơ chế dự phòng (fallback mechanism) thì Circuit breaker sẽ gọi và giử response đi từ cơ chế dự phòng. dựa trên 1 thời lượng chờ được cấu hình, nó sẽ chuyển qua half open
   - half open: cho phép 1 lượng request nhất định đến microservice, nếu tỷ lệ thất bại giảm dưới ngưỡng sẽ quay lại chế độ closed, nếu không thì quay lại open
 
@@ -54,20 +58,72 @@ resilience4j.circuitbreaker.instances._nameCircuitBreakerCustom.permittedNumberO
 
 => kết quả nhận được: gọi đến endpoint theo method đã cấu hình 5 lần, nếu lỗi quá 50% (lỗi throw ra feign execption của feign netflix) thì circuit sẽ chuyển sang state open và chờ đợi 30s (trong thời gian này, gọi đến method sẽ kết thúc ngay lập tức, không đợi 1 khoảng thời gian để thực thi logic trong request nữa. phía microservice bị fail được client gọi đến trong logic method cũng có 1 khaonrg thời gian để phục hồi lại ), sau 30s, nó chuyển qua state half open, lúc này nó chỉ chấp nhận 2 request, nếu 2 reqquest này có số reqquest thất bại vượt trên 50% thì circuit sẽ lại chuyển sang state open và chờ 30s, cứ lặp lại cho đến khi ở state  half open, số request thất bại thấp hơn 50% sẽ chuyển sang state closed và chấp nhận thực thi logic mỗi khi gọi tới method 
 
-B3: tạo fallbaack mechanism tránh exception:
+B3: tạo fallback mechanism tránh exception:
   - trong annotation @CircuitBreaker thêm giá trị fallbackMethod: @CircuitBreaker(name ="_nameCircuitBreakerCustom", fallbackMethod="_nameFallbackMethodCustom")
 B4: tạo private method với tên tương ứng trong CÙNG 1 CLASS với nới sử dụng circuit, method này chấp nhận các parameters giống hệ với method được đính kèm @CircuitBreaker và 1 parameter nữa thuộc kiểu Throwable. parameter kiểu Throwable này sẽ sử dụng để tuỳ loại exception mà hành xử khác nhau. method cũng cần return về cùng 1 kiểu với method sử dụng nó
 
 
 
 
+=========================================================
+Retry Pattern: 1 pattern khác mang lại khả năg phục hồi cho microservice
+- giúp thực hiện nhiều lần nỗ lực retry lại khi service tạm thời fail (có thể do gián đoạn mạng...)
+- khi sử dụng retry pattern, nếu service call fail, retry pattern cố gắng thử nhiều lần dựa trên các cấu hình đã được tạo 
+   => nếu bị gián đoạn mạng, thử lại sẽ nhận được 1 phản hồi hợp lệ 
+- làm theo các cấu hình quan trọng sau:
+  - maxAttempts: số lần phải retry
+  - waitDuration: thời gian đợi giữa các lần attempts retry
+  - retryExceptions: là 1 danh sách các class Throwable gặp phải được retry (là các exception hợp lệ như timeout exception)
+  - ignoreExceptions: lầ 1 danh sách các class
+Throwable gặp phải không được retry (là các exception phải fix và deploy lại)
+=> cần sử dụng annotation @Retry(name="...", fallbackMethod="...")
+
+- cấu hình (không dùng chung với circuitbreaker, để đảm bảo hiệu suất)
+B1: đặt annotation trên method gọi sang service khác muốn áp dung retry pattern
+  @Retry(name="_nameRetry", fallbackMethod="_nameFallbackMethodCustom")
+B2: cấu hình application.properties
+  ## chỉ ra retry phải đăng ký trên tất cả uri của nó với actuator 
+  resilience4j.retry.configs.default.registerHealthIndicator = true
+  ## số lần retry
+  resilience4j.retry.instances._nameRetry.maxRetryAttempts = 3
+  ## thời gian giữa các lần retry
+  resilience4j.retry.instances._nameRetry.waitDuration = 2000
 
 
 
 
+=========================================================
+Rate Limiter pattern: giúp ngừng làm quá tải service bị call nhiều hơn mức nó có thể tiêu thụ trong 1 thời gian nhất định. là 1 điều bắt buộc để API có tính kahr dụng và độ tin cậy cao => có thể khắc phục bằng cách thêm các instance bởi docker và kubernets
+- bảo vệ API khỏi các tác động có hại như DDoS từ chối dịch vụ, cascading failure
+- cho phép cấu hình các giá trị sau:
+  - timeoutDuration: thời gian mặc định mà 1 luồng sẽ đợi sự cho phép (ví dụ cấu hình mỗi lần sử lý 100 req, nếu quá 100, các req  thừa sẽ đợi trong thời gian cấu hình. trong thời gian chờ, nếu không tiêu thụ được hết 100 req thì req sẽ bị trả lại)
+  - limitForPeriod: số lượng sự cho phép có sẵn trong 1 khoảng thời gian giới hạn làm mời (số request muốn thực hiện trong 1 khoảng thời gian cụ thể)
+  - limitRefreshPeriod: khoảng thời gian làm mới giới hạn
+=> sử dụng annotation @RateLimiter(name="...", fallbackMethod="...")
+
+- cấu hình
+B1: thêm annotation trên method sẽ được request
+  @RateLimiter(name="_nameRateLimit", fallbackMethod="_nameFallbackMethodCustom")
+B2: cấu hình application.properties
+  ## để resilience4j đăng ký ratelimitter với actuator
+  resilience4j.ratelimiter.configs.default.registerHealthIndicator = true
+  ## giới hạn 5 lần gọi trên 1 phút, nếu quá 5 sẽ chờ 0s cho các request thừa => trả luôn lỗi hoặc nhảy sang fallbackMethod
+  resilience4j.ratelimiter.instances._nameRateLimit.timeoutDuration = 0
+  resilience4j.ratelimiter.instances._nameRateLimit.limitRefreshPeriod = 60000
+  resilience4j.ratelimiter.instances._nameRateLimit.limitForPeriod = 5
 
 
+https://www.vinsguru.com/rate-limiter-pattern/
+ 
 
+=========================================================
+Bulkhead pattern: đảm bảo trong microservice, các tài nguyên nên được cách ly, failure của 1 thành phần sẽ không ảnh hướng đến toàn bộ microservice
+EX: như trong 1 accountservice, detailsAccount API không hoạt động đúng, nó sẽ bắt đầu chiếm dụng tất cả tài nguyên có sẵn trong thread pool
+- có thể cấu hình các giá trị:
+  - maxConcurrentCalls: số thread sẽ được sử dụng từ threadpool
+  - maxWaitDuration: thời gian thread nên block
+
+https://medium.ninja/geekculture/bulkhead-pattern-microservice-design-pattern-9e30d414a0fd
 
 
 

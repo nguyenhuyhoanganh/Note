@@ -1,0 +1,107 @@
+- xử lý yêu các yêu cầu định tuyến
+- crosscutting concerns (mối quan tâm khác) : logging, auditing, tracing và security
+
+: có thể có hàng trăm microservice và các insatnce của nó bên trong microservice network, muốn thực hiện chuyển hướng đến các micro service khác nhau phù hợp với path, hoặc dựa trên các prametter có thể muốn định tuyến động
+
+: quan tâm đến crosscutting concerns là những thứ bên ngoài business logic, là các hành động ghi nhật ký, kiểm toán, theo dõi, bảo mật, ... để dễ dàng gỡ lỗi... Không thể trao trách nhiệm đó cho cụ thể từng microservice. Do:
+  1. không thực hiện tất cả các crosscutting concerns 1 cách nhất quán do mỗi dev có cách thực hiện riêng
+  2. 1 trong các dev có thể không thực hiện thao tác chính xác
+  3. không thể sử dụng 1 thư viện chung, xử lý logging, ... được dùng chung cho tất cả tài nguyên trong microservice. Do làm như thế là đang kết hợp chặt chẽ libarry với microservice, nếu muốn giới thiệu những thay đổi mới trong thu viện chung thì phải xem xét tác động tới tất cả các service, đảm bảo không có vấn đề hồi quy nào dẫn đến cùng 1 phong cách kiến trúc trúc nguyên khối (điều mà đang tránh với mô hình microservice)
+  => nên có 1 microservice riêng biệt xử lý các crosscutting concerns mà không cần bàn giao cho các dev 
+
+: xây dựng 1 gatekeeper duy nhất từ bên ngoài và trong micro service network, sẽ theo dõi lưu lượng truy cập đến với tất cả microservice và thực thi các chính sách riêng tuỳ ứng dụng, tại 2 đại điểm trung tâm (như 1 điểm thực thi chính sách chính cho tất cả các cuộc gọi dịch vụ)
+
+====================================================================================================================
+Spring Cloud hỡ trợ định tuyến, xử lý các cross cutting concerns bằng Spring Cloud Gateway
+
+- Spring Cloud Gateway cung cấp 1 cách đơn giản hiệu quả để định tuyến các yêu cầu đến đích thích hợp (sự dụng Gateway Handler Mapping). Servce gateway này như 1 gatekeeper cho tất cả các inbound traffic sẽ đến từ các cuộc gọi micro service trong ứng dụng. Client sẽ không bao giờ gọi trực tiếp bất kỳ url của 1 service riêng lẻ hay 1 eureka service url. Thay vào đó sẽ đưa ra request cho service gateway. Có thể trông nó giống với Eureka server, tuy nhiên nó hoàn toàn khác. Eureka servcer chỉ quan tâm service registration, service discovery, và theo dõi sức khoẻ các microservice. gateway sẽ xử lý các cross cutting concerns và các định tuyến custom mà không thể xử lý bởi Eureka server. Eureka server mong đợi được invoke với chính xác route là uri name. nhưng có thể có 1 số yêu cầu tuỳ chỉnh nơi client muốn sử dụng 1 route riêng
+  => eureka server hoạt động như 1 cơ quan đăng ký service
+  => Gateway hoạt động như 1 filter chặn tất cả request
+
+ **** https://stackoverflow.com/questions/68528380/how-eureka-server-and-spring-cloud-api-gateway-communicates-with-each-other
+
+- Spring Cloud Gateway là 1 thư viên sử dụng xây dựng API gateway, có mục đích nằm giữa người request và resource được request. Có nghĩa là có thể định tuyến (routing) các request dựa vào ngữ cảnh (context) của chúng. Request có bao gồm header chỉ ra API version? Chúng ta có thể định tuyến request đó tới phiên bản bản backend phù hợp. Request có yêu cầu một session phù hợp?. Gateway có thể theo dõi session của từng người sử dụng, duy trì chúng trong 1 chuỗi các cuộc gọi service khác nhau.
+
+
+- Spring Cloud Gateway đc thay thế Zuul (một thư viện cũ hơn) vì những ưu điểm:
+  - Spring Cloud Gateway được Spring Cloud team phát triển sử dụng, xây dựng trên Spring 5, Reactor, Spring WebFlux. Không chỉ vậy, nó còn bao gồm tích hợp circuit breaker, service discovery với Eureka
+  - Spring Cloud Gateway có bản chất non-blocking, là sử dụng ít thread và tài nguyên, => hiệu suất hơn
+  - Spring Cloud Gateway có hiệu suất vượt trội
+
+1. Client sẽ đưa ra  request (client là ai đó bên ngoài, có thể là 1 UI application, tuy nhiên ngay cả service nội bộ cũng có thể sử dung gateway)
+2. Khi nhận được request từ client, có 1 thành phần gọi là gateway handler mapping bên trong spring cloud gateway, nó sẽ lấy các cấu hình liên quan đến định tuyến được thực hiện trong spring cloud gateway application, dựa trên đó thực hiện chuyển hướng request đến microservice tương ứng là Eureka server. Nhưng nếu không có các yêu cầu định tuyến tuỳ chỉnh, SCGateway đủ thông minh để lấy thông tin các micro service từ Eureka bằng cách tích hợp nó. 
+3. Trước khi bàn giao request tới service thực tế (Eureka server), có những predicates (giống predicate trong Java 8 functional interface, dùng để đánh giá điều kiện requesy có được bàn giao hay không) và filters được hỗ trợ. Filters có 2 loại là pre-filter và post-filter, với pre-filter được thực thi khi chúng tôi chuyến request tới các microservice thực tế, nó chặn request, thực hiện logic nghiệp vụ, sau đó bàn giao cho Eureka service hoặc microservice. trong pre-filter thực hiện 1 số loại của logging, tracing, auditing, security... Respone trả về sẽ đi qua post-filter, revalidate response
+
+====================================================================================================================
+B1: version sping boot 2.4.5, deps:
+  - gateway
+  - spring boot actuator
+  - eureka discovery client để kết nối với gateway với eureka
+  - config client để kết nối với config server
+  - developer tools
+B2: cập nhật lại pom.xml để tạo ra docker generation cho project
+  thêm vào tag plugin:
+  <configuration>
+    <image>
+      <name>eazybytes/${project.artifactId}</name>
+    </image>
+  </configuration>
+B3: tích hợp với Eureka server như 1 client
+  - trên class chứa main function, đặt annotation @EnableEurekaClient
+B4: cập nhật application properties:
+``````````````````````````````````````````````````````````
+## đặt tên server cùng tên project
+spring.application.name=gatewayserver
+
+## cung cấp vị trí configserver, để tương tác configserver
+spring.config.import=optional:configserver:http://localhost:8071/
+
+## đảm bảo actuator phơi bày tất cả endpoints
+management.endpoints.web.exposure.include=*
+
+## Configuring info endpoint
+## là meta data về application, khi ai đó muốn xem server từ Eureka dashboard 
+info.app.name=Gateway Server Microservice
+info.app.description=Eazy Bank Gateway Server Application
+info.app.version=1.0.0
+
+## nói với cloud gateway đi lấy tất cả các cấu hình từ eureka, biết được tất cả chi tiết service đăng ký eurekaserver để định tuyến
+spring.cloud.gateway.discovery.locator.enabled=true
+
+## đổi tên path của các service invoke tứi từ chữ hoa thành chữ thường
+spring.cloud.gateway.discovery.locator.lowerCaseServiceId=true
+
+## hiển thị các logging có type là DEBUG
+logging.level.com.eaztbytes.gatewayserver: DEBUG
+
+
+`````````````````````````````````````````````````````````` 
+
+B5: tạo 1 file gatewayserver.properties trên github repo lưu trữ các config của config server. config server sẽ tự biết chính xác file config này áp dụng gatewayserver do đặt cùng tên với application.name
+  
+`````````````````````````````````````````````````````````` 
+server.port=8072
+
+## config về eureka để gateway có thể tích hợp, fetch tất cả chi tết nó cần
+## nói với gateway đi restart eureka và fetch tất cả chi tiết đăng ký từ eureka
+## sử dụng thông tin để định tuyến
+eureka.instance.preferIpAddress = true 
+eureka.client.registerWithEureka = true
+eureka.client.fetchRegistry = true
+eureka.client.serviceUrl.defaultZone = http://localhost:8070/eureka/
+`````````````````````````````````````````````````````````` 
+B6: run > config server > eureka server > microservice other (để testing) > gateway server => có thể nhìn thấy trên eureka server
+
+B7: mở /actuator, tiết lộ tất cả uri cung cấp chi tiết về server => truy cập /actuator/gateway/routes : cho thấy tất cả loại cấu hình định tuyến theo mặc định của server 
+
+B7: gọi đến service khác mà không cần biết location của microservice hoặc eureka server: dựa trên path được cấu hình thấy trong actuator, truy cập path với host và port của gateway server, nó tự động định tuyến đến Eureka để eureka đưa request tới service tương ứng. Mặc định tên path là tên application.name của service nhưng viết hoa tất cả
+
+
+
+
+
+
+
+
+
+

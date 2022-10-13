@@ -94,13 +94,149 @@ B6: run > config server > eureka server > microservice other (để testing) > g
 
 B7: mở /actuator, tiết lộ tất cả uri cung cấp chi tiết về server => truy cập /actuator/gateway/routes : cho thấy tất cả loại cấu hình định tuyến theo mặc định của server 
 
-B7: gọi đến service khác mà không cần biết location của microservice hoặc eureka server: dựa trên path được cấu hình thấy trong actuator, truy cập path với host và port của gateway server, nó tự động định tuyến đến Eureka để eureka đưa request tới service tương ứng. Mặc định tên path là tên application.name của service nhưng viết hoa tất cả
+B8: gọi đến service khác mà không cần biết location của microservice hoặc eureka server: dựa trên path được cấu hình thấy trong actuator, truy cập path với host và port của gateway server, nó tự động định tuyến đến Eureka để eureka đưa request tới service tương ứng. Mặc định tên path là tên application.name của service nhưng viết hoa tất cả
+
+  vidu: http://${gatewayserver.hostname}:${gatewayserver.port}/ACCOUNT/me 
+
+====================================================================================================================
+Tuỳ chỉnh định tuyến theo yêu cầu
+
+Ex: ánh xạ route sang 1 route mới route, thêm 1 segment là /eazybank vào ngày sau phần port
+@Bean
+  public RouteLocator myRoutes(RouteLocatorBuilder builder) {
+    return builder.routes()
+      .route(p -> p
+        .path("/eazybank/accounts/**")
+        .filters(f -> f.rewritePath("/eazybank/accounts/(?<segment>.*)","/${segment}")
+            .addResponseHeader("X-Response-Time",new Date().toString()))
+        .uri("lb://ACCOUNTS"))
+      .route(p -> p
+        .path("/eazybank/loans/**")
+        .filters(f -> f.rewritePath("/eazybank/loans/(?<segment>.*)","/${segment}")
+            .addResponseHeader("X-Response-Time",new Date().toString()))
+        .uri("lb://LOANS"))
+      .route(p -> p
+        .path("/eazybank/cards/**")
+        .filters(f -> f.rewritePath("/eazybank/cards/(?<segment>.*)","/${segment}")
+            .addResponseHeader("X-Response-Time",new Date().toString()))
+        .uri("lb://CARDS")).build();
+  }
+// Sử dụng (RouteLocatorBuilder, lấy ra routes. 
+// Ban đầu truyền 1 predicate vào để so sánh xem đường dẫn người gọi khớp với đường dẫn cấu hình
+// thay đổi path, chỉ lấy phần segment đằng sau. 
+// Thêm X-Response-Time vào header. 
+// Redirect qua đúng với uri trỏ đến eureka server
+// có thể thay đổi request:
+//  - thêm header bằng addRequestHeader
+//  - thêm prameter bằng addRequestParameter ...
+
+
+====================================================================================================================
+Cross cutting concerns:
+
+b1: tạo 1 package filter
+b2: tạo 1 class TraceFilter thực thi interface GlobalFilter
+b3: thêm annotaion @Component cho class để spring boot tạo bean
+b4: override lại method Mono<Void> filter (ServerWebExchange exchange, GatewayFilterChain chain)
+  - chain đây thể hiệu chuổi filter, nếu vượt qua filter đến filter tiếp theo cần gọi: chain.filter(exchange)
+ 
+``````````````````````````````````````````````````````````
+Ex: tạo 1 filter để log ra id của header trong mỗi request để debug, nếu không có chuỗi id này sẽ tự động tạo ra.
+
+@Order(1)
+@Component
+public class TraceFilter implements GlobalFilter { 
+  private static final Logger logger = LoggerFactory.getLogger(TraceFilter.class);
+  // Logger của slf4j
+
+  @Autowired
+  FilterUtility filterUtility;
+  // 1 tiện ích giúp thêm, lấy 1 giá trị trong headerz: correlation-id
+
+  @Override
+  public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+    HttpHeaders requestHeaders = exchange.getRequest().getHeaders();
+    if (isCorrelationIdPresent(requestHeaders)) {
+      logger.debug("EazyBank-correlation-id found in tracing filter: {}. ", 
+        filterUtility.getCorrelationId(requestHeaders));
+    } else {
+      String correlationID = generateCorrelationId();
+      exchange = filterUtility.setCorrelationId(exchange, correlationID);
+      logger.debug("EazyBank-correlation-id generated in tracing filter: {}.", correlationID);
+    }
+    return chain.filter(exchange);
+  }
+
+  private boolean isCorrelationIdPresent(HttpHeaders requestHeaders) {
+    if (filterUtility.getCorrelationId(requestHeaders) != null) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  private String generateCorrelationId() {
+    return java.util.UUID.randomUUID().toString();
+  }
+
+}
+=> đưa id này vào header của gatewayserver, sau đó đưa id lần lượt qua các microservice. (cũng cần cấu hình từng microservice nhận vào id ở @ResponseHeader)
+
+``````````````````````````````````````````````````````````
+- đây là FilterUtility:
+
+@Component
+public class FilterUtility {
+  public static final String CORRELATION_ID = "eazybank-correlation-id";
+	
+  public String getCorrelationId(HttpHeaders requestHeaders) {
+    if (requestHeaders.get(CORRELATION_ID) != null) {
+      List<String> requestHeaderList = requestHeaders.get(CORRELATION_ID);
+      return requestHeaderList.stream().findFirst().get();
+    } else {
+      return null;
+    }
+  }
+
+  public ServerWebExchange setRequestHeader(ServerWebExchange exchange, String name, String value) {
+    return exchange.mutate().request(exchange.getRequest().mutate().header(name, value).build()).build();
+  }
+
+  public ServerWebExchange setCorrelationId(ServerWebExchange exchange, String correlationId) {
+    return this.setRequestHeader(exchange, CORRELATION_ID, correlationId);
+  }
+
+}
+``````````````````````````````````````````````````````````
+- Tạo 1 filter, bắt id vừa đưa vào request ở filter trên để đưa vào respone
+- đây là 1 post-filter do thưcj thi logic sau trong hàm .then() của return chain.filter(exchange).then(Mono.fromRunnable(() -> { // logic }));
+
+@Configuration
+public class ResponseTraceFilter {
+  private static final Logger logger = LoggerFactory.getLogger(ResponseTraceFilter.class);
+  @Autowired
+  FilterUtility filterUtility;
+  @Bean
+  public GlobalFilter postGlobalFilter() {
+    return (exchange, chain) -> {
+      return chain.filter(exchange).then(Mono.fromRunnable(() -> {
+        HttpHeaders requestHeaders = exchange.getRequest().getHeaders();
+        String correlationId = filterUtility.getCorrelationId(requestHeaders);
+        logger.debug("Updated the correlation id to the outbound headers. {}", correlationId);
+        exchange.getResponse().getHeaders().add(filterUtility.CORRELATION_ID, correlationId);
+      }));
+    };
+  } 
+}
+``````````````````````````````````````````````````````````
+
+**********************************************************
+https://www.baeldung.com/spring-cloud-custom-gateway-filters
+**********************************************************
 
 
 
-
-
-
+Triển khai docker
 
 
 

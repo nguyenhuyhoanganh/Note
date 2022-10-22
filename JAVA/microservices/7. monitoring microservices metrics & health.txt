@@ -4,7 +4,7 @@ Theo dõi sức khoẻ và số liệu của microservice
  - actuator: được sử dụng để hiển thị thông tin về application đang chạy - tình trạng, số liệu, thông tin, kết xuất, môi trường, beans .... Nó sử dụng HTTP endpoint hoặc JMX beans để người dùng tương tác. Tuy nhiên đây là hướng tiếp cận rất cơ bản để theo dõi microservice, bởi vì mọi microservice có nhiều instances. Tất cả các instances có port number riêng, nơi actuator hiển thị số liệu cụ thể của instance đó => muốn theo dõi tình trạng số liệu của tất cả instance phải truy cập tất cả endpoint actuator của từng instance
   => cần xây dựng 1 cái gì đó giúp chúng at thu thập tất cả thông tin vào 1 nơi duy nhất, từ đó có thể thao dõi sức khoẻ và số liệu của các microservice => có sự giúp đỡ của Mocrometer, Prometheus, Grafana
 
- - Promethues, Grafana: đây là những sản phẩm giúp thu thập tất cả thông tin từ các instances và cung cấp giao diện đẹp để 1 thành viên trong nhóm vận hành chịu trách nhiệm giám sát. Tuy nhiên sử dụng Promethues và Grafana cần dữ liệu từ các microservice riêng lẻ, không thể yêu cầu các microsevice giử dữ liệu đến vì không tối ưu hiệu suất. Promethues và Grafana cố gắng lấy các số liệu từ microsevice bằng cách tự thực hiện gọi đến endpoint /actuator. 1 vấn đề là dữ liệu được hiển thị bởi actuator không ở định dạng mà Promethues mong đợi => cần sử dụng thư viện Micrometer API ở từng microservice để chuẩn bị dữ liệu ở dạng mà Promethues đọc được 
+ - Prometheus, Grafana: đây là những sản phẩm giúp thu thập tất cả thông tin từ các instances và cung cấp giao diện đẹp để 1 thành viên trong nhóm vận hành chịu trách nhiệm giám sát. Tuy nhiên sử dụng Promethues và Grafana cần dữ liệu từ các microservice riêng lẻ, không thể yêu cầu các microsevice giử dữ liệu đến vì không tối ưu hiệu suất. Promethues và Grafana cố gắng lấy các số liệu từ microsevice bằng cách tự thực hiện gọi đến endpoint /actuator. 1 vấn đề là dữ liệu được hiển thị bởi actuator không ở định dạng mà Promethues mong đợi => cần sử dụng thư viện Micrometer API ở từng microservice để chuẩn bị dữ liệu ở dạng mà Promethues đọc được 
  - Micrometer nó là 1 tiêu chuẩn để thu thập số liệu theo cấu hình, nếu có 1 Elastic search plugin của micrometter, nó sẽ chuẩn bị dữ liệu dạng elastic search... tương tự sử dụng ở đây nó sẽ thu thập dữ liệu cho Promethues 
  - Granfana: Promethues hạn chế những gì nó hiển thị trên UI dashboard nhất định mà nó cung cấp. Có thể xây dựng dashboard tuỳ chỉnh. Tuy nhiên nếu muốn xây dựng 1 dashboard tuỳ chỉnh đẹp đẽ đầy đủ thông tin thì cần Granfana, là cấp đọ tiếp theo của Promethues, nó lấy dữ liệu từ Promethues, và cung cấp 1 giao diện người dùng phong phú. Granfana cũng giúp xây dựng cảnh báo được cấu hình tuỳ chỉnh
 ======================================================================================================================
@@ -41,19 +41,102 @@ B4: đến controller, thêm annotation cụ thể trên method muốn kiểm tr
   // value là tên muốn đặt cho số liệu
   // description là mô tả
 
-B5: kiểm tra: trước đó muốn xem metric của 1 instance luôn truy cập qua /actuator/metrics, tuy nhiên khi thêm Prometheus và các thư viên liên quan đến micrometer bên trong pom.xml, actuator cũng hiển thị 1 api mới: actuator/prometheus => sẽ thấy được dữ liệu mà micrometer chuẩn bị cho prometheus
+B5: kiểm tra: trước đó muốn xem metric của 1 instance luôn truy cập qua /actuator/metrics, tuy nhiên khi thêm thư viện micrometer-registry-prometheus bên trong pom.xml, actuator cũng hiển thị 1 api mới: actuator/prometheus => sẽ thấy được dữ liệu mà micrometer chuẩn bị cho prometheus
 
 ======================================================================================================================
 Triển khai prometheus và xem custom metric vừa thực hiện
+- thiết lập với docker
+B1: chỉnh sửa docker file
+B2: tạo docker image
+B3: lưu trữ trong docker hub
+B4: thực hiện docker composer để chạy tất cả các docker container
 
+- thiết lập prometheus bằng docker composer file
+B1: trong folder docker-composer > tạo folder monitoring
+B2: tạo 2 file docker-composer.yml và prometheus.yml
 
+https://github.com/nguyenhuyhoanganh/microservices-with-spring-sectionwise-code/blob/master/section_12/accounts/docker-compose/monitoring/docker-compose.yml
 
+https://github.com/nguyenhuyhoanganh/microservices-with-spring-sectionwise-code/blob/master/section_12/accounts/docker-compose/monitoring/prometheus.yml
 
+- prometheus có trách nhiệm kéo dữ liệu đều đặn từ các microservice trong khoảng thời gian cố định => cần cấu hình cho prometheue.yml cùng vị trí folder với docker-compose.yml.
 
+B3: cấu hình trong prometheus.yml
+```````````````````````````````````````````````````````````
+global:
+## nơi cấu hình các khoảng thời gian mà prometheus tuân theo
+ scrape_interval: 5s 
+ ## là khoảng thời gian giữ 2 lần câof thông tin mới từ các microservice
+ evaluation_interval: 5s 
+ ## bất cứ khi nào xác định 1 rule trong nó, các rule đó cũng được đánh giá mỗi từng đó thời gian.
+scrape_configs:
+## cấu hình các jobs, mỗi job là 1 microservice instance
+  - job_name: 'accounts'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+    - targets: ['accounts:8080']
+  - job_name: 'loans'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+    - targets: ['loans:8090']
+  - job_name: 'cards'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+    - targets: ['cards:9000']
+```````````````````````````````````````````````````````````
+B4: thay đổi trong docker-compose.yml: thêm 1 service prometheus
+```````````````````````````````````````````````````````````
+  prometheus:
+    image: prom/prometheus:latest
+    ## image name được cấu hình tự động bởi prometheus
+    ports:
+      - "9090:9090"  ## mặc định dùng port 9090
+    volumes:
+    ## docker volumes là 1 cơ chế có liên quan đến lưu trữ, docker sẽ có enviroment network riêng. 
+    ## trong enviroment network đó, khi nào chúng ta muốn lưu trữ dữ liệu được tạo bởi docker hoặc docker container, chúng ta sẽ sử dụng volumes
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      ## ở đây là lấy file prometheus.yml trong cùng thư mục, copy nó vào vị trí trong docker container là /etc/prometheus/prometheus.yml. 
+      ## đây là vị trí bên trong docker container volumes, nơi docker image đang mong đợi các cấu hình liên quan đến prometheus, để tạo 1 container
+    networks:
+      - eazybank
+```````````````````````````````````````````````````````````
+B5: bật cmd trên folder monitoring, thực hiện command: 
+  > docker compose up
+B6: kiểm tra actuator/prometheus xem kết quả sau khi invoke api đã custom để thêm metric
+ => chạy api đã tuỳ chỉnh metric với annotation @Time, chúng ta truy cập lại endpoint actuator/prometheus => tìm kiếm từ khoá đúng với value truyền vào annation: getAccountDetails
+ => kết quả bao gồm số lần gọi đến api đã tuỳ chỉnh, tổng thời gian mà API mất để xử lý tất cả các yêu cầu mà nó nhận được, 
+B7: truy cập prometheus: localhost:9090/targets  (9090 được cấu hình trong docker-compose.yml)
+  => hiển thị tất cả các các instance được thiết lập và chạy, có thể check các instance unhealthy
+======================================================================================================================
 
-
-
-
-
-
-
+Cấu hình với grafana
+- thêm 1 service cho grafana trong docker-compose.yml
+```````````````````````````````````````````````````````````
+  grafana:
+    image: "grafana/grafana:latest"
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=password
+    networks:
+     - eazybank
+    depends_on:
+      - prometheus
+```````````````````````````````````````````````````````````
+=> truy cập ui ở localhost:3000/login
+   - đăng nhập với user: admin và password: password
+   - chọn add data source > chọn prometheus > chuyện đén setting
+   - nhập url là http://prometheus:9090  (không dùng localhost do cả grafana và prometheus đều sử dụng chung network eazybank)
+   - các thông tin còn lại để mặc định và click save & test
+=> custom dashboard, có thể sử dụng các dashboard đã cấu hình sẵn:
+   - truy cập trong web grafana tìm kiếm dashboard
+   - đề xuất 2 dashboard:
+     grafana.com/grafana/dashboards/11378
+     grafana.com/grafana/dashboards/4701
+   - import 2 dashboards trên:
+     - chọn dấu + bên thanh navigation trái > chọn import
+     - nhập link dashboard vào ô import via grafana.com > chọn load
+     - chọn data source cho prometheus > click import
+       
+    

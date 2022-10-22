@@ -1,0 +1,5 @@
+https://medium.ninja/geekculture/managing-data-in-microservices-architecture-fb459bdbf71f
+
+https://www.baeldung.com/transactions-across-microservices
+
+https://www.baeldung.com/cs/microservices-db-design

@@ -1,4 +1,4 @@
-- xử lý yêu các yêu cầu định tuyến
+  - xử lý yêu các yêu cầu định tuyến
 - crosscutting concerns (mối quan tâm khác) : logging, auditing, tracing và security
 
 : có thể có hàng trăm microservice và các insatnce của nó bên trong microservice network, muốn thực hiện chuyển hướng đến các micro service khác nhau phù hợp với path, hoặc dựa trên các prametter có thể muốn định tuyến động
@@ -141,7 +141,7 @@ b4: override lại method Mono<Void> filter (ServerWebExchange exchange, Gateway
   - chain đây thể hiệu chuổi filter, nếu vượt qua filter đến filter tiếp theo cần gọi: chain.filter(exchange)
  
 ``````````````````````````````````````````````````````````
-Ex: tạo 1 filter để log ra id của header trong mỗi request để debug, nếu không có chuỗi id này sẽ tự động tạo ra.
+Ex: tạo 1 pre-filter để log ra id của header trong mỗi request để debug, nếu không có chuỗi id này sẽ tự động tạo ra.
 
 @Order(1)
 @Component
@@ -233,11 +233,54 @@ public class ResponseTraceFilter {
 **********************************************************
 https://www.baeldung.com/spring-cloud-custom-gateway-filters
 **********************************************************
-
+====================================================================================================================
 
 
 Triển khai docker
+B1: tạo ra docker images phiên bản mới nhất cho các microservice: 
+ Với các project sử dụng spring maven plugin với sự giúp đỡ của buildpacks (có chỉnh sử trên file pom.xml)
+  - bật cmd trên folder chứa src 
+  - > mvn clean install -Dmaven.test.skip=true
+  - chạy command sẽ tự động xoá folder target và tạo lại, trong có có file .jar mới
+  - > docker build . -t eazybytes/accounts   (-t là khai báo tagname)
 
+B2: tạo docker image cho gateway
+....
 
+B3: đẩy các docker image lên docker hub để sửu dụng docker composer: 
+  > docker push docker.io.eazybytes.accounts
 
+B4 thay đổi docker composer
+  - mở folder docker composer 
+  - mở folder default
+  - chỉnh sửa file docker-compose.yml
+  - thêm service mới là gatewayserver vào service
+  - về depends_on, service này cần khởi động sau tất cacr các service khác như config, eureka, ...
+  - vể restart_policy, nếu service fail, delay 45s và thử lại, tối đa 3 lần, mỗi lần thử lại cách 180s
+``````````````````````````````````````````````````````````
+gatewayserver:
+    image: eazybytes/gatewayserver:latest
+    mem_limit: 700m
+    ports:
+      - "8072:8072"
+    networks:
+      - eazybank
+    depends_on:
+      - configserver
+      - eurekaserver
+      - cards
+      - loans
+      - accounts
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 45s
+        max_attempts: 3
+        window: 180s
+    environment:
+      SPRING_PROFILES_ACTIVE: default
+      SPRING_CONFIG_IMPORT: configserver:http://configserver:8071/
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eurekaserver:8070/eureka/
 
+`````````````````````````````````````````````````````````` 
+B5: chạy file docker-compose: > docker compose up

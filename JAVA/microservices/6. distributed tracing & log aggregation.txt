@@ -1,0 +1,89 @@
+Theo dõi phân phối và tập hợp log
+- client request có thể đi qua nhiều application như service, làm cách nào theo dõi, biết điểm mà request đang  xử lý (có thể trong trường hợp exception xảy ra), làm thế nào biết quá trình xử lý request tại đó mất bao nhiêu thời gian, các tình huống này cần distributor tracing (truy tìm phân phối) bên trong microservice
+- trong kiến trúc microservice, có thể có hàng trăm microservice và các instance của nó, mỗi service sẽ tạo log riêng, nếu muốn debug cần kiểm tra log mỗi service, => cần log aggregation để tập hợp log, khi mỗi service tạo log, nó có thể lập chỉ mục tại tại centralized location (vị trí tập trung), tại đó có thể tìm kiếm, lọc, nhóm các log dựa trên yêu cầu để tìm được nơi bug xảy ra. Theo dõi chuỗi servcice call như 1 request đi qua hàng chục, trăm service, ai đó phàn nàn rằng request mất quá nhiều thời gian để xử lý.
+
+======================================================================================================================
+Spring Cloud Sleuth & Zipkin   
+- Spring Cloud Sleuth: cung cấp auto-configuration cho theo dõi phân tán
+  - nó thêm trace id và span id cho tất cả các log, vì vậy có thể trích xuất từ 1 trace hoặc span trong 1 log aggregation
+  - nó làm điều này bằng cách thêm filter và tương tác với các Spring components để cho các correlation IDs được tạo, vượt qua tất cả system calls
+  - trace format: SCS sẽ thêm 3 phần thông tin vào tất cả các log được viết bới 1 microservice
+     - [<App Name>,<Trace ID>,<Span ID>]
+     - Application name là tên application nơi tạo log, SCS sẽ sử dụng thuộc tính spring.application.name
+     - Trace ID, tương đưng correlation ID, nó là 1 số duy nhất đại diện cho toạn bộ transaction
+     - Span ID là 1 ID duy nhất đại diện cho 1 phần của transaction, mỗi service tham gia trong trasaction sẽ có span ID của riêng nó. Span ID đặc biệt quan trọng khi tích hợp Zipkin. Lưu ý: Span ID của microservice đầu tiên khởi tạo transacton bằng trace ID
+
+
+- Zipkin
+  - là 1 open-source trực quan dữ liệu giúp tổng hợp tất cả log và tập trung dữ liệu thời gian cần thiết để khắc phục sự cố độ trễ trong kiến trúc microsrvice
+  - nó cho phép chúng ta chia nhỏ transaction thành các phần nhỏ và xác định trực quan nơi có thể có các hotspots về hiệu xuất, do đó giảm thời gian trong việc phân loại bằng contextualizing errors (bối cảnh hoá các lỗi ??) và delays
+  - cá nhân microservice sẽ truyền đath các câu lệnh log tới 1 centralized location, là 1 Sipkin server.
+  - cách các microservice giao tiếp: theo default, nó giao tiếp 1 cách đồng bộ, khi transaction đã xảy ra sử dụng http call. Vì lý do hiệu suất, có thể giao tiếp bất động bộ là 1 tuỳ chọn có sẵn để tiếp tục giử log nhanh chóng
+  - có 4 thành phần:
+    - Collector: chịu trách nhiệm thu thập tất cả các thông tin logger đến zipkin server, khi nó thu thập, nó xác thực và lưu trữ log, lập chỉ mục cho chúng
+    - Storage: Zipkin hỗ trợ inmemory MSQL, Cassandra, Elastic search để lưu trữ tất cả các log. Ở đây sẽ sử dụng imemory
+    - Zipkin Query Service cung cấp 1 api json đơn giản để tìm, truy vấn trace.
+    - Web UI là giao diện người dùng web cung cấp phương pháp để xem trace dựa trên service, time, và các annotations
+
+======================================================================================================================
+thực thi Spring Cloud Sleuth:
+B1 thêm depensency vào pom.xml của các microservice
+<dependency>
+  <groupId>org.springframework.cloud</groupId>
+  <artifactId>spring-cloud-starter-sleuth</artifactId>
+</dependency>
+B2: thêm vài câu lệnh logger trong microservice
+
+
+triển khai zipkin:
+B1: > docker run -d -p 9411:9411 openzipkin/zipkin
+ tạo container của image openzipkin/zipkin tại port 9410
+  => truy cập : localhost:9410/zipkin/
+B2: thêm dependencies trong pom.xml
+<dependency>
+  <groupId>org.springframework.cloud</groupId>
+  <artifactId>spring-cloud-sleuth-zipkin</artifactId>
+</dependency>
+
+B3: chỉnh sửa application.properties để các microservice biết zipkin endpoint url
+## mặc định do các vấn đề hiệu suất spring-sleuth chỉ giử 10% log tới zipkin, cầu hình này để giử 100% log
+spring.sleuth.sampler.percentage=1
+## endpoit của zipkin
+spring.zipkin.baseUrl=http://localhost:9411/
+
+đẩy tất cacr spring sleuth log vào 1 jms server như rabbitmq (1 triển khai của java messaging service mechanism), nơi để đẩy các log bất đồng bộ vào hàng đợi và bất cứ ai lắng nghe hàng đợi, có thể lấy mesage và bắt đầu xử lý nó theo yêu cầu business
+B1: thêm denpendency vào pom.xml
+<dependency>
+  <groupId>org.springframework.amqp</groupId>
+  <artifactId>spring-rabbit</artifactId>
+</dependency>
+B2: khởi động rabbitmq ở local
+> docker run -it --rm --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3-management
+## sử dụng 2 port do rabbitmq có 2 application nội bộ 1 là WebUI, 1 là loại ứng dựng liên quan đến quản lý theo dõi tất cả ... enviroment
+=> truy cập web ui abwngf localhost:15672  usernamw và password là guest
+
+B3: tạo queue mới: 
+  - tới tab queue  
+  - chọn add a new queue với tên zinkin
+
+B4: chỉnh sửa application.properties
+## nói với sping-sleuth giửu mess tới rabbit
+## mặc định web sẽ tuân theo phong cách đồng bộ, bây h sẽ tuân theo bất động bộ, nó sẽ cố đẩy vào queue
+spring.zipkin.sender.type=rabbit
+## queue name trên rabbitmq
+spring.zipkin.rabbitmq.queue=zipkin
+spring.rabbitmq.host=localhost
+spring.rabbitmq.port=5672
+spring.rabbitmq.username=guest
+spring.rabbitmq.password=guest
+
+
+
+
+
+
+
+
+
+
+

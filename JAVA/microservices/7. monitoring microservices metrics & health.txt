@@ -1,0 +1,59 @@
+Theo dõi sức khoẻ và số liệu của microservice
+- các tuỳ chọn tiếp cận khác nhau để theo dõi microservice health và metrics:
+
+ - actuator: được sử dụng để hiển thị thông tin về application đang chạy - tình trạng, số liệu, thông tin, kết xuất, môi trường, beans .... Nó sử dụng HTTP endpoint hoặc JMX beans để người dùng tương tác. Tuy nhiên đây là hướng tiếp cận rất cơ bản để theo dõi microservice, bởi vì mọi microservice có nhiều instances. Tất cả các instances có port number riêng, nơi actuator hiển thị số liệu cụ thể của instance đó => muốn theo dõi tình trạng số liệu của tất cả instance phải truy cập tất cả endpoint actuator của từng instance
+  => cần xây dựng 1 cái gì đó giúp chúng at thu thập tất cả thông tin vào 1 nơi duy nhất, từ đó có thể thao dõi sức khoẻ và số liệu của các microservice => có sự giúp đỡ của Mocrometer, Prometheus, Grafana
+
+ - Promethues, Grafana: đây là những sản phẩm giúp thu thập tất cả thông tin từ các instances và cung cấp giao diện đẹp để 1 thành viên trong nhóm vận hành chịu trách nhiệm giám sát. Tuy nhiên sử dụng Promethues và Grafana cần dữ liệu từ các microservice riêng lẻ, không thể yêu cầu các microsevice giử dữ liệu đến vì không tối ưu hiệu suất. Promethues và Grafana cố gắng lấy các số liệu từ microsevice bằng cách tự thực hiện gọi đến endpoint /actuator. 1 vấn đề là dữ liệu được hiển thị bởi actuator không ở định dạng mà Promethues mong đợi => cần sử dụng thư viện Micrometer API ở từng microservice để chuẩn bị dữ liệu ở dạng mà Promethues đọc được 
+ - Micrometer nó là 1 tiêu chuẩn để thu thập số liệu theo cấu hình, nếu có 1 Elastic search plugin của micrometter, nó sẽ chuẩn bị dữ liệu dạng elastic search... tương tự sử dụng ở đây nó sẽ thu thập dữ liệu cho Promethues 
+ - Granfana: Promethues hạn chế những gì nó hiển thị trên UI dashboard nhất định mà nó cung cấp. Có thể xây dựng dashboard tuỳ chỉnh. Tuy nhiên nếu muốn xây dựng 1 dashboard tuỳ chỉnh đẹp đẽ đầy đủ thông tin thì cần Granfana, là cấp đọ tiếp theo của Promethues, nó lấy dữ liệu từ Promethues, và cung cấp 1 giao diện người dùng phong phú. Granfana cũng giúp xây dựng cảnh báo được cấu hình tuỳ chỉnh
+======================================================================================================================
+
+Triển khai micrometer trong từng microservice để thu thập số liệu theo nhà cung cấp muốn sử dụng (sử dụng Promethues)
+B1: thêm dependencies vào pom.xml
+```````````````````````````````````````````````````````````
+<dependency>
+  <groupId>io.micrometer</groupId>
+  <artifactId>micrometer-core</artifactId>
+</dependency>
+<dependency>
+  <groupId>io.micrometer</groupId>
+  <artifactId>micrometer-registry-prometheus</artifactId>
+</dependency>
+```````````````````````````````````````````````````````````
+B2: lợi thế của micrometer là không bị giới hạn bởi số liệu được cung cấp từ actuator bởi springboot. có thể hiển thị số liệu tuỳ chỉnh dự trên yêu cầu. Thực hiện 1 ví dụ cung cấp thêm các số liệu để có thể sử dụng giám sát các yêu cầu tuỳ chỉnh. Để thực hiện ví dụ thêm dependency: aop (lập trình hướng khía cạnh) giúp tuỳ chỉnh số liệu muốn trích xuất
+```````````````````````````````````````````````````````````
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-aop</artifactId>
+</dependency>
+```````````````````````````````````````````````````````````
+B3: tạo bean vào main class hoặc 1 lớp configuration tuỳ chỉnh: 
+  // muốn xem mất bao nhiêu thời gian để thực hiện request
+  @Bean
+  public TimedAspect timedAspect(MeterRegistry registry){
+    return new TimedAspect(registry);
+    // TimedAspect và MeterRegistry đến từ thư viện micrometter.core 
+  }
+
+B4: đến controller, thêm annotation cụ thể trên method muốn kiểm tra thời gian thực hiện request
+  @Timed(value = "getAccountDetails.time", description = "Time taken to return Account Details")
+  // value là tên muốn đặt cho số liệu
+  // description là mô tả
+
+B5: kiểm tra: trước đó muốn xem metric của 1 instance luôn truy cập qua /actuator/metrics, tuy nhiên khi thêm Prometheus và các thư viên liên quan đến micrometer bên trong pom.xml, actuator cũng hiển thị 1 api mới: actuator/prometheus => sẽ thấy được dữ liệu mà micrometer chuẩn bị cho prometheus
+
+======================================================================================================================
+Triển khai prometheus và xem custom metric vừa thực hiện
+
+
+
+
+
+
+
+
+
+
+
+

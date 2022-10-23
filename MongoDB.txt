@@ -1,0 +1,136 @@
+- Mỗi database có thể chứa 1 hoặc nhiều collections, collection ~ table
+- mỗi collection chứa 1 hoặc nhiều data structures được gọi là documents, document ~ row trong table 
+- mỗi document chứa data về 1 entity duy nhất như 1 post, 1 user, ...
+- collection như là parent structure, chứa tất cả các entities như 1 blog collection chứa tất cả posts, ...
+- document có 1 data format BSON giống với JSON, giúp dễ dàng tương tác
+
+- "mongodb là 1 document database với khả năng mở rộng và sự linh hoạt mà bạn muốn với truy vấn và lập chỉ mục mà bạn cần"
+ => mongodb là document-based database, lưu trữ data trong các documents thay vì lưu trữ trong row của table (relational database), là các cấu trúc dạng field-value giống JSON
+ => nó là NoSQL database, không phải SQL
+ => mongodb có khả năng mở rộng, làm nó rất dễ dàng để phân phối dữ liệu trên nhiều máy 
+ => mongodb rất linh hoạt, không cần xác định trước document data schema, trước khi điền data, mỗi document có thể có 1 số fields, loại fields khác nhau. và có thể thay đổi các fields mọi lúc
+ => ngoài ra mongodb cũng có hiệu suất cao, nhờ các tính năng như nhúng data models, lập chỉ mục, chia sẻ các documents linh hoạt
+
+- BSON là data format giống JSON nhưng nó được định kiểu
+  => tất cả các value sẽ có 1 data type như string, boolean, date, object, array...
+- BSON cũng có các fields đi với values như JSON tương ứng field là column trong relational database, tuy nhiên nó linh hoạt hơn rất nhiều
+  - ex: 1 column trong 1 row chỉ mang 1 giá trị duy nhất, trong mongodb có thể lưu được nhiều giá trị như 1 array
+- BSON có kích thước tối đa cho mỗi document là 16mb, nhưng nó có thể tăng lên
+- mỗi document BSON chứa 1 id duy nhất, hoạt động như primary key của document. Nó được tự động tạo với kiểu object_Id mỗi khi tạo 1 document mới
+
+- Embedded documents trong mongodb, giúp nhúng các documents vào 1 document. như nhiều comment documents vào 1 post document, được biểu diễn như đưa data của table vào "table có tham chiếu đến nó" thành 1 table duy nhất => có thể dễ dàng đọc tất cả data chúng ta cần cùng 1 lúc (còn được gọi là de-normalizing)
+
+=========================================================================
+- cài đặt mongoDB với window
+B1: truy cập mongodb.com
+B2: chọn products trên navbar > chọn community edition
+B3: chọn download MongoDB Community Server với package là .msi
+B4: cài đặt mongodb với setup type là complete > check Install MongoDB as a Service > check Install MongoDB Compass (là giao diện người dùng trên window)
+B5: tạo 1 thư mục cho mongoDB lưu trữ data
+  > đến vị trí ổ đĩa mà mongodb được install, thường là ổ C
+  > tạo 1 folder data/db trong ổ C
+B6: khởi động mongo server
+  - đến C/Program files/MongoDB/Server/6.0/bin
+  - ở đây là mongod.exe là server của mongo, mongo.exe là mongo shell
+  - mở cmd ở thư mục bin
+  - chạy mongod.exe : > .\mongod.exe
+B7: chạy shell để thao tác với mongodb
+  - mở cmd trong thư mục bin
+  - chạy mongo.exe : > .\mongo.exe
+=========================================================================
+- cài đặt environment cho mông để thực hiện mongo.exe ở bất cứ đâu
+> Edit the system environment variables
+> Environment Variables
+> Edit Path trong System variables
+> copy path đến bin > tạo mới 1 field trong Path
+=========================================================================
+- các command tương tác với database trên shell
+-------------------------------------------------------------------------
+: chọn db muốn tương tác, nếu db chưa có, tạo db tương ứng
+> use _dbname
+-------------------------------------------------------------------------
+: để insert nhiều document
+> db._collectionname.insertMany()
+ex: tạo collection tours, insert nhiều javascript object, mongo tự động convert qua dữ liệu kiểu BSON
+> db.tours.insertMany([{ name: "The Sea Explorer", price: 497, rating: 4.8 }, { name: "The Snow Adventurer", price: 997, rating: 4.9, difficulty: "easy" }]) 
+-------------------------------------------------------------------------
+: để insert 1 document
+> db._collectionname.insertOne()
+ex:
+> db.tours.insertMany({ name: "The Sea Explorer", price: 497, rating: 4.8 })
+-------------------------------------------------------------------------
+: kiểm tra tất cả document trong 1 collection
+> db._collectionname.find()
+ex: kiểm tra tất cả document trong collection tours
+> db.tours.find()
+-------------------------------------------------------------------------
+> show dbs : cho thấy tất cả dữ liệu trong database
+ monggo tự động tạo thêm các database admin, config, local
+> show collections : hiển thị các collections trong db đang sử dụng
+> quit() hoặc control + C : thoát mongo shell
+-------------------------------------------------------------------------
+TÌM KIẾM
+> db.tours.find({ name: "The Forest Hiker" }) : tìm kiếm documents theo field nào đó trong collections 
+- sử dụng toán tử truy vấn trong mongodb
+> db.tours.find({ price: {$lte: 500} }) : tìm kiếm giá NHỎ HƠN HOẶC BẰNG 500
+> db.tours.find({ price: {$lt: 500}, rating: {$gte: 4.8} }) : tìm kiếm giá NHỎ HƠN 500 và rating LỚN HƠN HOẶC BẰNG 4.8
+> db.tours.find({ $or: [ {price: {$lt: 500}}, {rating: {$gte: 4.8}} ] }) : tìm kiếm giá NHỎ HƠN 500 "HOẶC" rating LỚN HƠN HOẶC BẰNG 4.8
+> db.tours.find({ $or: [ {price: {$lt: 500}}, {rating: {$gte: 4.8}} ] }, {name: 1}) : tìm kiếm chỉ trả về field name ngoài id
+-------------------------------------------------------------------------
+CẬP NHẬT
+> db.tours.updateOne({ name: "The Snow Adventurer" }, { $set: {price: 597} }) : CẬP NHẬT price cho document có field name = "The Snow Adventurer", *CHỈ DOCUMENT ĐẦU TIÊN TÌM THẤY ĐƯỢC CẬP NHẬT*, nếu không có field price sẽ thêm 1 field mới và set giá trị cho nó
+> db.tours.updateMany({ price: {$gt: 500}, rating: {$gte: 4.8} }, { $set : {premium: true} }) : CẬP NHẬT NHIỀU DOCUMENT
+-------------------------------------------------------------------------
+THAY THẾ
+> db.tours.replaceMany() : tương tự update, nhưng thay thế tất cả các field
+> db.tours.replaceOne() : thay thế 1 document đầu tiên tìm thấy
+-------------------------------------------------------------------------
+XÓA
+> db.tours.deleteMany({ rating: {$lt: 4.8} }) : xóa tất cả document có field rating nhỏ hơn 4.8
+> db.tours.deleteMany({}) : xóa tất cả document
+
+=========================================================================
+Tương tác với Mongo Compass (là giao diện ứng dụng)
+B1: chọn New Connection trên navigation
+B2: cấu hình host để connect, mặc định là localhost với port là 27017 tương tự port của mongo shell  >  click ok
+=========================================================================
+Tạo MongoDB trên Atlas (là 1 remote database)
+B1: trên product > chọn MongoDB Atlas trong mục CLOUD
+B2: tạo account
+B3: hiện tại khi mới đăng nhập, sẽ mặc định ở tại project với tên là Project 0 => tạo project mới > click tên project (sẽ hiển thị pop-up các project đã tạo) > chọn New Project
+B4: điền tên project > next
+B5: có thể chọn thêm những thành viên sử dụng chung 1 project, nếu không có chọn Create Project
+B6: Tạo Cluster (như 1 instance của database) > để mặc định sẽ tạo 1 cluster tên M0 giá free với 512Mb lưu trữ > chọn Create
+B7: trên trang web mới để tạo 1 cluster free chọn Build A Database > chọn Create ở phần Shared > chọn Create Cluster
+=========================================================================
+Kết nối Cluster với Mongo Compass
+B1: Sau khi tạo Cluster, tạo username và password truy cập cluster
+B2: Mục Add entries to your IP Access List cho phép thêm các ip cố định truy cập đến cluster của project > chọn Add My Current Ip Address > chọn Finish an Close
+B3: đi đến database > chọn Go to Database
+B4: chọn Connect > Connect using MongoDB Compass > I have MongoDB Compass
+B5: chọn phiên bản Compass, thường thì là 1.12 or later
+B6: atlas tự động tạo connection string để tương tác với Mongo Compass => copy connection string
+B7: chọn connect trên menu của Compass > Click SRV Record > dán connection string vào ô Hostname
+B8: điền đúng thông tin username và password được truy cập vào cluster > chọn Connect
+=> có thể thao tác với giao diện Compass cũng đồng bộ với Atlas
+=========================================================================
+Kết nối với Mongo Shell
+- tương tự trên, chọn Connect with thư Mongo Shell
+- chọn I have the Mongo Shell Installed
+- copy link connect
+- chạy command: > mongo _Connect_string
+- điền password
+ => đã connect thành công
+=========================================================================
+Kết nối application > chọn Connect Your Application
+- Chọn Driver là ngôn ngữ sử dụng
+- Chon vesion
+- Copy Connection String,
+  - Connection String có dạng: mongodb+srv://hoanganh:<password>@cluster0.mgbiqek.mongodb.net/?retryWrites=true&w=majority 
+  - thay thế password vào đúng vị trí trong Connection String
+  - để kết nối tới 1 database cố định, ví dụ database với tên là myDB (DB này đã được tạo trên cluster)
+  - thêm tên DB vào sau phần ...mongodb.net/_DB_NAME?retryWrites=true&...
+- Tạo enviroment variable trên application để lưu trữ Connection String. Tuỳ từng ngôn ngữ sẽ có cấu hình riêng khác, tuy nhiên điều liên quan đến Connection String này 
+
+
+

@@ -1,0 +1,255 @@
+- cách triển khai, duy trì cơ sở hạ tầng, từ phục hồi, tự mở rộng quy mô trong microservice
+  - nếu có hàng nghìn instances đang chạy trong ứng dụng doanh nghiệp, làm thế nào để tự động hoá việc triển khai và khôi phục (automate the deployments, rollouts, rollbacks). Như muốn triển khai phiên bản mới của các microservice, và khi triển khai cần không có bất cứ thời gian chết nào 
+   Ex: account microservice với 10 instances, nếu có 1 docker image mới cho account microservice phiên bản tiếp theo chứa các tính năng mới, mong muốn rằng chuyển từ phiên bản cũ sang phiên bản mới 
+     => thay thể docker image cũ bằng docker image mới bên trong các container sẽ không có khoảng thời gian chế  t nào. 
+     => có thể vì lý do bất kỳ, phiên bản mới được triển khai gặp một số vấn đề => làm thế nào để khôi phục tất cả cấc phiên bản trước đó sẽ là 1 thách thức, đảm bảo thực hiện thách thức này cho tất cả các microservice 1 các tức thì và không cần triển khai thủ công (mong muốn tự động hoá)
+  - vấn đề về tự động hồi phục các service (make services are self-healing)
+   Ex: nếu trong microservice, 1 trong những instance không phản hồi, vị trí địa lý nới triển khai gặp 1 số sự cố mạng. Do đó không thể cung cấp bất kỳ phản hồi nào cho khách hàng 
+     => cần 1 cơ chế để tự động giúp kill container và mang đến 1 container mới tại đó (không cần giám sát từng microservice thủ công)
+  - làm thế nào mở rộng quy mô dịch vụ (auto scale service) 
+   Ex: netflix sẽ có lượng truy cập ít hơn vào thứ 2 - 6, và nhiều hơn vào t7, cn
+     => netflix nên có 1 cơ chế để xác định tải của microservice dựa trên các số liệu như mức sử dụng cpu và có cách tự động mở rộng quy mô bằng các thêm nhiều instance hơn
+==========================================================================================================================
+
+Kubernetes: là 1 hệ thống mã nguồn mở cho việc tự động triển khai, mở rộng và quản lý các containerzed applications. Đây là nền tẳng dàn dựng nổi tiếng nhất và nó là nền tảng cloud neural. (còn được viết tắt là K8s)
+
+Kubernetes cung cấp cho bạn với 1 khuôn khổ để chạy các dịch vụ phân tán 1 cách bền bỉ. Nó đảm nhận việc mở rộng quy mô và chuyển đổi dự phòng cho ứng dung, cung cấp các mẫu triển khai và hơn thế nữa:
+  - Service discovery và load balancung (phát hiện và cân bằng tải)
+  - Storage orchestration (điều phối lưu trữ)
+  - Tự động rollouts (triển khai) và rollback(quay lại phiên bản cũ)
+  - Automatic bin packing
+  - Self-healing (tạo instance mới thay instance hỏng)
+  - Secret và configuration management (nội bộ kubernetes có cơ chế xử lý các bí mật và các thuộc tính bằng cách sử dụng quản lý cấu hình bên trong nó)
+
+Kiến trúc bên trong của kubernetes:
+
+- Về cơ bản, kubernetes sẽ xử lý các cluster của node trong kiến trúc microservice 
+- cluster là tập hợp rất nhiều server khác nhau làm việc cùng nhau để đạt được kết quả. Cluster chứa nhiều server cần phải có 1 tiêu chuẩn để duy trì các server trong cluster
+     => cluster có 1 node master và các node worker, các node worker đảm nhận tất cả công việc như nhận request của client, thực thi code trong container hoặc docker image. Trong khi đó node master sẽ chăm sóc toàn bộ cluster để chạy khoẻ mạnh không gặp bất kỳ vấn đề gì, nếu có vấn đề, master sẽ tự phục hồi để cluster luôn trong tình trạng khoẻ mạnh.
+=> Khi có hàng nghìn microservice và các instance của nó, chúng ta triển khai tất cả các microservice docker container và các server khác nhau trên toàn cầu (1 vài cho ng châu á, 1 vài cho ng châu âu, ..). Bất kể triển khai ở đâu, chúng cũng đều là node worker từ 1 cluster, và master node sẽ quản lý chúng, có thể có hàng nghìn node worker. Chúng ta cũng có thể có 1 số node master, dựa trên số lượng node worker cần quản lý.
+- vai trò và thành phần của master node
+   - vai trò đảm bảo tất cả woker node đang hoạt động tốt mà không có bất kỳ vấn đề nào bên trong cluster
+   - có 4 thành phần quan trong trong master node;
+      1. Kube API Server: giống như bất kỳ rest service, master node sẽ hiển thị tất cả các api sử dụng kube APi Server. Bất cứ ai muốn tương tác với cluster từ bên ngoài, họ cần phải đi qua kube api server. Có thể nghĩ kube api server như gateway của cluster, nó chỉ cho những người dùng được xác thực hoặc hệ thống được xác thực mới tương tác được với cluster. Bất cứ khi nào muốn tương tác với kubernetes cluster, chỉ có thể tương tác với master node, không bao giờ tương tác được với worker node. Tương tác với kube API Server có thể qua UI hoặc CLI (kubectl).
+      2. Scheduler: là thành phần chịu trách nhiệm làm việc với các node worker, làm tất cả các tính toán nội bộ: Ex: nếu muốn tạo 1 container mới dựa trên microservice mới, nó sẽ đi kiểm tra xem worker node nào có ít container, chịu tải ít hơn, dựa trên đó sẽ lên lịch triển khai vào worker tương ứng. Dựa trên hướng dẫn lên lịch đến các worker, container sẽ được triển khai trong 1 pod. 
+=> Scheduler sẽ lập lịch cho việc thêm, xoá, cập nhật của tất cả các container bằng cách nhận các lệnh từ kube API Server (UI hoặc CLI)
+      3. Controller manager kiểm tra sức khoẻ của từng container, nếu gặp vấn đề sẽ thay thế nó bằng container mới.  Dựa trên định nghĩa đã đưa ra trong quá trình triển khai, nó sẽ luôn cố gắng đạt được mục tiêu chúng ta đề ra. 
+       => có design state và current state, controller manager sẽ luôn đảm bảo desgin state và curent state sẽ khớp nhau
+4.Etcd: là bộ não của cluster, là cơ sở dữ liệu lưu trữ thông tin các tất cả các chi tiết cluster (bao nhiêu worker node, bao nhiêu phần trong từng worker node, có bao nhiêu container được triển khai…). Bất cứ khi nào scheduler tạo một pod mới hoặc 1 worker mới, nó phải đến cập nhật trên etcd.  Etcd cũng lưu trữ những command của người dùng (giửu qua kube api server), controller manager tương tác với etcd để hiểu những gì được mong đợi.
+
+=> 4 thành phần này gọi là control panel. Master node chỉ quản lý các worker node container với sự hỗ trợ của worker node trong cluster. Nó không cần nhiều tài nguyên máy chủ. Do đó, master node được triển khai với dung lương ít so với worker node.
+
+- worker node: có thể có bất kỳ số lượng nào, dựa trên lưu lượng truy cập nhận được
+ - worker node có 4 thành phần:
+1.Kubelet: là 1 tác nhân chạy bên trong mỗi node, với kubelet sẽ có liên kết giữa master node và worker node. Scheduler nhận command từ kube API server, để xác định worker node nào cần triển khai, thông qua kubelet để hướng dẫn worker node
+2.Docker, để triển khai các container
+3.Kube proxy: giúp hiển thị tất cả các container endpoint url đến end user. End user cố gắng tương tác với application, dẽ đến với kube proxy, để kube proxy đảm bảo chuyển hướng đến đúng container
+4.Pod: là thành phần triển khai nhỏ nhất bên trong worker node. Bất cứ khi nào triển khai 1 microservice, kubernetes sẽ tạo ra các pod nhỏ bị cô lập, để chúng hoạt động độc lập giống như cách chúng ta mong đợi bên trong kiến trúc microservice. Bên trong pod, chúng ta sẽ triển khai  container, mong đợi rằng mỗi lần kube-proxy nhận được hướng dẫn triển khai một microservice, nó sẽ tạo 1 pod, chứa container triển khai microservie đó. Mỗi pod sẽ chứa 1 container. Một số trường hợp, container chính cần các container tiện ích hỗ trợ nó, khi đó chúng ta triển khai các container này trong 1 pod duy nhất. Bên trong kubernetes tạo ra rất nhiều pod, giống như các mấy ảo, có thể nghĩ pod là 1 mini worker, bên trong pod triển khai 1 hoặc 2 container, nhưng k bao giờ triển khai quá nhiều container. Khi các container triển khai vào pod, mỗi pod sẽ có ip, port tương tác với các container, những chi tirts triển khai này được hiển thị ra bên ngoài với sự giúp đỡ của kube-proxy.
+
+==========================================================================================================================
+
+Kubernets rất modular , linh hoạt và có thể mở rộng. Nó có thể triển khai tại chỗ, trong trung tâm dữ liệu của bên thứu 3 hoặc bất kỳ nhà cung cấp đám mây phổ biển nào và thậm chí trên nhiều nhà cung cấp đám mây.
+Việc tạo và duy trì 1 K8s Cluster có thể là 1 thách thức. Do đó, nhiều doanh nghiệp tìm kiếm các nhà cung cấp đám mây giúp họ dễ dàng duy trì kiến trúc microservice sử dụng kubernetes.
+- GCP - GKE (Google Kubernetes Engine) (miễn phí)
+- AWS - EKS (Elastic Kubernetes Service)
+- Azure - AKS (Azue Kubernetes Serveice)
+
+
+Cách tạo 1 kubernestes cluster với GCP:
+B1: truy cập cloud.google.com
+B2: tạo 1 tài khoản (được cung cấp miễn phí 300$ chi tiêu trong GCP) 
+cần cung cấp thông tin thanh toán quốc tế (chịu)
+B4: tạo Cloud SDK: Command Line Interface, giúp đưa ra các lệnh cho GCP
+B5: quay lại cloud.google.com > click button Console
+B6: tạo 1 project mới, nếu bắt đầu, sẽ tự động tạo 1 project với tên là My First Project
+B7: đến Dashboard của project, tìm kiếm Kubernetes Engine > Chọn Enable => hiển thị Dashboard của Kubernetes Engine
+B8: tạo 1 cluster: trên navigation chọn Cluster > chọn Create > chọn Configure ở phần Standard
+B9: để các cấu hình mặc định name, loctaion, …, chọn Create
+  - Mặc định cluster có 3 nodes
+B10: bật tính năng logging cho cluster 
+> search, chọn APIs & Services 
+> Click ENABLE APIS AND SERVICES
+> search Cloud Logging API > chọn Enable 
+ => có thể xem các log của các container trên dashboard
+B11: bật tính năng monitoring cho cluster
+        > trong API & Services, search Stackdriver API > Enable tất cả 5 kết quả tìm thấy
+
+Connect với cluster bằng shell trên dashboard:
+B1: chọn phần action ở bên phải ngoài cùng trên cluster trong danh sách cluster > chọn connect
+B2: copy Command-line access
+B3: chọn biểu tượng mở Active Cloud Shell trên góc phải thanh navbar => mở shell trong trình duyệt
+B4: pass command-line vào shell > thực thi (nếu hiển thị ra hộp thoại > chọn Authorise)
+
+> kubectl get nodes  
+Hiển thị các node trong cluster, => cho biết đã kết nối với cluster
+
+Connect với cluster bằng Google SDK: 
+B1: truy cập Google SDK
+> gcloud --version 
+Cung cấp chi tiết về version của SDK
+B2: pass command-line connect vào SDK
+> kubectl  get pods
+Hiển thị tấc cả các pod, có thể có vài pod khi tạo cluster, nhưng nó là pod trong nội bộ được tạo bởi kubenetes, không liên quan đến các ứng dụng triển khai => không hiện trong danh sách pod
+ > kubectl get deployment
+Triển khai kubernetes
+> kubectl get all
+Hiển thị tất cả các thành phần bên trong cluster, sẽ có 1 service được tạo bởi framework, service này giúp có thể truy cập vào framewo. Service là 1 khái niệm trong kubernetes, sử dụng chúng để expose các node và application cho người dùng. Kube-proxy tạo ra các services 
+
+==========================================================================================================================
+Tạo các configuration file để triển khai microservice lên kubernetes:
+ - cung cấp cho kubernetes biết: loại docker image nó sử dụng để tạo container trong 1 pod, làm sao để phơi bày nó ra bên ngoài, hạn chế nào cho việc phơi bày
+B1: tạo 1 folder kubernetes
+B2: tạo các file cấu hình yml bên trong folder:
+
+Source code cấu hình kubernetes:
+
+https://github.com/nguyenhuyhoanganh/microservices-with-spring-sectionwise-code/tree/master/section_14/kubernetes
+
+- trong file config cần cung cấp: Ex về zipkin config
+
+```````````````````````````````````````````````````````````````````````````````````
+apiVersion: apps/v1  
+##là version để sử dụng tương tác với Kube API Server
+kind: Deployment     
+##cho biết loại cấu hình, đây là loại Deployment
+metadata:
+##thông tin mô tả
+  name: zipkin-deployment
+  ## tên của config
+  labels:
+  ## nhãn của toàn bộ application, giúp sử dụng ở những nơi khác để tham chiếu đến nó
+    app: zipkin
+    ##tên của application
+spec:
+## thông số kỹ thuật
+  replicas: 1
+  ##số bản sao (số instance)
+  selector:
+    matchLabels:
+      app: zipkin
+      ## đặt trùng với label cung cấp bên trên metadata
+      ## sử dụng nhãn để chỉ định thông số cấu hình cho đúng config định nghĩa trên metadata
+  template:
+  ##chỉ định mẫu cho cấu hình
+    metadata:
+      labels:
+        app: zipkin
+        ## chỉ định giống trên metadata
+    spec:
+      containers:
+      - name: zipkin
+        ##tên container
+        image: openzipkin/zipkin
+        ## tên docker image
+        ports:
+        - containerPort: 9411
+          ## port container chạy, 
+---
+apiVersion: v1
+## cần khác với tên của loại deploy
+kind: Service
+metadata:
+  name: zipkin-service
+spec:
+  selector:
+    app: zipkin
+    ## trùng với label name phần Deployment, để áp dụng Service cho phần Deployment
+  type: LoadBalancer
+  ## type là load balancer để phơi bày microservice ra ngoài, cần bằng các yêu cầu nhận được đến từng instance (số lượng insatnce bằng số lượng replicas)
+  ## cách triển khai load balancer đơn giản của kubernetes
+  ports:
+    - protocol: TCP
+      port: 9411
+      ## port để phơi bày microservice với bên ngoài
+      targetPort: 9411
+      ## ánh xạ port từ deploy đến service như sử dụng
+      ## luôn phả giống với containerPort
+```````````````````````````````````````````````````````````````````````````````````
+
+- 1 file cung cấp 2 loại cấu hình khác nhau dựa vào thuộc tính kind, 1 cho Deployment, 1 cho Service (service quyết định xem bạn có muốn phơi bày microservice hay k, hoặc muốn đặt 1 số hạn chế). 2 loại phân tách bởi ---
+- name của metadata của 2 loại cấu hình deploy và service cần phải khác nhau, khi 2 microservice tương tác với nhau, cấu hình cho loại Service được sử dụng, giống docker compass thay vì localhost. Tên của cấu hình cho Service được dùng để kết nối với các micorservice khác. Trong cấu hình của Service:
+
+- Có 1 file configmaps.yml để lưu trữ các biến cấu hình:
+
+```````````````````````````````````````````````````````````````````````````````````
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eazybank-configmap
+data:
+  SPRING_ZIPKIN_BASEURL: http://zipkin-service:9411/ 
+  ## host name và port sử dụng giống như cấu hình Service của từng file
+  ## file zipkin config có service name là zipkin-service, port là 9411
+  SPRING_PROFILES_ACTIVE: prod
+  SPRING_CONFIG_IMPORT: configserver:http://configserver-service:8071/
+  EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eurekaserver-service:8070/eureka/
+```````````````````````````````````````````````````````````````````````````````````
+
+- Cấu hình cho 1 microservice, có thêm phần sử dụng các biến enviroment:
+
+```````````````````````````````````````````````````````````````````````````````````
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: accounts-deployment
+  labels:
+    app: accounts
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: accounts
+  template:
+    metadata:
+      labels:
+        app: accounts
+    spec:
+      containers:
+      - name: accounts
+        image: eazybytes/accounts:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          ## tên thuộc tính sử dụng trong microservice, tên này cần chính xác là những thuộc tính mà docker image mong đợi, không được dùng tên khác
+          ## đến và kiểm tra config máp với tên là eazybank-configmap
+          ## tìm thuộc tính với key SPRING_PROFILES_ACTIVE
+          valueFrom: 
+            configMapKeyRef:
+              name: eazybank-configmap
+              key: SPRING_PROFILES_ACTIVE
+        - name: SPRING_ZIPKIN_BASEURL
+          valueFrom: 
+            configMapKeyRef:
+              name: eazybank-configmap
+              key: SPRING_ZIPKIN_BASEURL
+        - name: SPRING_CONFIG_IMPORT
+          valueFrom: 
+            configMapKeyRef:
+              name: eazybank-configmap
+              key: SPRING_CONFIG_IMPORT
+        - name: EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
+          valueFrom: 
+            configMapKeyRef:
+              name: eazybank-configmap
+              key: EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: accounts-service
+spec:
+  selector:
+    app: accounts
+  type: LoadBalancer
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+```````````````````````````````````````````````````````````````````````````````````
+==========================================================================================================================================
+
+
+
+
+

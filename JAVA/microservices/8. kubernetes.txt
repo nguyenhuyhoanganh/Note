@@ -81,7 +81,7 @@ B3: chọn biểu tượng mở Active Cloud Shell trên góc phải thanh navba
 B4: pass command-line vào shell > thực thi (nếu hiển thị ra hộp thoại > chọn Authorise)
 
 > kubectl get nodes  
-Hiển thị các node trong cluster, => cho biết đã kết nối với cluster
+Hiển thị các node trong cluster => cho biết đã kết nối với cluster
 
 Connect với cluster bằng Google SDK: 
 B1: truy cập Google SDK
@@ -104,6 +104,13 @@ B2: tạo các file cấu hình yml bên trong folder:
 Source code cấu hình kubernetes:
 
 https://github.com/nguyenhuyhoanganh/microservices-with-spring-sectionwise-code/tree/master/section_14/kubernetes
+
+- 1 file config gồm 5 phần:
+  - apiVersion: version cấu hình
+  - kind: loại cấu hình
+  - metadata: cung cấp mô tả cho cấu hình
+  - spec: cung cấp thông số
+  - status: trạng thái của config (không cần cung cấp để mặc định cho kubernetes cúng được)
 
 - trong file config cần cung cấp: Ex về zipkin config
 
@@ -185,7 +192,7 @@ data:
   EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eurekaserver-service:8070/eureka/
 ```````````````````````````````````````````````````````````````````````````````````
 
-- Cấu hình cho 1 microservice, có thêm phần sử dụng các biến enviroment:
+- Cấu hình cho 1 microservice, có thêm phần sử dụng các biến enviroment: Ex: file accounts.yml
 
 ```````````````````````````````````````````````````````````````````````````````````
 apiVersion: apps/v1
@@ -250,6 +257,121 @@ spec:
 ==========================================================================================================================================
 
 
+File configmaps.yml chứa tất cả các biến môi trường sử dụng trong microservice network. kind bắt buộc của file này là ConfigMap
+=> để thực sự áp dụng config này cho kubernetes cluster:
+C1: mở cmd trên kubernetes file 
+    > connect với gcloud (sử dụng command copy từ google cloud)
+    > kubectl get configmap  : hiển thị configmap được tạo bở người dùng 
+      ban đầu vẫn chưa có, chỉ có 1 config được tạo sẵn bởi kubernetes
+    > kubectl apply -f configmaps.yml : -f là khai báo file, câu lệnh thực thi áp dụng configmap
+      trên dashboard của Kubernetes Engine > Configuration => thấy được tên của configmap đã được apply
+
+C2: tạo trên Cloud Shell của Google cloud platform
+    > connect với gcloud bằng chuỗi command connect
+    > upload file config từ local lên cloud shell
+    > chọn ký tự 3 chấm dọc ⋮ trên góc phải trên của shell > upload file > chọn file config
+    > ls : hiển thị tất cả các file hiện có => thấy file đã upload
+    > kubectl apply -f configmaps.yml  => apply thành công
+    > kubectl delete configmap eazybank-configmap  : xoá configmap, configmap để khai báo là xoá 1 file có kind configmap, cần cung cấp tên của config
 
 
+*** Có thể cung cấp bất cứ secret, pasword, encryption bằng file config với kind là Secret
+   
+==========================================================================================================================================
+deploy các microservice còn lại: zipkin, configserver, eurekaserver, accounts ... lên kubernetes để sử dụng
+B1: apply zipkin 
+    > kubectl get pods : hiển thị các pod hiện có
+    > kubectl get deployments : hiển thị các deployment instruction hiện có
+    > kubectl get services : hiển thị các services, hiện chỉ có 1 service mặc định được tạo tên là kubernetes
+    Service giúp ng dùng tiếp xác với microservice từ thế giới bên ngoài và duy trì 1 số hạn chế firewall bên trong kubernetes cluster
+    > kubectl get replicaset : hiển thị các abnr sao của tưng microservice triển khai trên kubernetes cluster
+    > kubectl apply -f zipkin.yml : thực hiện áp dụng file config của zipkin
+    trong zipkin file config chứa 2 triển khai, 1 của deployment và 1 của service
 
+B3: apply configserver  
+    > kubectl apply -f configserver.yml
+B4: apply eurekaserver
+    > kubectl apply -f eurekaserver.yml
+B5: apply các microservice còn lại, như accounts
+    > kubectl apply -f accounts.yml
+
+=> trên Kubernetes Engine dashboard 
+   > Services & Ingress
+    => hiển thị danh sách các service được triển khai
+   > Workloads
+    => hiển thị chi tiết các deployments
+
+==========================================================================================================================================
+kiểm tra các microservice triển khai có thành công hay không
+
+> trên dashboard Kubernetes Engine > Services & Ingress
+> truy cập các endpoint của zipkin, eureka => hiển thị UI
+> truy cập các endpoint của configserver và account => trả về json
+---------------------------------------------------------------
+- thay đổi số lượng replicas trên microservice account deployment trong file cấu hình account
+  - thay đổi biến replicas của accounts.yml
+  - > kubectl apply -f accounts.yml  : kubernetes đủ thông minh để nhận ra thay đổi trong config file và apply lại config mới 
+  => chỉ thay đổi config của kind deployment, giữ nguyên service
+  => account có 2 pods chứa 2 replicas, cả 2 được duy trì thông qua 1 load balancer url duy nhất được tạo bởi cấu hình accountservice
+
+  - có thể thay đổi số lương replicas chỉ với 1 commmand:
+  > kubectl scale deployment accounts-deployment --replicas=3
+   : số lượng replicas đang đặt là 3
+---------------------------------------------------------------
+- xoá 1 pods của microservice account => xem khả năng tự hồi phục của kubernetes
+> kubectl delete pod _namepodaccount : _namepodaccount có thể copy trong list pods được hiển thị bới command: kubectl get pods
+> kubectl get pods : truy cập lại danh sách pods, sẽ thấy 1 pods chứa microservice mới được tạo ra
+
+---------------------------------------------------------------
+- kiểm chứng chức năng rollout của kubernetes
+  - thay đổi code trong account microservice
+  - tạo docker image mới
+  - push lên docker hub với tag mới là k8s, đã có tag là latest
+  - xem docker image hiện tại của accounts-deployment
+    > kubectl describe pod _name_accounts-deployment_pod
+      : _name_accounts-deployment_pod có thể copy trên list pod
+      : hiển thị tất cả các chi tiết của pod => hiển thị tên image là eazybytes/accounts:latest
+    > kubectl set image deployment accounts-deployment accounts=eazybytes/accounts:k8s
+      : cung cấp tên deployment là accounts-deployment 
+      : container name là account
+      : cung cấp một image mới là eazybytes/accounts:k8s, tag name của image là k8s, đã được đẩy lên docker hub
+      : nếu image chưa được push lên docker hub hoặc cung cấp image name sai, sẽ vẫn tạo pod mới, tuy nhiên pod sẽ có status là ErrImagePull, pod cũ cùng deployment vẫn hoạt động
+      : cung cấp đung image name, kubenetes tạo đủ số lượng replicas của pod, sau đó bắt đầu terminate pod với định dạng image cũ => không có thời gian chết khi triển khai 1 phiên bản mới
+    > kubectl get events --sort-by-.metadata.creationTimestamp
+      : cung cấp tất cả các sự kiện xảy ra trong kubernetes 
+        => hiển thị những hành động vừa thực hiện
+---------------------------------------------------------------
+- rollback của kubernetes
+  - vì lý do nào, phiên bản mới nhất triển khai gặp vấn đề, muốn quay lại phiên bản cũ, không có thời gian chết
+  > kubectl rollout history deployment accounts-deployment
+    : kiểm tra các lịch sử phát hành phiên bản mới của deployment accounts-deployment, hiện ra các phiên bản 
+  > kubectl rollout undo deployment accounts-deployment --to-revision=1  
+    : rollback lại phiên bản có revision = 1
+    : tạo các pods với docker image cũ, khi tạo đủ số lượng replicas sẽ terminate các pods hiện tại
+---------------------------------------------------------------
+- xem log của 1 pod
+  > kubectl logs _name_deploy_pod
+    :  _name_deploy_pod: tên 1 pod cụ thể
+    : hiển thị tất cả các log của pod
+
+- tổng hợp log và giám sát microservice trên dashboard của google cloud
+  - chọn Clusters trên dashboard
+  - chọn tên cluster triển khai => hiển thị thông tin chi tiết của cluster
+  - kéo xuống sẽ có 2 link:
+    - View Logs => click link hiển tất cả logs
+      => có thể chỉnh sửa query, cung cấp project-id, microservice-name, ... để xem log cụ thể
+    - View GKE dashboard => click link hiện thị ra dashboard để theo dõi tình trạng các cluster, nodes, pods, containers
+  
+- nếu muốn xem log của 1 microservice cụ thể
+  - chọn Workloads trên dashboard
+  - chọn tên micoservice cụ thể
+  - chọn  LOGS trên thanh navigation
+---------------------------------------------------------------
+- tự động mở rộng hoặc thu nhỏ quy mô của microservice dựa trên các số liệu như cpu, ... giúp tối ưu trong các tình huống nhận lượng truy cập lớn hoặc ít
+  - kubernetes có 1 chỉ số là horizontal pods auto scalling viết tắt là HPA
+  - chỉ cần xác định HPA, kubernetes sẽ tự động duy trì 1 HPA component dựa vào việc triển khai đã có
+   - kubectl get hpa : hiển thị các hpa có sẵn
+   - kubectl autoscale deployment accounts-deployment --min=3 --max=10 --cpu-percent=70 
+     : xác định hpa rule cho microservice accounts, khi nào có 1 pod sử dụng quá 70% cpu sẽ tự động tạo pod mới để tải trọng lên các pods sẽ ít hơn
+---------------------------------------------------------------
+- xoá 1 cluster => thao tác trên UI dashboard

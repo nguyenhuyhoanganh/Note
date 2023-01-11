@@ -322,7 +322,7 @@ Object:
 - nhiều lưu trữ cũ dùng object, quá lạm dụng object
 - dễ dàng truy cập values với . hoặc []
 - nên sử dụng khi thao tác JSON
-- nến sửu dụng nếu cần funtions là 1 thuộc tính (method)
+- nến sử dụng nếu cần funtions là 1 thuộc tính (method)
 Map:
 - hiệu năng hơn
 - key có thể là bắt cứ kiểu dữ liệu nào

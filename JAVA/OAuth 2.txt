@@ -1,0 +1,48 @@
+Các loại grant type phổ biến:
+- Authorizatio code
+- Password
+- Refresh token
+- Client credentials
+---------------------------------------------------------------
+Authorization code grant type: 
+ 1: Client chuyển hướng user tới endpoint của authorization server, client gọi authorization endpoint với request query bao gồm:
+   - response_type : code
+   - client_id : giá trị của client id, là giá trị xác định application
+   - redirect_uri: uri để authorization server chuyển hướng user sau khi xác thực thành công (có thể có hoặc không tuỳ trường hợp authorization server đã đc xác định uri chuyển hướng mặc định)
+   - scope : quyền được cấp (read, write, delete, ...)
+   - state : giá trị csrf token, sử dụng cho việc bảo vệ csrf
+ 2: User trên authorization server thực hiện xác thực, khi xác thực thành công, Authorization server gọi lại redirect_uri về Client, cung cấp giá trị authorization code và giá trị state. 
+ 3: Client kiểm tra state đúng với giá trị state đã giử ban đầu, đảm bảo không phải 1 bên thứ 3 gọi tới redirect_uri để đánh cắp client_secret. Khi xác nhận được đúng redirect_uri được gọi từ phía authorization server, client sử dụng authorization code nhận được thực hiện gọi 1 lần nữa tới endpoint của authorization server với request query bao gồm
+   - code : giá trị authorization code vừa nhận được
+   - client_id và client_secret : thông tin xác thực của client
+   - redirect_uri
+   - grant_type : authorization_code
+ 4: Authorization server nhận request từ client
+   - client_id và client_secret chứng minh client là cùng 1 client đã gọi tới endpoint của authorization
+   - code chứa authorization code chứng minh user đã xác thưc
+  => authorization server gửi access_token cho client
+ 5: Client nhận access_token sử dụng để đặt giá trị với key là Authorization trong header của request, giử tới resource server để lấy tài nguyên cho user
+
+** Tại sao không giử luôn giá trị access_token ngay lần request đầu tiên từ client tới authorization server?
+  - thực tế là có 1 grant type : implicit grant type sẽ trực tiếp trả về access_token cho client, tuy nhiên grant type này không được khuyến nghị sử dụng, hầu hết các authorization servers nổi tiếng cũng không cho phép. Bởi vì authorization server khi gọi tới redirect_uri với access token mà không đảm bảo rằng nó có phải là client đúng để được phép nhận. Client cần chứng minh lại chính nó sau khi nhận authorization_code bằng thông tin xác thực của nó (client_id, client_secret) để nhận được access_token
+
+*** Grant type này có 1 điểm yếu rằng, nếu ai đó chặn authorization_code, và người đó cũng lấy được thông tin xác thực của client (bằng cách nào đó) 
+   => cần tìm hiểu PCKE authorization code grant type 
+   
+---------------------------------------------------------------
+Password grant type:
+ - tương tự như authorization code grant type, tuy nhiên thay vì tương tác trực tiếp giữa user và authorization server để xác thực, user giao thông tin xác thực (gồm password) cho client
+   => client sẽ xác thực thay user với authorization server
+   => khi xác thực thành công, authorization trực tiếp giử access_token tới client
+   => client lấy access_token để truy cập resource server
+ - sử dụng luồng xác thực này chỉ khi client và authorization server được xây dựng và duy trì bởi cùng 1 tổ chức
+ - grant type này kém bảo mật hơn authorization code. Chủ yếu bởi vì user chia sẻ thông tin đăng nhập của mình tới client app. Nó được dùng trong các tình huống thực tế do nó đơn giản hơn authorization code. 
+
+ Client lấy thông tin xác thực của user, giử một request query chứa:
+  - grant_type : password
+  - client_id và client_secret : thông tin xác thực để client xác thực chính nó với authorization server
+  - scope : quyền được cấp
+  - username và password : thông tin xác thực của user, được giử trong request header
+ => client nhận lại access_token từ authorizarion server và sử dụng nó truy cấp resource server 
+---------------------------------------------------------------
+

@@ -721,7 +721,7 @@ public class Authority {
 }
 ```
 
-* repositỏy
+* repository
 ```java
 public interface UserRepository extends JpaRepository<User, Integer> {
     Optional<User> findUserByUsername(String u); 
@@ -989,7 +989,7 @@ public class ProjectConfig extends WebSecurityConfigurerAdapter {
 }
 ```
 
-# Áp dụng các hạn chế cho từng endpoint
+### Áp dụng các hạn chế cho từng endpoint
 
 * *anyRequest()*: khớp với tất cả các request
 * *mvcMatchers()*: sử dụng MVC expressions cho các paths để chọn endpoint

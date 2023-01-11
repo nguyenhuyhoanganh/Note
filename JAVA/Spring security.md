@@ -885,3 +885,249 @@ public class ProjectConfig extends WebSecurityConfigurerAdapter {
 ```
 
 # Hạn chế truy cập
+### 3 cách định cấu hình quyền truy cập sử dụng các method:
+* *hasAuthority()*: nhận 1 authority dưới dạng tham số, chỉ người dùng có quyền hạn đó mới được gọi endpoint
+* *hasAnyAuthority*: có thể nhận nhiều hơn 1 authority mà cấu hình cấu hình hạn chế, người dùng có ít nhất 1 trong các quyền hạn có thể truy cập endpoint
+* *access()*: cung cấp khả năng định cấu hình quyền truy cập dựa trên SpEL
+
+```java
+@Configuration
+public class ProjectConfig extends WebSecurityConfigurerAdapter{
+    
+    @Bean 
+    public UserDetailsService userDetailsService() {
+        var manager = new InMemoryUserDetailsManager();
+        var user1 = User.withUsername("john") 
+            .password("12345")
+            .authorities("READ")
+            .build();
+        var user2 = User.withUsername("jane") 
+            .password("12345")
+            .authorities("WRITE")
+            .build();
+ 
+        manager.createUser(user1); 
+        manager.createUser(user2);
+        return manager;
+        // UserDetailsService trả về được thêm vào spring context
+    }
+ 
+    @Bean 
+    public PasswordEncoder passwordEncoder() {
+        return NoOpPasswordEncoder.getInstance(); 
+    }
+
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
+        http.httpBasic();
+ 
+        http.authorizeRequests()  
+            //.anyRequest().permitAll(); 
+            // cho phép tất cả req đều truy cập được
+
+            //.anyRequest().denyAll();
+            // ngược lại permitAll
+
+            //.anyRequest().authenticated();
+            // yêu cầu người dùng phải xác thực
+
+            //.anyRequest().hasAuthority("WRITE");
+            // người dùng phải có authority WRITE mới truy cập được, nếu không trả về 403 
+
+            .anyRequest().hasAnyAuthority("WRITE", "READ");
+            // người dùng có 1 trong 2 authority có thể tuy cập
+
+            // .anyRequest().access("hasAuthority('read') and !hasAuthority('delete')");
+            // có authority read, nhưng không có delete
+            // SpEL "T(java.time.LocalTime).now().isAfter(T(java.time.LocalTime).of(12, 0))"
+            // chỉ cho truy cập sau 12 giờ đêm
+            // https://docs.spring.io/spring-framework/docs/current/reference/html/core.html#expressions
+
+ }
+}
+```
+
+### hạn chế quyền truy cập endpoint dựa trên role
+* 1 role bao quát 1 hoặc nhiều hành động mà người dùng được phép thực hiện
+* tên role bắt đầu với tiền tố "ROLE_", là 1 GrantedAuthority, lưu trong db
+* các phương pháp ràng buộc vai trò của người dùng:
+  - hasRole()
+  - hasAnyRole()
+  - access()
+  
+```java
+@Configuration
+public class ProjectConfig extends WebSecurityConfigurerAdapter {
+ 
+    @Bean
+    public UserDetailsService userDetailsService() {
+        
+        var manager = new InMemoryUserDetailsManager();
+        var user1 = User.withUsername("john")
+            .password("12345")
+            .authorities("ROLE_ADMIN") 
+            .build();
+
+        var user2 = User.withUsername("jane")
+            .password("12345")
+            .roles("MANAGER") // không cần thêm tiền tố ROLE, tự động được thêm
+            .build();
+
+ 
+        manager.createUser(user1);
+        manager.createUser(user2);
+        return manager;
+    }
+
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
+        http.httpBasic();
+        http.authorizeRequests()
+            .anyRequest().hasRole("ADMIN"); 
+            // chỉ định role, không cần thêm tiền tố ROLE_
+    }
+}
+```
+
+# Áp dụng các hạn chế cho từng endpoint
+
+* *anyRequest()*: khớp với tất cả các request
+* *mvcMatchers()*: sử dụng MVC expressions cho các paths để chọn endpoint
+* *antMatchers()*: sử dụng Ant expressions cho các paths để chọn endpoint
+* *regexMatchers()*: sử dụng regular expressions cho các paths để chọn endpoint (regex)
+
+* sử dụng mvcMatchers
+```java
+http.httpBasic();
+
+http.authorizeRequests()
+    .mvcMatchers("/hello").hasRole("ADMIN") // sử dụng MVC expressions cho path /hello
+    .mvcMatchers(HttpMethod.POST, "/ciao").hasRole("MANAGER") // chỉ cho phép method POST 
+    .mvcMatchers( "/a/b/**").authenticated() // tất cả path có tiền tố "/a/b" cần xác thực
+    // * : đại diện cho 1 pathname bất kỳ => /a/b/c/d khớp với /a/*/c/d
+    // ** : đại diện cho nhiều pathname => /a/b/c/d/e khớp với /a/**/e
+    .mvcMatchers("/product/{code:^[0-9]*$}").authenticated() 
+    // sử dụng regex: 1 chuỗi độ dài bất kỳ chứa bất kỳ chữ hoặc số 
+    ..mvcMatchers("/email/{email:.*(.+@.+\\.com)}").authenticated()
+    // kết thúc bằng 1 email
+    .anyRequest().permitAll();
+
+    // nếu sử dụng path truy cập được với permitAll nhưng người dùng gọi endpoint
+    // cung cấp thêm username và password, Spring Security cũng thực hiện xác thực người dùng
+    // nếu xác thực không thành công sẽ trả về 401 Unauthorized
+
+http.csrf().disable(); // discable để cho phép truy cập method POST
+```
+
+* sử dụng antMatchers
+```java
+    http.httpBasic();
+    
+    http.authorizeRequests()
+        .antMatchers("/hello")
+        // sử dụng tương tự mvcMatchers
+        // có thêm 1 cách .antMatchers(HttpMethod method), 
+        // tương tự .antMatchers(HttpMethod methodd, “/**”)
+        .authenticated();
+```
+
+* sử dụng mvcMatchers để so khớp với path: /hello, Spring sẽ tự động bảo mật thêm cho path /hello/ , trong khi antMatchers thì không
+
+* sử dụng regexMatchers
+```java
+http.authorizeRequests()
+    .regexMatchers(".*/(us|uk|ca)+/(en|fr).*")
+    // path hợp lệ có dạng: /video/us/en
+    .authenticated()
+```
+
+# Filter Chain
+* HTTP filters uỷ quyền các trách nhiệm khác nhau lên HTTP request
+* các filter nhận request, thực hiện logic của nó và uỷ quyền cho filter tiếp theo trong chain
+* mỗi filter sẽ uỷ quyền trách nhiệm cho 1 manager
+  Ex: BasicAuthenticationFilter sử dụng AuthenticationManager
+       trách nhiệm sử dụng phương pháp HTTP Basic xác thực dựa username, password
+* cần tuỳ chỉnh filter để đáp ứng các nhu cầu khác nhau, thêm hoặc thay thể filter trong chain
+* mỗi filter trong chain có 1 chỉ mục gọi là order đánh thứ tự thực hiện filter trong chain, có thể có nhiều filter với order giống nhau, lúc này Spring Security không đảm bảo thứ tự thực hiện filter ở order đó, có thể ngẫu nhiên
+
+* các filter trong SpringSecurity là các HTTP filter điển hiển
+  * để tạo filter tuỳ chỉnh, thực thi implement Filter của package javax.servlet package
+  * cần ghi đè method doFilter() để thực thi logic, nhận vào ServletRequest, ServletResponse và FilterChain
+  * ServletRequest đại diện cho HTTP request, sử dụng để nhận các thông tin chi tiết trong request
+  * ServletResponse đại diện cho HTTP Response, sử dụng để thay đổi response trước khi giử lại client hoặc chuyển cho filter tiếp theo trong chain
+  * FilterChain đại diện cho chuỗi chain, sử dụng để chuyển tiếp request từ filter tiếp theo trong chain: java filterChain.doFilter(request, response); 
+
+* Ex: tạo 1 filter yêu cầu request cần có header: request-id 
+```java
+public class RequestValidationFilter implements Filter {
+    
+    @Override
+    public void doFilter(ServletRequest request, ServletResponse response, 
+        FilterChain filterChain) throws IOException, ServletException {
+ 
+        var httpRequest = (HttpServletRequest) request;
+        var httpResponse = (HttpServletResponse) response;
+ 
+        String requestId = httpRequest.getHeader("Request-Id");
+        if (requestId == null || requestId.isBlank()) {
+            httpResponse.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            return; 
+            // header không tồn tại, response trả về 400 Bad Request
+            // request không được chuyển tiếp
+        }
+ 
+        filterChain.doFilter(request, response); 
+        // header tồn tại, chuyển tiếp đến request tới
+    }
+}
+```
+
+* các cách thêm filter vào chain
+  - addFilterBefore(): thêm filter vào trước 1 filter trong chain. Nhận 2 tham số: 1 instance của custom filter muốn thêm vào chain, loại của filter mà muốn thêm custom filter vào trước
+  - addFilterAfter(): thêm 1 filter vào sau 1 filter trong chain. tương tự addFilterBefore
+  - addFilterAt(): thêm 1 filter tại vị trí 1 filter xác định, không thay thể filter đã có, nhưng cùng thực thi logic, có thể đặt filter ở vị trí BasicAuthenticationFilter. lúc này nếu không gọi method .httpBasic() => không có BasicAuthenticationFilter ở đó mà chỉ có filter tuỳ chỉnh vừa thêm
+
+```java
+@Configuration
+public class ProjectConfig extends WebSecurityConfigurerAdapter {
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
+        http.addFilterBefore(
+                new RequestValidationFilter(),
+                BasicAuthenticationFilter.class)
+            // phiên BasicAuthenticationFilter chưa được thêm vào do chưa gọi httpBasic()
+            // tuy nhiên RequestValidationFilter vẫn được thêm vào chain
+            .authorizeRequests()
+            .anyRequest().permitAll();
+    }
+}
+```
+
+* Spring Security cung cấp các lớp triển khai Filter riêng => có thể mở rộng các lớp để triển khai filter tuỳ chỉnh
+  - GenericFilterBean: cho phép sử dụng các tham số khởi tạo được xác định trong web.xml nếu có
+  - OncePerRequestFilter: là 1 class extends GenericFilterBean
+    - framework 0 đảm bảo rằng nó được gọi một lần mỗi request, tuy nhiên nó triển khai logic đảm bảo phương thức doFilter() chỉ thực thi 1 lần mỗi request.
+    - viết logic trong method doFilterInternal() thay vì method doFilter(). 
+    - nó chỉ hỗ trợ HTTP request.
+    - có thể quyết định xem filter được áp dụng cho từng request nhất định bằng cách ghi đè method shouldNotFilter(HttpServletRequest), mặc định filter áp dụng cho mọi request. 
+    - nó không áp dụng cho các request bất đồng bộ, hoặc error dispatch request, có thể thay đổi hành vi bằng cách ghi đè method shouldNotFilterAsyncDispatch() và shouldNotFilterErrorDispatch().
+
+```java
+public class AuthenticationLoggingFilter extends OncePerRequestFilter { 
+ 
+    private final Logger logger =Logger
+        .getLogger(AuthenticationLoggingFilter.class.getName());
+ 
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, 
+        HttpServletResponse response, FilterChain filterChain) throws 
+        ServletException, IOException {
+ 
+        String requestId = request.getHeader("Request-Id");
+        logger.info("Successfully authenticated request with id " +requestId);
+        filterChain.doFilter(request, response);
+ }
+}
+```
+
+# CSRF và CORS

@@ -10,7 +10,7 @@
 
 # Các cách triển khai OAuth2
 ### Authorization code grant type: 
-* Các bước:
+#### Các bước:
  1. Client chuyển hướng user tới endpoint của authorization server, client gọi authorization endpoint với request query bao gồm:
    - response_type : "code". Nói với authorzation server rằng client mong đợi 1 code, code này sử dụng để lấy token
    - client_id : giá trị của client id, là giá trị xác định chính client thực hiện request
@@ -29,11 +29,8 @@
   => authorization server gửi access_token cho client
  5. Client nhận access_token sử dụng để đặt giá trị với key là Authorization trong header của request, giử tới resource server để lấy tài nguyên cho user
 
-* Tại sao không giử luôn giá trị access_token ngay lần request đầu tiên từ client tới authorization server?
-  - thực tế là có 1 grant type : implicit grant type sẽ trực tiếp trả về access_token cho client, tuy nhiên grant type này không được khuyến nghị sử dụng, hầu hết các authorization servers nổi tiếng cũng không cho phép. Bởi vì authorization server khi gọi tới redirect_uri với access token mà không đảm bảo rằng nó có phải là client đúng để được phép nhận. Client cần chứng minh lại chính nó sau khi nhận authorization_code bằng thông tin xác thực của nó (client_id, client_secret) để nhận được access_token
-
-* Grant type này có 1 điểm yếu rằng, nếu ai đó chặn authorization_code, và người đó cũng lấy được thông tin xác thực của client (bằng cách nào đó) 
-   => cần tìm hiểu PCKE authorization code grant type 
+#### Tại sao không giử luôn giá trị access_token ngay lần request đầu tiên từ client tới authorization server?
+  * thực tế là có 1 grant type : implicit grant type sẽ trực tiếp trả về access_token cho client, tuy nhiên grant type này không được khuyến nghị sử dụng, hầu hết các authorization servers nổi tiếng cũng không cho phép. Bởi vì authorization server khi gọi tới redirect_uri với access token mà không đảm bảo rằng nó có phải là client đúng để được phép nhận. Client cần chứng minh lại chính nó sau khi nhận authorization_code bằng thông tin xác thực của nó (client_id, client_secret) để nhận được access_token 
 
 ### Password grant type:
 * Tương tự như authorization code grant type, tuy nhiên thay vì tương tác trực tiếp giữa user và authorization server để xác thực, user giao thông tin xác thực (gồm password) cho client
@@ -42,7 +39,7 @@
   * sử dụng luồng xác thực này chỉ khi client và authorization server được xây dựng và duy trì bởi cùng 1 tổ chức
 * Grant type này kém bảo mật hơn authorization code. Chủ yếu bởi vì user chia sẻ thông tin đăng nhập của mình tới client app. Nó được dùng trong các tình huống thực tế do nó đơn giản hơn authorization code
 * Chỉ sử dụng quy trình này nếu client à authorization server được duy trì bởi cùng một tổ chức. User chỉ mong đợi 1 biểu mẫu đăng nhập và để client lo việc giử thong tin đăng nhập đó đến authorization server. User không cần biết việc xác thực xảy ra như thế nào bên trong ứng dụng.
-* Các bước:
+#### Các bước:
  1. Client thu thập thông tin đằng nhập và gọi authorization server để lấy access_token. request client giử đi bao gồm:
    - grant_type: "password"
    - client_id và client_secret: thông tin xác thực được client sử dụng để xác thực chính nó
@@ -53,7 +50,7 @@
 ### Client credentials grant type:
 * Được sử dụng khi không có user tham gia vào quy trình xác thực.
 * Giả định rằng hệ thống xác thực bằng OAuth2, cần cho phép 1 server bên ngoài xác thực và gọi tới 1 tài nguyên cụ thể mà server của mình cung cấp.
-* Các bước:
+#### Các bước:
  1. Client giử request tới authorization server bao gồm:
    - grant_type: "client_crednetials"
    - client_id và client_secret: là thông tin đăng nhập của client

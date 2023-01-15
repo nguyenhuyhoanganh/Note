@@ -1131,3 +1131,166 @@ public class AuthenticationLoggingFilter extends OncePerRequestFilter {
 ```
 
 # CSRF và CORS
+### Cách bảo vệ CSRF
+- khi thêm, thay đổi hoặc xoá 1 tài nguyên trên công cụ web, trang web sẽ gọi 1 endpoint từ server để thực thi các hoạt động này. trong quá trình này, nếu mở 1 trang web độc hại, nó sẽ thay mặt gọi đến server và thực thi hành động thay người dùng. Do đã đăng nhập trước đó, nên server tin tưởng hành vi là đến từ người dùng.
+- CSRF đảm bảo rằng chỉ giao diện người dùng của ứng dụng web mới có thể thực hiện các hoạt động thay đổi
+- trước khi làm bất kỳ hành động thay đổi dữ liệu nào, người dùng phải giử HTTP GET để xem trang web ít nhất 1 lần. => ứng dụng tạo 1 token khi đó. Và ứng dụng chỉ chấp nhận cho các hoạt động POST, PUT, DELETE, ... nếu request có chứa token đó trong header
+- trong filter chain có 1 filter là CsrfFilter chặn các request và cho phép các request đi qua nếu là GET, HEAD, TRACE, OPTIONS. Các request còn lại, filter mong đợi 1 token trong header. Nếu header không tồn tại hoặc token không chính xác, ứng dụng sẽ từ chối uyên cầu và trả về 403 Forbidden. headername của token là X-CSRF-TOKEN, và giá trị của nó chỉ là 1 string
+- CsrfFilter sử dụng 1 CsrfTokenRepository để tạo mới và lưu trữ token. mặc định sẽ lưu trữ token trong Session và tạo token dưới dạng 1 UUID, token này cũng được lưu lại trong request với tên atttribute là "_csrf" đế chuyển qua filter khác
+
+* Ex: tạo 1 filter log ra token mà CsrfTokenRepository tạo
+```java
+public class CsrfTokenLogger implements Filter {
+    
+    private Logger logger = Logger.getLogger(CsrfTokenLogger.class.getName());
+ 
+    @Override
+    public void doFilter(ServletRequest request, ServletResponse response, 
+        FilterChain filterChain) throws IOException, ServletException {
+ 
+        Object o = request.getAttribute("_csrf"); 
+        // lấy giá trị cúa token từ thuộc tính _csrf của request
+        CsrfToken token = (CsrfToken) o;
+        logger.info("CSRF token " + token.getToken());
+        filterChain.doFilter(request, response);
+ }
+}
+
+@Configuration
+public class ProjectConfig extends WebSecurityConfigurerAdapter {
+ 
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
+ 
+        http.addFilterAfter(new CsrfTokenLogger(), CsrfFilter.class)
+        // thêm filter custom vừa tạo vào ngay sau CsrfFilter
+            .authorizeRequests()
+            .anyRequest().permitAll();
+    }
+}
+```
+
+* vì CsrfTokenRepository sử dụng Session để lưu trữ token phía máy chủ => lúc thực thi hoạt động thay đổi dữ liệu cần giử thêm JSESSIONID được tạo ra trong các lần GET request trước đó, tất nhiên là phải kèm theo X-CSRF-TOKEN
+
+### Cách bảo vệ CORS
+* không cho phép trang web khác gọi đến REST endpoint, hoặc nhúng iframe từ trang web của mình
+* trong tình huống cần tạo cuộc gọi giữa 2 tên domain khác nhau, CORS cho phép chỉ định ứng dụng từ tên domain nào được phép gọi đến.
+* CORS hoạt động dựa trên HTTP headers:
+  - Access-Control-Allow-Origin: chỉ định các domain ngoài có thể truy cập vào tài nguyên trên domain của mình
+  - Access-Control-Allow-Methods: Cho phép chỉ định 1 số HTTP method, trong tình huống chúng ta muốn cho phép truy cập từ domain khác, với HTTP method cụ thể
+  - Access-Control-Allow-Headers: thêm giới hạn cho những header có thể sử dụng trong 1 request cụ thể
+* mặc định, không có header nào trong các headers trên được thêm vào response. Khi thực hiện các cross-orign call, úng dụng mong đợi header Access-Control-Allow-Origin trong response, header này chứa các domain mà server cho phép. Nếu không có, browser sẽ không chấp nhận response. 
+* localhost và 127.0.0.1 cùng tham chiếu tới 1 server nhưng cũng được tính là có nguồn gốc khác nhau => thực thi gọi đến 127.0.0.1 từ localhost, broser vẫn không nhận được response do bị block với CORS policy
+* sử dụng annotation ` @CrossOrigin({"_domain", "_domain2"}) ` trên method muốn cho phép domain khác truy cập
+
+* áp dụng CORS sử dụng CorsConfigurer
+```java
+@Configuration
+public class ProjectConfig extends WebSecurityConfigurerAdapter {
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
+        http.cors(c -> { 
+            // c là 1 object type: Customizer<CorsConfigurer>
+            CorsConfigurationSource source = request -> {
+                CorsConfiguration config = new CorsConfiguration();
+                config.setAllowedOrigins(
+                    List.of("example.com", "example.org"));
+                    // các domain cho phép truy cập nguồn gốc chéo
+                config.setAllowedMethods(
+                    List.of("GET", "POST", "PUT", "DELETE"));
+                return config;
+            };
+            c.configurationSource(source);
+        });
+        
+        http.csrf().disable();
+        http.authorizeRequests().anyRequest().permitAll();
+ }
+}
+```
+
+# Demo App sử dụng JWT
+### 3 tác nhận hệ thống
+* **Client**: là ứng dụng sử dụng backend, có thể là mobile app hoặc frontend của web app sử dụng ReactJS, Angular, ...
+* **Authentication Server**: là ứng dụng với db lưu trữ thông tin đăng nhập của user. Sử dụng để xác thực user dựa trên thông tin đăng nhập user cung cấp.  
+* **Business Logic Server**: lá ứng dụng hiển thị các endpoint mà client tiêu thụ. Cần bảo mật quyền truy cập đến các endpoint. Trước khi gọi đến endpoint, user cần xác thực bằng Authentication Server, sử dụng token Authentication Server cung cấp để gọi đến các endpoint
+
+### JWT
+* Lợi ích sử dụng token
+  * giúp tránh chia sẻ thông tin đăng nhập trong tất cả các request (HTTP Basic)
+  * có thể xác định token với thòi gian tồn tại ngắn
+  * có thể vô hiệu hoá token mà không làm mất hiệu lực thông tin đăng nhập
+  * có thể lưu trữ thông tin chi tiết của người dùng như quyền hạn
+  * giúp uỷ thác trách nhiệm cho 1 thành phần khác trong hệ thống
+* JWT là gì:
+  * JWT là 1 loại token thiết kế cho các yêu cầu web, sử dụng JSON để định dạng dữ liệu
+  * JWT gồm 3 phần, được ngăn cách bằng dấu ".":
+    * 2 phần đầu là header và body dưới dạng JSON được mã hoá bằng Base64. header lưu tên của thuật toán tạo ra chữ ký. body bao gồm các thông tin cần thiết để uỷ quyền
+    * phần cuối cùng là chữ ký điện tử
+
+### Demo
+#### Authentication Server
+
+* pom.xml
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-web</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-security</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-data-jpa</artifactId>
+</dependency>
+<dependency>
+    <groupId>mysql</groupId>
+    <artifactId>mysql-connector-java</artifactId>
+    <scope>runtime</scope>
+</dependency>
+```
+
+* application.properties
+```properties
+spring.datasource.url=jdbc:mysql://localhost/spring
+spring.datasource.username=root
+spring.datasource.password=
+spring.datasource.initialization-mode=always
+```
+
+
+* schema.sql
+```sql
+CREATE TABLE IF NOT EXISTS `spring`.`user` (
+    `username` VARCHAR(45) NULL,
+    `password` TEXT NULL,
+    PRIMARY KEY (`username`));
+CREATE TABLE IF NOT EXISTS `spring`.`otp` (
+    `username` VARCHAR(45) NOT NULL,
+    `code` VARCHAR(45) NULL,
+    PRIMARY KEY (`username`));
+```
+
+* config
+```java
+@Configuration
+public class ProjectConfig extends WebSecurityConfigurerAdapter {
+    @Bean 
+    public PasswordEncoder passwordEncoder() { 
+        return new BCryptPasswordEncoder(); 
+    } 
+ 
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
+        http.csrf().disable(); 
+        http.authorizeRequests().anyRequest().permitAll(); 
+    }
+}
+```
+...................................
+https://github.com/nguyenhuyhoanganh/spring-security-in-action-source/tree/master/ssia-ch11-ex1-s1
+
+
+

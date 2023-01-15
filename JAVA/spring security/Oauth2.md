@@ -11,23 +11,23 @@
 # Các cách triển khai OAuth2
 ### Authorization code grant type: 
 * Các bước:
- 1: Client chuyển hướng user tới endpoint của authorization server, client gọi authorization endpoint với request query bao gồm:
+ 1. Client chuyển hướng user tới endpoint của authorization server, client gọi authorization endpoint với request query bao gồm:
    - response_type : "code". Nói với authorzation server rằng client mong đợi 1 code, code này sử dụng để lấy token
    - client_id : giá trị của client id, là giá trị xác định chính client thực hiện request
    - redirect_uri: uri để authorization server chuyển hướng user sau khi xác thực thành công (có thể có hoặc không tuỳ trường hợp authorization server đã đc xác định uri chuyển hướng mặc định)
    - scope : quyền được cấp (read, write, delete, ...)
    - state : giá trị csrf token, sử dụng cho việc bảo vệ csrf
- 2: User tương tác trực tiếp với authorization server, thực hiện xác thực (không giử thông tin đăng nhập tới client), khi xác thực thành công, Authorization server gọi lại redirect_uri về Client, cung cấp giá trị authorization code và giá trị state.
- 3: Client kiểm tra state đúng với giá trị state đã giử ban đầu, đảm bảo không phải 1 bên thứ 3 gọi tới redirect_uri để đánh cắp client_secret. Khi xác nhận được đúng redirect_uri được gọi từ phía authorization server, client sử dụng authorization code nhận được thực hiện gọi 1 lần nữa tới endpoint của authorization server để nhận token với request query bao gồm:
+ 2. User tương tác trực tiếp với authorization server, thực hiện xác thực (không giử thông tin đăng nhập tới client), khi xác thực thành công, Authorization server gọi lại redirect_uri về Client, cung cấp giá trị authorization code và giá trị state.
+ 3. Client kiểm tra state đúng với giá trị state đã giử ban đầu, đảm bảo không phải 1 bên thứ 3 gọi tới redirect_uri để đánh cắp client_secret. Khi xác nhận được đúng redirect_uri được gọi từ phía authorization server, client sử dụng authorization code nhận được thực hiện gọi 1 lần nữa tới endpoint của authorization server để nhận token với request query bao gồm:
    - code : giá trị authorization code vừa nhận được
    - client_id và client_secret : thông tin xác thực của client
    - redirect_uri
    - grant_type : "authorization_code".  xác định loại grant được sử dụng (authorization server có thể hỗ trợ nhiều loại grant)
- 4: Authorization server nhận request từ client
+ 4. Authorization server nhận request từ client
    - client_id và client_secret chứng minh client là cùng 1 client đã gọi tới endpoint của authorization
    - code chứa authorization code chứng minh user đã xác thưc
   => authorization server gửi access_token cho client
- 5: Client nhận access_token sử dụng để đặt giá trị với key là Authorization trong header của request, giử tới resource server để lấy tài nguyên cho user
+ 5. Client nhận access_token sử dụng để đặt giá trị với key là Authorization trong header của request, giử tới resource server để lấy tài nguyên cho user
 
 * Tại sao không giử luôn giá trị access_token ngay lần request đầu tiên từ client tới authorization server?
   - thực tế là có 1 grant type : implicit grant type sẽ trực tiếp trả về access_token cho client, tuy nhiên grant type này không được khuyến nghị sử dụng, hầu hết các authorization servers nổi tiếng cũng không cho phép. Bởi vì authorization server khi gọi tới redirect_uri với access token mà không đảm bảo rằng nó có phải là client đúng để được phép nhận. Client cần chứng minh lại chính nó sau khi nhận authorization_code bằng thông tin xác thực của nó (client_id, client_secret) để nhận được access_token
@@ -43,22 +43,22 @@
 * Grant type này kém bảo mật hơn authorization code. Chủ yếu bởi vì user chia sẻ thông tin đăng nhập của mình tới client app. Nó được dùng trong các tình huống thực tế do nó đơn giản hơn authorization code
 * Chỉ sử dụng quy trình này nếu client à authorization server được duy trì bởi cùng một tổ chức. User chỉ mong đợi 1 biểu mẫu đăng nhập và để client lo việc giử thong tin đăng nhập đó đến authorization server. User không cần biết việc xác thực xảy ra như thế nào bên trong ứng dụng.
 * Các bước:
- 1: Client thu thập thông tin đằng nhập và gọi authorization server để lấy access_token. request client giử đi bao gồm:
+ 1. Client thu thập thông tin đằng nhập và gọi authorization server để lấy access_token. request client giử đi bao gồm:
    - grant_type: "password"
    - client_id và client_secret: thông tin xác thực được client sử dụng để xác thực chính nó
    - scope: là các quyền được cấp
    - username và password: là thông tin đăng nhập của user. được giử đến dưới dạng plain text là các giá trị trong request header
- 2: Client nhận lại access token trong response, sử dụng token đó để gọi đến các endpoint trên resource server. token được thêm vào header của request với key là Authorization
+ 2. Client nhận lại access token trong response, sử dụng token đó để gọi đến các endpoint trên resource server. token được thêm vào header của request với key là Authorization
 
 ### Client credentials grant type:
 * Được sử dụng khi không có user tham gia vào quy trình xác thực.
 * Giả định rằng hệ thống xác thực bằng OAuth2, cần cho phép 1 server bên ngoài xác thực và gọi tới 1 tài nguyên cụ thể mà server của mình cung cấp.
 * Các bước:
- 1: Client giử request tới authorization server bao gồm:
+ 1. Client giử request tới authorization server bao gồm:
    - grant_type: "client_crednetials"
    - client_id và client_secret: là thông tin đăng nhập của client
    - scope: đại diện cho các quyền được cấp
- 2: Client nhận được một token. Sử dụng token để gọi tới endpoint của resource server. token được thêm vào header của request với key là Authorization
+ 2. Client nhận được một token. Sử dụng token để gọi tới endpoint của resource server. token được thêm vào header của request với key là Authorization
 
 ### Sử dụng refresh_token để nhận access_token mới
 * access_token được sử dụng trong OAuth 2 không quan trọng 1 cách triển khai cụ thể nào cho nó, nó đều có hạn sử dụng. Tuổi thọ của access_token có thể là vô hạn, nhưng nên làm cho nó càng ngắn càng tốt. Khi access_token có tuổi thọ vô hạn làm cho nó tương tự với thông tin đăng nhập của user, token này có thể sử dụng để nhận được tài nguyên từ resource server mọi lúc. Trong khi access_token chỉ được đính kèm dưới dạng 1 http header trên mỗi request, việc token này bị đánh cắp tương tự việc thông tin đăng nhập củ user bị lộ.

@@ -72,7 +72,221 @@
 * SSO: user xác thực thông qua authorization server và sau đó app giữ user đăng nhập, sử dụng refresh_token. App đại diện cho client trong khung OAuth2.
 * Ví dụ sử dụng github như authorization và resource server. Tập trung vào giao tiếp giữa các thành phần trong authorization code grant type.
 * App không quản lý người dùng, bất kỳ ai cũng có thể đăng nhập bằng cách sử dụng tài khoản github.
-* Github cần biết app mà nó sẽ phát hành token. Vì vậy app cần phải đăng ký với Github authorization server => truy cập link: https://github.com/settings/applications/new
+* Github cần biết app mà nó sẽ phát hành token. Vì vậy app cần phải đăng ký với Github authorization server
+
+### Đăng ký client với github
+* Truy cập link: https://github.com/settings/applications/new
 * Cần chỉ định application name, homepage url và authorization callback url (là link mà github sử dụng để gọi lại app sau khi xác thực)
-* App chuyển hướng user tới Github để đăng nhập, sau đó Github gọi lại app sửu dụng callback url.
-![alt text](./register-oauth-application-github.png)
+* App chuyển hướng user tới Github để đăng nhập, sau đó Github gọi lại app sử dụng callback url.
+![alt text](./register-oauth-app-github-1.png)
+* Sau khi điền thông tin về app, Github cung cấp thông tin xác thực cho client, bao gồm ClientID và Client secrets
+![alt text](./register-oauth-app-github-2.png)
+
+### Bắt đầu tiển khai ứng dụng
+* pom.xml
+```xml
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-oauth2-client</artifactId>
+</dependency>
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-security</artifactId>
+</dependency>
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-web</artifactId>
+</dependency>
+```
+
+* Controller
+```java
+@Controller
+public class MainController {
+  @GetMapping("")
+  public String main() {
+    return "main.html";
+  }
+}
+```
+
+* main.html
+```html
+<h1>Hello there!</h1>
+```
+
+* Config
+```java
+@Configuration
+public class ProjectConfig extends WebSecurityConfigurerAdapter {
+  @Override
+  protected void configure(HttpSecurity http) throws Exception {
+    http.oauth2Login(); 
+    // sử dụng phương pháp xác thực bằng oauth 2
+    http.authorizeRequests() 
+      .anyRequest() 
+      .authenticated(); 
+    // chỉ định tất cả request cần phải xác thực
+  }
+}
+```
+
+* Method .oauth2Login() thêm 1 filter xác thực mới vào filter chain: **OAuth2LoginAuthenticationFilter** để áp dụng các logic cần thiết cho Oauth2
+
+### Triển khai liên kết giữa client và authorization server
+* SpringSecurity cung cung 1 interface **ClientRegistration** đại diện cho client trong cấu trúc Oauth2
+```java
+@Configuration
+public class ProjectConfig extends WebSecurityConfigurerAdapter {
+  private ClientRegistration clientRegistration() {
+    ClientRegistration cr = ClientRegistration.withRegistrationId("github")
+      .clientId("27670ee560e902ddd3dd")
+      .clientSecret("545f7c2fb25346a95ba295836772b072df865f19")
+      .scope(new String[]{"read:user"})
+      // loại authority được cấp
+      .authorizationUri("https://github.com/login/oauth/authorize")
+      // url của authorization server
+      .tokenUri("https://github.com/login/oauth/access_token")
+      // url mà client gọi để nhận được access_token và refresh_token
+      .userInfoUri("https://api.github.com/user")
+      // url để nhận được thêm thông tin chi tiết về user
+      .userNameAttributeName("id")
+      .clientName("GitHub")
+      .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+      .redirectUriTemplate("{baseUrl}/{action}/oauth2/code/{registrationId}")
+      .build();
+
+      // url được cung cấp trong tài liệu của github:
+      // https://docs.github.com/en/developers/apps/building-oauth-apps/authorizing-oauth-apps
+    return cr;
+  }
+}
+```
+
+* SpringSecurity cung cấp class **CommonOAuth2Provider**, định nghĩa 1 phần cho instance **ClientRegistration** cho các nhà cung cấp phổ biến nhất:
+  * Google
+  * Github
+  * Facebook
+  * Okta
+```java
+@Configuration
+public class ProjectConfig extends WebSecurityConfigurerAdapter {
+  private ClientRegistration clientRegistration() { 
+    return CommonOAuth2Provider.GITHUB 
+      .getBuilder("github")
+      // registration ID
+      .clientId("27670ee560e902ddd3dd") 
+      .clientSecret("545f7c2fb25346a95ba295836772b072df865f19")
+      .build();
+  }
+}
+```
+### Triển khai ClientRegistrationRepository
+* Đại diện cho OAuth2 client trong SpringSecurity bằng cách triển khai interface **ClientRegistrationRepository**, sử dụng nó để xác thực
+* **OAuth2LoginAuthenticationFilter** lấy thông tin chi tiết về authorization server mà client đăng ký từ **ClientRegistrationRepository**. **ClientRegistrationRepository** có 1 hoặc nhiểu đối tượng **ClientRegistration**
+* **ClientRegistrationRepository** tương tự interface **UserDetailsSerrvice**. **UserDetailsSerrvice** tìm kiếm **UserDetails** bằng username thì **ClientRegistrationRepository** tìm kiếm **ClientRegistration** bằng registration ID. 
+* SpringSecurity cũng có 1 triển khai **ClientRegistrationRepository** có sẵn để lưu các instance **ClientRegistration** trong bộ nhớ là **InMemoryClientRegistrationRepository** hoạt động tương tự **InMemoryUserDetailsManager**
+
+* Sử dụng **InMemoryClientRegistrationRepository** làm 1 bean trong Spring context
+```java
+@Configuration
+public class ProjectConfig extends WebSecurityConfigurerAdapter {
+  @Bean 
+  public ClientRegistrationRepository clientRepository() {
+    var c = clientRegistration();
+    return new InMemoryClientRegistrationRepository(c);
+  }
+  
+  private ClientRegistration clientRegistration() {
+    return CommonOAuth2Provider.GITHUB.getBuilder("github")
+      .clientId("27670ee560e902ddd3dd")
+      .clientSecret("545f7c2fb25346a95ba295836772b072df865f19")
+      .build();
+  }
+ 
+  @Override
+  protected void configure(HttpSecurity http) throws Exception {
+    http.oauth2Login();
+    http.authorizeRequests()
+      .anyRequest().authenticated();
+  }
+}
+```
+* Sử dụng object **Customizer** làm tham số trong method .oauth2Login(), thay thế có việc khai báo bean **ClientRegistration**
+```java
+@Configuration
+public class ProjectConfig extends WebSecurityConfigurerAdapter {
+ 
+ @Override
+ protected void configure(HttpSecurity http) throws Exception {
+    http.oauth2Login(c -> { 
+      c.clientRegistrationRepository(clientRepository());
+    });
+    http.authorizeRequests()
+      .anyRequest()
+    .authenticated();
+  }
+ 
+  private ClientRegistrationRepository clientRepository() {
+    var c = clientRegistration();
+    return new InMemoryClientRegistrationRepository(c);
+  }
+ 
+  private ClientRegistration clientRegistration() {
+    return CommonOAuth2Provider.GITHUB.getBuilder("github")
+      .clientId("27670ee560e902ddd3dd")
+      .clientSecret("545f7c2fb25346a95ba295836772b072df865f19")
+      .build();
+ }
+}
+```
+
+### Sử dụng application.properties thay thế cho các triển khai về ClientRegistration và ClientRegistrationRepository
+
+```yml
+spring.security.oauth2.client.registration.github.client-id=
+  27670ee560e902ddd3dd
+spring.security.oauth2.client.registration.github.client-secret=
+  545f7c2fb25346a95ba295836772b072df865f19
+# nếu sử dụng 1 provider khác với các loại phổ biến như github, facebook, google ...
+# cần chỉ định thêm về authorization server, sử dụng nhóm thuộc tính bắt đầu bằng spring.security.oauth2.client.provider
+
+# spring.security.oauth2.client.provider.myprovider.authorization-uri=<some uri>
+# spring.security.oauth2.client.provider.myprovider.token-uri=<some uri>
+```
+
+### Lấy thông tin chi tiết về user đã xác thực
+* Như đã biết, SpringSecurity lưu trữ thông tin chi tiết của user đã xác thục trong SecurityContext. Điều tương tự cũng xảy ra với OAuth2, filter sau khi xác thực user sẽ lưu thông tin của user trong SecutiryContext. 
+* Đối tượng **Authentication** được sử dụng trong trường hợp này có tên là **OAuth2AuthenticationToken**, có thể lấy trực tiếp đối tượng từ **SecurityContextHolder** hoặc đưa nó vào làm tham số của 1 endpoint, Spring Security tự động inject đối tượng đại diện cho user này vào tham số của method
+```java
+@GetMapping("")
+public String main(OAuth2AuthenticationToken token) { 
+  logger.info(String.valueOf(token.getPrincipal()));
+  // SecurityContextHolder.getContext().getAuthentication()
+  return "main.html";
+}
+```
+### Test application
+* truy cập app: http://localhost:8080
+* trình duyệt chuyển hướng tới URL: https://github.com/login/oauth/authorize?response_type=code&client_id=27670ee560e902ddd3dd&scope=read:user&state=fWwg5r9sKal4BMubg1oXBRrNn5y7VDW1A_rQ4UITbJk%3D&redirect_uri=http://localhost:8080/login/oauth2/code/github
+* Các tham số truy vấn trong url bao gồm:
+  * response_type: "code"
+  * client_id
+  * scope: "read:user" được xác định ttrong lớp CommonOauth2Provider
+  * state: là CSRF token
+* Sau khi điền thông tin đăng nhập trên github, github chuyển hướng trở lại app bằng url: http://localhost:8080/login/oauth2/code/github?code=a3f20502c182164a4086&state=fWwg5r9sKal4BMubg1oXBRrNn5y7VDW1A_rQ4UITbJk%3D 
+* Trong url mà github trả về có token là a3f20502c182164a4086
+
+* thông tin user lưu trữ trong SpringContext là:
+```txt
+Name: [43921235], 
+Granted Authorities: [[ROLE_USER, SCOPE_read:user]], User Attributes: 
+[{login=lspil, id=43921235, node_id=MDQ6VXNlcjQzOTIxMjM1, 
+avatar_url=https://avatars3.githubusercontent.com/u/43921235?v=4, 
+gravatar_id=, url=https://api.github.com/users/lspil, html_url=https://
+github.com/lspil, followers_url=https://api.github.com/users/lspil/
+followers, following_url=https://api.github.com/users/lspil/following{/
+other_user}, …
+```
+
+# Triển khai Authorization Server

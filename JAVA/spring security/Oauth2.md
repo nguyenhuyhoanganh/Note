@@ -668,7 +668,8 @@ public class AuthorizationServerConfig {
   public RegisteredClientRepository registeredClientRepository() {
     RegisteredClient r1 = 
       RegisteredClient.withId(UUID.randomUUID().toString())
-        // đây không phải client ID mà là mã định danh nội bộ, nên để 1 giá trị bất kỳ
+        // đây không phải client ID mà là mã định danh key id, sử dụng để định danh bộ publickey và private key
+        // resource server có thể sử dụng key id này để tìm đến public key được auth server cung cấp qua endpoint /oauth2/jwks
         .clientId("client") 
         .clientSecret("secret")
         .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)  
@@ -748,8 +749,21 @@ http://localhost:8080/oauth2/token?response_type=code&client_id=client&redirect_
   * id_token: nhận được do sử dụng openid  (jwt)
   * token_type: "Bearer"// loại này ý là nếu ai có được token này thì làm bố
   * expires_in: hạn token
-* id_token là 1 jwt, với body chứa sub: username, aud: clientid, ... header chứa kid: là chuỗi cung cấp định danh cho client (khác client id), alg: RS256
-* truy cập vào endpoint: /.well-known/openid-configuration method GET, cung cấp cho chúng ta tất cả các endpoint của openid và oauth2 trên auth server.
-* trong các endpoint được hiển thị có endpoint với key là "jwks_uri": "http://localhosst:8080/oauth2/jwks", gợi tới endpoint ta nhận được 1 mảng các keys, trong đó có key với kid tương tự giá trị kid nhận được trên header của id_token
 
-* resource server cần xác thực token bằng cách nào đó. Làm sao resource server biết cácj xác thực token? Khi chúng ta tạo ra token, trong header có có kid, nhưng gì resource server thực sự làm là lấy kid từ header, gọi đến endpoint http://localhosst:8080/oauth2/jwks. tìm theo kid vừa lấy để tìm ra public key để xác thực với private key
+* id_token là 1 JWT gồm 3 phần
+  * header:
+    * alg: thuật toán sử dụng để mã hoá signature
+    * kid: mã định danh cho cặp key, sử dụng để resource server tìm đến được public key
+  * payload:
+    * iss: tổ chức phát hành token (0 bắt buộc)
+    * sub: người phát hành token (username)
+    * aud: đối tượng sử dụng token (clientId, 0 bắt buộc)
+    * exp: thời điểm hết hạn tokrn
+  * signature (JWS): phần chữ ký, kết hợp 2 phần header và payload và mã hoá bằng private key
+* Auth server cung cấp endpointL /.well-known/openid-configuration method GET, cung cấp cho chúng ta tất cả các endpoint của openid và oauth2 trên auth server.
+* trong các endpoint được hiển thị có endpoint với key là "jwks_uri": "http://localhosst:8080/oauth2/jwks", endpoint trả về 1 bộ keyset, trong đó có key với kid tương tự giá trị kid nhận được trên header của id_token
+* resource server cần xác thực JWT (id_token) nhận được, resource server lấy ra kid từ header của JWT, gọi đến endpoint http://localhosst:8080/oauth2/jwks và tìm theo kid vừa lấy để tìm ra public key. Public key sử dụng để verify signature trong token
+
+* JWK đại diện cho khoá mật mã, JWKS đại diện cho 1 tập các JWK
+* JWT là tokken được giử đi, bao gồm 3 phần header, payload, signature (JWS hoặc JWE)
+* JWK sử dụng để xác minh phần JWS (signature) trong JWT

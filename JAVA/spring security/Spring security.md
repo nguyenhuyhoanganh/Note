@@ -49,6 +49,7 @@ public class ProjectConfig extends WebSecurityConfigurerAdapter {
 }
 ```
 
+
 ### Ex: ghi đè phương thức configure(AuthenticationManagerBuilder auth) được cung cấp bởi WebSecurityConfigurerAdapter
   - cấu hình trực tiếp UserDetailsService và PasswordEncoder trong phương thức được cung cấp sẵn bởi WebSecurityConfigurerAdapter
 
@@ -1293,4 +1294,58 @@ public class ProjectConfig extends WebSecurityConfigurerAdapter {
 https://github.com/nguyenhuyhoanganh/spring-security-in-action-source/tree/master/ssia-ch11-ex1-s1
 
 
+# Config với Spring Security 5.7
+* không sử dụng WebSecurityConfigurerAdapter
+* các method ghi đè của WebSecurityConfigurerAdapter sẽ thay thế bằng các bean
+  * method: *@Override void configure(HttpSecurity http)* => *@Bean SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http, ...)*
+  * method: *@Override protected void configure(AuthenticationManagerBuilder auth)* => *@Bean AuthenticationManager authenticationManager(HttpSecurity http, ...)*
+```java
+@Bean
+public AuthenticationManager authenticationManager(HttpSecurity http, AuthenticationProvider authenticationProvider) throws Exception {
+// BCryptPasswordEncoder bCryptPasswordEncoder, UserDetailService userDetailService
 
+    // return http.getSharedObject(AuthenticationManagerBuilder.class)
+    //   .userDetailsService(userDetailsService)
+    //   .passwordEncoder(bCryptPasswordEncoder)
+    //   .and()
+    //   .build();
+    // đưa UserDetailsService và PasswordEncoder vào AuthenticationManager
+
+    return http.getSharedObject(AuthenticationManagerBuilder.class)
+        .authenticationProvider(authenticationProvider)
+        .build();
+    // đưa AuthenticationProvider vào AuthenticationManager
+    
+}
+
+    @Bean
+    SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) {
+        http.authorizeRequests().
+            .mvcMatchers("/hello").hasRole("ADMIN")
+            .anyRequest().authenticated();
+        return http.build();
+    }
+
+```
+# Config với Spring Security 6.0 Spring Boot 3.0
+* không sử dụng **.authorizeRequests()** thay thế bằng **.authorizationHttpRequest()**
+* không sử dụng method **.mvcMatchers()** , **.antMatchers()**. để áp dụng hạn chế cho từng endpoint nữa, thay thế bằng **.requestMatchers()**
+* method **.access()** để chỉ định authorities hay roles cho endpoint được thay thế, không còn nhận vào **SpEL**, nhận vào 1 object loại của interface **AuthorizationManager<RequestAuthorizationContext>**
+    * **AuthorizationManager<T>** là 1 @FunctionalInterface với method: *AuthorizationDecision check (Supplier<Authentication> authentication, T object)*, 
+    * **AuthorizationDecision** l class có 1 thuộc tính *granted* đại diện việc có cấp quyền hạn hay không.
+    * *T object* ở trường hợp này đại diện cho *RequestAuthorizationContext*
+    * 1 trong những class được SpringSecurity cung cấp, triển khai **AuthorizationManager<RequestAuthorizationContext>** là **WebExpressionAuthorizationManager** có thể sử dụng tương tự method **.access()** cũng nhận vào SpEL
+* annotation **@EnableGlobalMethodSecurity** không dùng nữa, thay thế bằng **@EnableMethodSecurity** với cấu hình cho .prePostEnabled() đã được bật sẵn
+
+```java
+@Bean
+SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) {
+    http.authorizationHttpRequest().
+        .requestMatchers("/demo")
+        // giống antMatchers, phân biệt "/demo" và "/demo/"
+        .access(new WebExpressionAuthorizationManager("isAuthenticated()"));
+        // ~ .access("isAuthenticated") 
+
+        return http.build();
+    }
+```

@@ -289,13 +289,13 @@ followers, following_url=https://api.github.com/users/lspil/following{/
 other_user}, …
 ```
 
-# Triển khai Authorization Server
+# Authorization Server
 * Vai trò của Authorization server là xác thực user và cung cấp token cho client. Client sử dụng token để truy cập tài nguyên được cung cấp bởi resource server.
 * OAuth2 cung cấp nhiều loại luồng để nhận token. Hành vi của authorization server sẽ khác nhau tuỳ thuộc vào loại luồng cung cấp được chọn.
 * Authorization server phát triển bởi Spring Security không còn được hỗ trợ nữa. Spring Security đang phát triển một authorization server mới, tuy nhiên cần thời gian để SpringSecurity hoàn thiện, lựa chọn duy nhất là phát triển 1 authorization server tuỳ chỉnh là tuân theo 1 số hướng dẫn sau đây.
 * Có thể sử dụng công cụ bên thứ 3 như Keycloak hoặc Okta, tuy nhiên có thể các bên liên quan không chấp nhận giải phấp như vậy mà yêu cầu phải triển khai mã tuỳ chỉnh.
 
-### Bắt đầu tiển khai
+### Triển khai Authorization Server
 
 * pom.xml
 ```xml
@@ -1178,5 +1178,385 @@ public class CustomClientService implements RegisteredClientRepository {
 
 * sử dụng service thay thế cho @Bean RegisteredClientRepository
 
-# Triển khai Resource Server
+# Resource Server
+* Resource cần thực hiện xác thực token được nhận từ client
+* Có nhiều cách để xác thực token:
+  * Trực tiếp gọi đên auth server để xác thực token
+  * Sử dụng database lưu trữ token chung giữa auth server và resource server (blackboarding)
+  * Sử dụng cryptographic signatures, auth server sign token bằng primary key khi phát hành nó và resource sẽ xác nhận token signature
 
+### Triển khai Resource Server
+
+* pom.xml
+```xml
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+</dependency>
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-web</artifactId>
+</dependency>
+<dependency>
+  <groupId>org.springframework.cloud</groupId>
+  <artifactId>spring-cloud-starter-oauth2</artifactId>
+</dependency>
+```
+
+* thêm dependencyManagement tag cho spring-cloud-dependencies artifact
+```xml
+<dependencyManagement>
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-dependencies</artifactId>
+      <version>Hoxton.SR1</version>
+      <type>pom</type>
+      <scope>import</scope>
+    </dependency>
+  </dependencies>
+</dependencyManagement>
+```
+
+* thêm endpoint là đại diện cho resource mà user muốn truy cập
+```java
+@RestController
+public class HelloController {
+  @GetMapping("/hello")
+  public String hello() {
+    return "Hello!";
+  }
+}
+```
+
+* Tạo 1 class config, đi kèm annatiation @EnableResourceServer để Sping định cấu hình cho app trở thành resource server
+```java
+@Configuration
+@EnableResourceServer
+public class ResourceServerConfig {
+  /// code
+}
+```
+
+* do việc triển khai resource cũng đang được thay đổi nên annotation @EnableResourceServer đang không được dùng nữa, đang dần chuyển sang sử dụng config method trực tiếp, tuỳ nhiên vẫn gặp phải việc sử dụng trong các project cũ
+
+### Kiểm tra token từ xa
+* Triển khai xác thưucs token bằng cách cho phép resource server gọi trực tiếp tới auth server
+* Sử dụng phương pháp này nếu token là 1 chuỗi đơn giản như UUID
+* Cơ chế xác thực:
+  * Auth server cung cấp 1 endpoint. Đối với 1 token hợp lệ, nó trả về các quyền hạn của user, cấp quyền cho client. Gọi endoint này là check_token.
+  * Resource server gọi tới check_token endpoint mỗi request. Cách này giúp nó xác thực token nhận được từ client và cũng nhận được các quyền được cấp của client.
+* Cách này đơn giản, có thể áp dụng cho bất kỳ loại triển khai token nào. Tuy nhiên với mỗi request tới resource server có 1 token mới, resource server lại gọi tới auth server xác thực token, gây ra tải trọng không cần thiết cho auth server.
+* Mặc định, auth server triển hai endpoint /oauth/check_token  để resource server có thể sử dụng để xác thực token. Tuy nhiên hiện tại auth server ngầm từ chới tất cả requesst tới endpoint đó, => cần phải cấu hình để resouce server có thể gọi tới endpoit đó
+* Để cho phép reuquest đã xác thực gọi tới /oauth/check_token, cần ghi đè method configure(AuthorizationServerSecurityConfigurer config)
+
+* Cấu hình cho auth server sử dụng endpoint /oauth/check_token để xác thực token
+  * ghi đè lại method *configure(AuthorizationServerSecurityConfigurer config)* của 
+```java
+@Configuration
+@EnableAuthorizationServer
+public class AuthServerConfig extends AuthorizationServerConfigurerAdapter {
+  @Autowired
+  private AuthenticationManager authenticationManager;
+ 
+  @Override
+  public void configure(ClientDetailsServiceConfigurer clients) throws Exception {
+   clients.inMemory()
+    .withClient("client")
+    .secret("secret")
+    .authorizedGrantTypes("password", "refresh_token")
+    .scopes("read");
+  }
+ 
+  @Override
+  public void configure(AuthorizationServerEndpointsConfigurer endpoints) {
+   endpoints.authenticationManager(authenticationManager);
+  }
+ 
+  // chỉ định điều kiện sau để có thể gọi đến endpoint /oauth/check_token
+  public void configure(AuthorizationServerSecurityConfigurer config) {
+   config.checkTokenAccess("isAuthenticated()"); 
+   // có thể làm cho endpoint này có thể truy cập được mà không cần xác thực
+   // sử dụng permitAll() thay thế cho isAuthenticated() 
+  }
+}
+```
+* Bên cạnh việc làm cho endpoint oauth/check_token có thể truy cập, nếu quyết định chỉ cho phép tuy cập đã được xác thực, cần phải đăng ký resource server làm chính client của auth server. 
+* Thêm resorce server làm client cho auth server, không cần thêm grant type hoặc scope khi đăng ký client, chỉ cần thêm thông tin về client Id và client secret là có thể gọi tới endpoint oauth/check_token
+``` java
+// thêm resource server làm client tại auth server
+@Configuration
+@EnableAuthorizationServer
+public class AuthServerConfig extends AuthorizationServerConfigurerAdapter {
+  // Omitted code
+  @Override
+  public void configure(ClientDetailsServiceConfigurer clients) throws Exception {
+    clients.inMemory()
+      .withClient("client")
+      .secret("secret")
+      .authorizedGrantTypes("password", "refresh_token")
+      .scopes("read")
+      .and() 
+      .withClient("resourceserver") 
+      .secret("resourceserversecret"); 
+  }
+}
+```
+* Khởi động auth server và gọi cURL để lấy token: 
+```txt
+curl -v -XPOST -u client:secret "http://localhost:8080/oauth/token?grant_type=password&username=john&password=12345&scope=read"
+```
+
+* Auth server trả về response cho client như sau:
+```json
+{
+  "access_token":"4f2b7a6d-ced2-43dc-86d7-cbe844d3e16b",
+  "token_type":"bearer",
+  "refresh_token":"a4bd4660-9bb3-450e-aa28-2e031877cb36",
+  "expires_in":43199,
+  "scope":"read"
+}
+```
+
+* Gọi tới check__token endpoint để lấy thông tin chi tiết về access_token theo cURL sau: 
+```txt
+curl -XPOST -u resourceserver:resourceserversecret "http://localhost:8080/oauth/check_token?token=4f2b7a6d-ced2-43dc-86d7-cbe844d3e16b"
+```
+* Sau khi gọi đến check_token endpoint sẽ nhận được:
+```json
+{
+  "active":true,
+  "exp":1581307166,
+  "user_name":"john",
+  "authorities":["read"],
+  "client_id":"client",
+  "scope":["read"]
+}
+```
+
+* resource server hoạt đọng như 1 client cho auth server, vì vậy, nó cần đăng ký 1 số thông tin xác thực, sử dụng xác thực bằng HTTP Basic khi gọi đến endpoint check_token
+* Sử dụng application.properties để cấu hình cho resource server biết endpoint gọi đến để xác thực token cùng như thông tin mà resource server đăng ký với vai trò là client của auth server
+```yml
+server.port=9090
+security.oauth2.resource.token-info-uri=http:/./localhost:8080/oauth/check_token
+security.oauth2.client.client-id=resourceserver
+security.oauth2.client.client-secret=resourceserversecret
+```
+* Client khi gọi đến resource server, cần đặt token tại header Authorization, thêm tiền tố "Bearer " cho token:
+```txt
+curl -H "Authorization: bearer 4f2b7a6d-ced2-43dc-86d7-cbe844d3e16b" 
+  "http:/./localhost:9090/hello"
+```
+ 
+* Hiện nay Spring Security Oauth không còn được dùng nữa, vì vậy cần tìm hiểu cách triển khai resource server sử dụng token bên trong mà không dùng Spring Security OAuth, thay vào đó sử dụng các cấu hình trực tiếp với SPring Security
+* Spring cung cấp 1 method *.oauth2ResourceServer()* cho phép xác thực resource server. Method này giống .httpBasic() hay .formLogin(), cũng thêm 1 filter triển khai xác thực riêng vào filter chain
+
+* Sử dụng nó cần thêm 1 dependencies khác:
+```xml
+<dependency>
+  <groupId>org.springframework.security</groupId>
+  <artifactId>spring-security-oauth2-resource-server</artifactId>
+  <version>5.2.1.RELEASE</version>
+</dependency>
+<dependency>
+  <groupId>com.nimbusds</groupId>
+  <artifactId>oauth2-oidc-sdk</artifactId>
+  <version>8.4</version>
+  <scope>runtime</scope>
+</dependency>
+```
+* Sử dụng phương thức xác thực như sau:
+```java
+@Configuration
+public class ResourceServerConfig extends WebSecurityConfigurerAdapter {
+  @Override
+  protected void configure(HttpSecurity http) throws Exception {
+    http.authorizeRequests()
+      .anyRequest().authenticated()
+      .and()
+      .oauth2ResourceServer(c -> c.opaqueToken(
+        o -> {
+          o.introspectionUri("…");
+          // method introspectionUri để xác định uri check_token
+          o.introspectionClientCredentials("client", "secret");
+        })
+      );
+  }
+}
+```
+
+### Kiểm tra token sử dụng BlackBoarding với JdbcTokenStore
+* Triển khai auth server và resource server sử dụng chung 1 database để lưu token
+* Loại bỏ việc giao tiếp giữa auth server và resource server
+* Sau khi xác thực kết thúc, auth server sử dụng ToeknStore để tạo ra 1 token
+* Ở resource server, filter xác thực sử dụng ToeknStore để xác thực token và tìm chi tiết user mà nó sử dụng sau đó để uỷ quyền. Resource server sau đó lưu chi tiết user vào security context
+
+* Spring cung cấp nhiều cách triển khai khác nhau cho TokenStore, mặc định Spring đã cung cấp 1 token store với type InMemoryTokenStore, nghĩa là token được lưu trữ trong bộ nhớ. Nếu khởi động lại auth server thì token được phát hành trước đó không còn hiệu lực. Việc này đáp ứng cho trường hợp kiểm tra token từ xa, gọi đến endpoint oauth/check_token
+* Để quản lý token với blackboarding, SpringSecurity cung câos JdbcTokenStore, hoạt động với database thông qua jdbc
+
+* JdbcTokenStore mong đợi có 2 table, oauth_access_token để lưu trữ access_token và oauth_refresh_token để lưu trữ refresh_token
+* Có thể tuỳ chỉnh JdbcTokenStore sử dụng tên khác cho các table hoặc column. Khi đó các method của JdbcTokenStore phải ghi đè bất kỳ câu lệnh SQL nào mà nó sử dụng để truy xuất hoặc lưu trữ thông tin về token
+#### Sau đây là triển khai auth server giữ JdbcTokenStore mặc định:
+* pom.xml
+```xml
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-security</artifactId>
+</dependency>
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-web</artifactId>
+</dependency>
+<dependency>
+  <groupId>org.springframework.cloud</groupId>
+  <artifactId>spring-cloud-starter-oauth2</artifactId>
+</dependency>
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-jdbc</artifactId>
+</dependency>
+<dependency>
+  <groupId>mysql</groupId>
+  <artifactId>mysql-connector-java</artifactId>
+</dependency>
+```
+* schema.sql
+```sql
+CREATE TABLE IF NOT EXISTS `oauth_access_token` (
+  `token_id` varchar(255) NOT NULL,
+  `token` blob,
+  `authentication_id` varchar(255) DEFAULT NULL,
+  `user_name` varchar(255) DEFAULT NULL,
+  `client_id` varchar(255) DEFAULT NULL,
+  `authentication` blob,
+  `refresh_token` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`token_id`));
+
+CREATE TABLE IF NOT EXISTS `oauth_refresh_token` (
+  `token_id` varchar(255) NOT NULL,
+  `token` blob,
+  `authentication` blob,
+  PRIMARY KEY (`token_id`));
+```
+* xác định data source trong application.properties
+```yml
+spring.datasource.url=jdbc:mysql://localhost/spring?useLegacyDatetimeCode=false&serverTimezone=UTC
+spring.datasource.username=root
+spring.datasource.password=
+spring.datasource.initialization-mode=always
+```
+* class AuthServerConfig
+```java
+@Configuration
+@EnableAuthorizationServer
+public class AuthServerConfig extends AuthorizationServerConfigurerAdapter {
+ 
+  @Autowired
+  private AuthenticationManager authenticationManager;
+
+  @Autowired
+  private DataSource dataSource; // inject DataSource đã được cấu hình trong application.properties
+ 
+  @Override
+  public void configure(ClientDetailsServiceConfigurer clients) throws Exception {
+    clients.inMemory()
+      .withClient("client")
+      .secret("secret")
+      .authorizedGrantTypes("password", "refresh_token")
+      .scopes("read");
+  }
+ 
+  @Override
+  public void configure(AuthorizationServerEndpointsConfigurer endpoints) {
+      endpoints.authenticationManager(authenticationManager)
+        .tokenStore(tokenStore()); // cấu hình tokenStore
+  }
+
+// tạo 1 bean TokenStore trả về JdbcTokenStore
+  @Bean
+  public TokenStore tokenStore() { 
+    return new JdbcTokenStore(dataSource); 
+    // cung cấp truy cập tới database thông qua DataSource
+  }
+}
+```
+* Chạy auth server, gọi đến cURL sau: 
+```txt
+curl -v -XPOST -u client:secret "http://localhost:8080/oauth/token?grant_type=password&username=john&password=12345&scope=read"
+```
+
+* Response trả về:
+```json
+{
+  "access_token":"009549ee-fd3e-40b0-a56c-6d28836c4384",
+  "token_type":"bearer",
+  "refresh_token":"fd44d772-18b3-4668-9981-86373017e12d",
+  "expires_in":43199,
+  "scope":"read"
+}
+```
+* access_token trả về trong response cung được tìm thấy như 1 record trong table oauth_access_token, refresh token cũng vậy
+
+#### Triẻn khai resource serer
+* pom.xml
+```xml
+<dependency>
+   <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+</dependency>
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-web</artifactId>
+</dependency>
+<dependency>
+  <groupId>org.springframework.cloud</groupId>
+  <artifactId>spring-cloud-starter-oauth2</artifactId>
+</dependency>
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-jdbc</artifactId>
+</dependency>
+<dependency>
+  <groupId>mysql</groupId>
+  <artifactId>mysql-connector-java</artifactId>
+</dependency>
+```
+
+* application.properties
+```yml
+server.port=9090
+spring.datasource.url=jdbc:mysql://localhost/spring
+spring.datasource.username=root
+spring.datasource.password=
+```
+
+* class ResourceServerConfig
+```java
+@Configuration
+@EnableResourceServer
+public class ResourceServerConfig extends ResourceServerConfigurerAdapter {
+  @Autowired
+  private DataSource dataSource; 
+  // inject data source đã cấu hình trong application.properties
+ 
+  @Override
+  public void configure(ResourceServerSecurityConfigurer resources) {
+   resources.tokenStore(tokenStore()); 
+  } 
+  // cấu hình sử dụng tokenStore
+ 
+  @Bean
+  public TokenStore tokenStore() {
+   return new JdbcTokenStore(dataSource); 
+  }
+  // toạ bean JdbcTokenStore dựa vào dataSource để truy cập database
+}
+```
+
+* Gọi đến endpoint /hello sử dụng access_token được cung cấp trước đó theo cURL sau:
+```txt
+curl -H "Authorization:Bearer 009549ee-fd3e-40b0-a56c-6d28836c4384" "http://localhost:9090/hello"
+
+* năm 2020 hiện chưa có cách cấu hình ResourceServerConfig sử dụng blackboarding mà không có phụ thuộc Spring Security Oauth
+
+# Sử dụng JWT và Cryptographic Signatures đễ xác thực token

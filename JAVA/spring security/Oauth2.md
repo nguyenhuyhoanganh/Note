@@ -2,7 +2,7 @@
 * là khung uỷ quyền (giao thức uỷe quyền) với mục đích cho phép các trang web, hoặc ứng dụng bên thứ 3 truy cập tài nguyên
 * tách biệt trách nhiệm quản lý thông tin xác thực trong 1 thành phần của hệ thống (máy chủ uỷ quyền)
 
-# Các thành phần trong Oath2
+# Các thành phần trong OAuth2
   * Resource server: máy chủ tài nguyên, là 1 ứng dụng lưu trữ tài nguyên do người dùng sở hữu 
   * User: người dùng, là cá nhân sở hữu tài nguyên được cung cấp bởi resource server. Thường sử dụng username và passwword để nhận dạng bản thân
   * Client: máy khách, là 1 ứng dụng được phép thay mặt user truy cập các tài nguyên mà họ sở hữu. Client sử dụng client ID và client secret để nhận dạng chính nó. Những thông tin này khác với thông tin đăng nhập của user. Client cần nó để nhận dạng chính nó khi tạo request.
@@ -1348,7 +1348,8 @@ curl -H "Authorization: bearer 4f2b7a6d-ced2-43dc-86d7-cbe844d3e16b"
   "http:/./localhost:9090/hello"
 ```
  
-* Hiện nay Spring Security Oauth không còn được dùng nữa, vì vậy cần tìm hiểu cách triển khai resource server sử dụng token bên trong mà không dùng Spring Security OAuth, thay vào đó sử dụng các cấu hình trực tiếp với SPring Security
+#### Triển khai mới cho resource sử dụng spring-security-oauth2-resource-server
+* Hiện nay Spring Security Oauth không còn được dùng nữa, vì vậy cần tìm hiểu cách triển khai resource server sử dụng token bên trong mà không dùng Spring Security OAuth, thay vào đó sử dụng các cấu hình trực tiếp với Spring Security
 * Spring cung cấp 1 method *.oauth2ResourceServer()* cho phép xác thực resource server. Method này giống .httpBasic() hay .formLogin(), cũng thêm 1 filter triển khai xác thực riêng vào filter chain
 
 * Sử dụng nó cần thêm 1 dependencies khác:
@@ -1556,7 +1557,480 @@ public class ResourceServerConfig extends ResourceServerConfigurerAdapter {
 * Gọi đến endpoint /hello sử dụng access_token được cung cấp trước đó theo cURL sau:
 ```txt
 curl -H "Authorization:Bearer 009549ee-fd3e-40b0-a56c-6d28836c4384" "http://localhost:9090/hello"
+```
 
 * năm 2020 hiện chưa có cách cấu hình ResourceServerConfig sử dụng blackboarding mà không có phụ thuộc Spring Security Oauth
 
 # Sử dụng JWT và Cryptographic Signatures đễ xác thực token
+* Sử dụng Cryptographic Signatures để xác thực token giúp resource server xác thưcj mà không cần gọi trực tiếp tới auth server hay sử dụng database để chia sẻ token
+
+### Sử dụng token được ký bằng symmetric keys (key đối xứng) với Jwt
+* Cách tiếp cận đơn giản nhất để ký token là sử dụng symmetric keys. Sử dụng cùng 1 key có thể vừa ký token và vừa xác thực nó
+* Nhược điểm là không phải lúc nào cũng có thể chi sẻ key sử dụng để ký token với tất cả các ứng dụng tham gia quá trình xác thực
+* Sử dụng với JWT làm token
+* JWT gồm 3 phần header, payload và signature. các thông tin về header và payload được biểu diễn bằng JSON và mã hoá bằng Base64. Phần signature được toạ bằng 1 thuật toán cryptographic sử dụng input là phần header và payload . Thuật toán cryptographic cần 1 key, key giống như pasword. Ai đó có key thích hợp có thể ký token hoặc xác thực signature của token.
+* Nếu signature trên token là xác thực, sẽ đảm bảo không ai thay đổi token sau khi nó đã được ký.
+* Khi JWT được ký, có thể gọi nó là JWS. Thông thường áp dụng thuật toán cryptographic để ký token là đủ, tuy nhiên thỉnh thoảng có thể chọn mã hoá (encrypted) nó. Nếu token đã được ký, có thể xem nội dung của nó mà không cần bất kỳ key nào. Nhưng ngay cả khi hacker thấy được nội dung của token cũng không thể thay đổi nó bỏi vì nếu làm vậy thì signature sẽ không hợp lệ. Để hợp lệ, signature phải:
+  * được tạo bằng key chính xác
+  * khớp với nội dụng mà đã ký
+* Nếu token được mã hoá, nó cung có thể gọi là JWE, không thể nhìn thấy nối dụng của token được mã hoá nếu không có key hợp lệ
+
+* 1 triển khai TokenStore được Spring cung cấp là JwtTokenStore dùng để quản lý JWTs. Có thể xác thực token theo 2 cách:
+  * sử dụng cùng 1 key để ký token và xác thực signature, key được gọi là symmetric (đối xứng)
+  * sử dụng 1 key để ký token và 1 key khác để xác thực signature, 2 key được gọi là asymmetric key pair (cặp key bất đối xứng)
+
+* Dưới đây là cách triển khai sử dụng symmetric key, cả auth server và resource server đều biết và sử dụng chung 1 key. Auth server ký token bnawgf jey và resource server xác thực signature bằng chính key đó
+
+#### Triển khai auth server
+
+* pom.xml
+```xml
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-security</artifactId>
+</dependency>
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-web</artifactId>
+</dependency>
+  <dependency>
+  <groupId>org.springframework.cloud</groupId>
+  <artifactId>spring-cloud-starter-oauth2</artifactId>
+</dependency>
+```
+* Cấu hình JwtTokenStore tương tự như JdbcTokenStore, ngoài ra cần xác định 1 object type JwtAccessTokenConverter. Với object này, sử dụng để cấu hình cách auth server xác thực token, sử dụng symmetric key
+```java
+@Configuration
+@EnableAuthorizationServer
+public class AuthServerConfig extends AuthorizationServerConfigurerAdapter {
+ 
+  @Value("${jwt.key}")
+  private String jwtKey; // giá trị key được lấy trong application.properties
+  
+  @Autowired
+  private AuthenticationManager authenticationManager;
+ 
+  @Override
+  public void configure(ClientDetailsServiceConfigurer clients) throws Exception {
+    clients.inMemory()
+      .withClient("client")
+      .secret("secret")
+      .authorizedGrantTypes("password", "refresh_token")
+      .scopes("read");
+  }
+ 
+  @Override
+  public void configure(AuthorizationServerEndpointsConfigurer endpoints) {
+    endpoints.authenticationManager(authenticationManager)
+      .tokenStore(tokenStore()) // config cho token store sử dụng JwtTokenStore
+      .accessTokenConverter(jwtAccessTokenConverter()); // cấu hình cho converter
+  }
+
+  @Bean
+  public TokenStore tokenStore() {
+    // toạ 1 token store với acess token converter liên kết với nó
+    return new JwtTokenStore(jwtAccessTokenConverter()); 
+  }
+  
+  @Bean
+  public JwtAccessTokenConverter jwtAccessTokenConverter() {
+    var converter = new JwtAccessTokenConverter();
+    // đặt giá trị của symmetric key cho access token converter
+    converter.setSigningKey(jwtKey); 
+    return converter;
+  }
+}
+```
+* application.properties
+```yml
+jwt.key=MjWP5L7CiD
+```
+
+* Khởi động auth server và gọi đến endpoint oauth/token theo cURL: 
+```txt
+curl -v -XPOST -u client:secret http://localhost:8080/oauth/token?grant_type=password&username=john&password=12345&scope=read
+```
+
+* Response body nhận được:
+``` json
+{
+  "access_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXV…",
+  "token_type":"bearer",
+  "refresh_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6Ikp…",
+  "expires_in":43199,
+  "scope":"read",
+  "jti":"7774532f-b74b-4e6b-ab16-208c46a19560"
+}
+```
+* Trong response cả access_token và refresh_token đều là JWT, giải mã payload của JWT này ta được JSON sau:
+```json
+{
+  "user_name": "john",
+  "scope": ["read"],
+  "generatedInZone": "Europe/Bucharest",
+  "exp": 1583874061,
+  "authorities": ["read"],
+  "jti": "38d03577-b6c8-47f5-8c06-d2e3a713d986",
+  "client_id": "client"
+}
+```
+
+#### Triển khai resource server
+* resource sử dụng symmetric key đã xác thực token được phát hành bởi auth server
+* pom.xml
+```xml
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+</dependency>
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-web</artifactId>
+</dependency>
+<dependency>
+  <groupId>org.springframework.cloud</groupId>
+  <artifactId>spring-cloud-starter-oauth2</artifactId>
+</dependency>
+```
+
+* triển khai 1 endpoint để bảo vệ
+```java
+@RestController
+public class HelloController {
+  @GetMapping("/hello")
+  public String hello() {
+    return "Hello!";
+  }
+}
+```
+* Triển khai lớp config như với auth server, quan trong nhất là đảm bảo 2 server cùng lưu trữ 1 giá trị key
+```java
+@Configuration
+@EnableResourceServer
+public class ResourceServerConfig extends ResourceServerConfigurerAdapter {
+ 
+  @Value("${jwt.key}") 
+  private String jwtKey;
+ 
+  @Override
+  public void configure(ResourceServerSecurityConfigurer resources) {
+    resources.tokenStore(tokenStore()); 
+  }
+ 
+  @Bean
+  public TokenStore tokenStore() {
+    return new JwtTokenStore(jwtAccessTokenConverter());
+  }
+ 
+  @Bean
+  public JwtAccessTokenConverter jwtAccessTokenConverter() {
+    var converter = new JwtAccessTokenConverter(); 
+    converter.setSigningKey(jwtKey); 
+    return converter; 
+  }
+}
+```
+* Symmetric key chỉ là 1 chuỗi byte random, trong thực tế, nên để 1 chuỗi byte với độ dài là 258
+* application.propreties
+```yml
+server.port=9090
+jwt.key=MjWP5L7CiD
+```
+
+* Khởi động resource server và gọi đến endpoint /hello, thêm token vào Authorization header của request với tiền tố là Bearer: 
+```txt
+curl -H "Authorization:Bearer eyJhbGciOiJIUzI1NiIs…" http://localhost:9090/hello
+```
+
+#### Triển khai mới cho resource server sử dụng spring-security-oauth2-resource-server với JWT và symmetric key
+* Cấu hình sử dụng JWTs với method *oauth2ResourceServer()* được khuyến khích cho các dự án tương lai
+``` java
+@Configuration
+public class ResourceServerConfig extends WebSecurityConfigurerAdapter {
+ 
+  @Value("${jwt.key}")
+  private String jwtKey;
+ 
+  @Override
+  protected void configure(HttpSecurity http) throws Exception {
+    http.authorizeRequests()
+      .anyRequest().authenticated()
+      .and()
+      // sử dụng method jwt() của object Customizer, được giử dưới dạng parameter tới method oauth2ResourceServer()
+      // jwt() sẽ xác định các chi tiết cần để xác thực token
+      .oauth2ResourceServer(c -> c.jwt( 
+        // vì sử dụng symmetric key => tao 1 JwtDecoder để cung cấp giá trị cho symmetric key
+        j -> j.decoder(jwtDecoder());
+      ));
+  }
+  
+  @Bean
+  public JwtDecoder jwtDecoder() {
+    byte [] key = jwtKey.getBytes();
+    SecretKey originalKey = new SecretKeySpec(key, 0, key.length, "AES");
+    NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder.withSecretKey(originalKey).build();
+    return jwtDecoder;
+  }
+```
+### Sử dụng token được ký bằng asymmetric keys với JWT
+* Đôi khi sử dụng chung 1 key được chai sẻ giữa auth server và resourec serve là không thể thực hiện được. Xảy ra khi auth server và resource server được phát triển bởi các tổ chức khác nhau. 
+* Lúc này auth server không tin tưởng resource server, auth server không muốn chia sẻ key với resource server. Với symmetric key, resource server có quá nhiều quyền lực, không chỉ xác thực token mà còn ký token. Tưởng tượng Hacker lấy được symmetric key, mặc dù không thay đổi được token nhưng có thể sử dụng nó để ký 1 token mới, sử dụng token mới này với quyền admin để thay đổi hoặc đánh cắp tài nguyên 
+* Khi auth server không thể tin tưởng resource server, nên sử dụng asymmetric key pairs
+* 1 asymmetric key pair có 2 key:
+  * private key: sử dụng để key token
+  * public key: được liên kết bới private key, sử dụng để xác thực signature
+
+#### Tạo asymmetric key pairs
+* Sử dung keytool và OpenSSL, là 2 command-lien tools. JDK đã cài đặt keytool, OpenSSL thì đi kèm sẵn với Git Bash. KHi có đủ 2 tools, cần thực thi 2 command-line để thực hiện tạo private key và lấy public key cho private key trước đó.
+* Các option để tạo private key trong Command Prompt:
+```txt
+Options:
+ -alias <alias>                  alias name of the entry to process
+ -keyalg <keyalg>                key algorithm name
+ -keysize <keysize>              key bit size
+ -sigalg <sigalg>                signature algorithm name
+ -destalias <destalias>          destination alias
+ -dname <dname>                  distinguished name
+ -startdate <startdate>          certificate validity start date/time
+ -ext <value>                    X.509 extension
+ -validity <valDays>             validity number of days
+ -keypass <arg>                  key password
+ -keystore <keystore>            keystore name
+ -storepass <arg>                keystore password
+ -storetype <storetype>          keystore type
+ -providername <providername>    provider name
+ -providerclass <providerclass>  provider class name
+ -providerarg <arg>              provider argument
+ -providerpath <pathlist>        provider classpath
+ -v                              verbose output
+ -protected                      password through protected mechanism
+```
+* Cung cáp các thông tin tối thiểu sau: lưu trong tệp privatekey.jks, sử dụng password là 123456 để bảo vệ private key, đặt alias name là privatekey để tạo key trong  Command Prompt:
+```txt
+keytool -genkeypair -alias privatekey -keyalg RSA -keypass 123456 -keystore privatekey.jks -storepass 123456
+```
+* Để thu thập public key, trong giao diện git bash sử dụng command sau:
+```txt
+keytool -list -rfc --keystore privatekey.jks | openssl x509 -inform pem -pubkey
+```
+* Cần nhập lại password khi tạo public key, trường hợp này sử dụng pasowrd là 123456. Sau đó sẽ thấy public key trong giao diện dòng lệnh như sau:
+```txt
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmk++9E7hKxDBwqp/c+4L
+tXyYvQ9do/NCCqxOxXj/NYNsuQo9Ja4ZcX5pv/5//iryclneTJiMg6Ed5xIxr/0i
+WSMgSETSQqa4N3Sy2kW3uHyiZoalv/m3zGcmO5FJ6okDOj+ViBLqcMd/VCMUXLUW
+30AexeIjnzbE3oyInsjJcFIvEaxl8N0+z15zAMgRkNT2iC+4BcYRs+tWF6jbreuw
+NvBAhVZ1bJTxPT+1OWT3q4XnSFel558EogWWaPFhO/I5oKydW0B4DS20OFZms0+x
+Ut2SA3ocFS7pBXDyJbc83EC8QpmN8587PtxcsZwqHUYvlFH5SOzfn3+n/ZuDFc93
+VQIDAQAB
+-----END PUBLIC KEY-----
+```
+
+#### Triển khai auth server sử dụng private key
+* Sử dụng cùng 1 file pom.xml như trong ví dụ symmetric key
+* Copy file private key: privatekey.jks vào folder resource
+* Khai báo filename, alias của private key và pasword sử dụng để bảo vệ private key trong file application.properties. Những chi tiết này cần thiết để cấu hình JwtTokenStore
+```yml
+password=123456
+privateKey=privatekey.jks
+alias=privatekey
+```
+* Cấu hình sử dụng private key chỉ thay đổi với JwtAccessTokenConverter so với cấu hình sử dụng symmetric key
+```java
+@Configuration
+@EnableAuthorizationServer
+public class AuthServerConfig extends AuthorizationServerConfigurerAdapter {
+ 
+ // inject từ application.properties
+  @Value("${password}") 
+  private String password; 
+  @Value("${privateKey}") 
+  private String privateKey; 
+  @Value("${alias}") 
+  private String alias; 
+  @Autowired
+  private AuthenticationManager authenticationManager;
+ 
+  // Omitted code
+  @Bean
+  public JwtAccessTokenConverter jwtAccessTokenConverter() {
+    var converter = new JwtAccessTokenConverter();
+    
+    // tạo 1 object KeyStoreKeyFactory để đọc private key từ classpath
+    KeyStoreKeyFactory keyStoreKeyFactory = new KeyStoreKeyFactory(
+      new ClassPathResource(privateKey), password.toCharArray() 
+    ); 
+ 
+    // sử dụng object KeyStoreKeyFactory để truy xuất đến key pair và đặt key pair vào trong JwtAccessTokenConverter
+    converter.setKeyPair(keyStoreKeyFactory.getKeyPair(alias));
+    return converter;
+  }
+```
+
+* Khởi động auth server và gọi đén endpoint /oauth/token với cURL sau:
+```txt
+curl -v -XPOST -u client:secret "http://localhost:8080/oauth/token?grant_type=password&username=john&passwopa=12345&scope=read"
+```
+* Response nhận được là
+```json
+{
+  "access_token":"eyJhbGciOiJSUzI1NiIsInR5…",
+  "token_type":"bearer",
+  "refresh_token":"eyJhbGciOiJSUzI1NiIsInR…",
+  "expires_in":43199,
+  "scope":"read",
+  "jti":"8e74dd92-07e3-438a-881a-da06d6cbbe06"
+}
+```
+* Token trong response là JWT bình thường, tuy nhiên để xác thực signature cần public key. Token này chỉ được ký, chưa mã hoá
+
+#### Triển khai resource server sử dụng public key
+* application.properties
+```yml
+server.port=9090
+pulicKey=-----BEGIN PUBLIC KEY-----MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmk++9E7hKxDBwqp/c+4LtXyYvQ9do/NCCqxOxXj/NYNsuQo9Ja4ZcX5pv/5//iryclneTJiMg6Ed5xIxr/0iWSMgSETSQqa4N3Sy2kW3uHyiZoalv/m3zGcmO5FJ6okDOj+ViBLqcMd/VCMUXLUW30AexeIjnzbE3oyInsjJcFIvEaxl8N0+z15zAMgRkNT2iC+4BcYRs+tWF6jbreuwNvBAhVZ1bJTxPT+1OWT3q4XnSFel558EogWWaPFhO/I5oKydW0B4DS20OFZms0+xUt2SA3ocFS7pBXDyJbc83EC8QpmN8587PtxcsZwqHUYvlFH5SOzfn3+n/ZuDFc93VQIDAQAB-----END PUBLIC KEY-----
+```
+* config sử dụng public key để xác thưc
+```java
+@Configuration
+@EnableResourceServer
+public class ResourceServerConfig extends ResourceServerConfigurerAdapter {
+ 
+  @Value("${publicKey}") 
+  private String publicKey;
+  
+  @Override
+  public void configure(ResourceServerSecurityConfigurer resources) {
+    resources.tokenStore(tokenStore());
+  }
+ 
+  @Bean
+  public TokenStore tokenStore() {
+    return new JwtTokenStore(jwtAccessTokenConverter()); 
+  }
+ 
+  @Bean
+  public JwtAccessTokenConverter jwtAccessTokenConverter() {
+    var converter = new JwtAccessTokenConverter();
+    converter.setVerifierKey(publicKey); 
+    return converter;
+  }
+}
+```
+
+* Khởi động resource server vào gọi đến endpoint /hello với cURL như sau:
+```txt
+curl -H "Authorization:Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6I…" http://localhost:9090/hello
+```
+
+#### Triển khai mới cho resource server sử dụng spring-security-oauth2-resource-server với JWT và asymmetric key pairs
+* Thay đổi duy nhất so với sử dụng symmetric key là JwtDecoder
+```java
+public JwtDecoder jwtDecoder() {
+  try {
+    KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+    var key = Base64.getDecoder().decode(publicKey);
+    var x509 = new X509EncodedKeySpec(key);
+    var rsaKey = (RSAPublicKey) keyFactory.generatePublic(x509);
+    return NimbusJwtDecoder.withPublicKey(rsaKey).build();
+  } catch (Exception e) {
+    throw new RuntimeException("Wrong public key");
+  }
+}
+```
+* Khi có JwtDecoder sử dụng public key để xác thực token, cần cài đặt bộ giải mã này sử dụng *oauth2ResourceServer()*
+```java
+@Configuration
+public class ResourceServerConfig extends WebSecurityConfigurerAdapter {
+  @Value("${publicKey}")
+  private String publicKey;
+ 
+  @Override
+  protected void configure(HttpSecurity http) throws Exception {
+    http.oauth2ResourceServer(c -> c.jwt(
+      j -> j.decoder(jwtDecoder())
+    ));
+ 
+    http.authorizeRequests()
+      .anyRequest().authenticated();
+  }
+ // Omitted code
+}
+```
+#### Sử dụng endpoint để tiết lộ public key
+* Cách làm cho public key được resource server biết đến
+* Điều gì xảy ra nếu muốn thay đổi key pair, 1 phương pháp tốt là không nên giữu cùng 1 key pairs mãi mãi, Theo thời gian nen xoay các keys, làm cho hệ thống ít bị đánh cắp key hơn. Vì vậy tạo ra khó khắn khi muốn thay đổi key pairs, cần phải thay đổi ở cả 2 ứng dụng
+* Thay vào đó, chỉ thay đổ private key tại auth server và cung cấp 1 endpoint để resource server lấy public key
+* Mọi thiết lập với auth server vẫn được giữ nguyên, Spring đã cấu hình 1 endpoint làm lộ ra public key. Theo mặc định endpoint này từ chối mọi request, cần ghi đè lại cấu hình cho endpoint này chấp nhận bất cứ ai với thông tin xác thực của client có thể truy cập nó.
+```java
+@Configuration
+@EnableAuthorizationServer
+public class AuthServerConfig extends AuthorizationServerConfigurerAdapter {
+  // Omitted code
+  @Override
+  public void configure(ClientDetailsServiceConfigurer clients) throws Exception {
+    clients.inMemory()
+      .withClient("client")
+      .secret("secret")
+      .authorizedGrantTypes("password", "refresh_token")
+      .scopes("read")
+      .and() 
+      // thêm thông tin xác thưc của resource server như 1 client
+      .withClient("resourceserver") 
+      .secret("resourceserversecret"); 
+  }
+
+  // cấu hình cho auth server cung cấp endpoint lấy public key cho mọi reqquets đã được xác thực với thông tin xác thực của client
+  @Override
+  public void configure(AuthorizationServerSecurityConfigurer security) {
+    security.tokenKeyAccess("isAuthenticated()"); 
+  }
+}
+```
+
+* Khởi độn auth server và gọi đến /oauth/token_key với cURL sau:
+```txt
+curl -u resourceserver:resourceserversecret http://localhost:8080/oauth/token_key
+```
+
+* Response nhận được có dạng như sau:
+```json
+{
+  "alg":"SHA256withRSA",
+  "value":"-----BEGIN PUBLIC KEY----- nMIIBIjANBgkq... -----END PUBLIC KEY-----"
+}
+```
+
+* Với resource server sử dụng endpoint để thu thập public key, cần cấu hình endpoint và thông tin xác thực client trong application.properties như sau:
+```yml
+server.port=9090
+security.oauth2.resource.jwt.key-uri=http://localhost:8080/oauth/token_key
+security.oauth2.client.client-id=resourceserver
+security.oauth2.client.client-secret=resourceserversecret
+```
+* Bởi vì resource server lấy public key từ /oauth/token_key của auth server, nên không cần cấu hình nó trong resource server, class cấu hình cho resource server sẽ trống
+```java
+@Configuration
+@EnableResourceServer
+public class ResourceServerConfig extends ResourceServerConfigurerAdapter {
+}
+```
+
+* Khởi động resource server và gọi đến endpoint /hellovowis cURL như sau:
+```txt
+curl -H "Authorization:Bearer eyJhbGciOiJSUzI1NiIsInR5cCI…" http://localhost:9090/hello
+```
+
+#### Thêm chi tiết tuỷ chỉnh cho JWT
+* Trong nhiều trường hợp, không cần nhiều hơn những gì Spring cung cấp, tuy nhiên đôi khi có những yêu cầu cần thêm chi tiết tuỳ chỉnh vào token
+* Nếu giải mã 1 token mặc định do Spring triển khai sẽ nhận được:
+```json
+{
+  "exp": 1582581543, // tiémtamp khi token hết hạn
+  "user_name": "john", // user đã xác thực để cho phép client truy cập tới tài nguyên của họ
+  "authorities": ["read"], // quyền được cấp của user
+  "jti": "8e208653-79cf-45dd-a702-f6b694b417e7", // 1 chuỗi định danh duy nhất của token
+  "client_id": "client", // client đã yêu cầu token
+  "scope": ["read"] // quyền được cấp cho client
+}
+```

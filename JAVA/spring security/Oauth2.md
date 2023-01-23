@@ -594,7 +594,7 @@ public class AuthServerConfig extends AuthorizationServerConfigurerAdapter {
 }
 ```
 
-# Giải pháp cho Authorization Server mới trên frame work Oauth2 và OpenID (Spring Security OAuth 2 Authorization Server version 0.3)
+# Giải pháp cho Authorization Server mới trên frame work Oauth2 và OpenID (Spring Security OAuth 2 Authorization Server version 0.3) (2022)
 
 https://topdev.vn/blog/luu-registeredclient-vao-database-trong-spring-authorization-server/
 https://github.com/spring-projects/spring-authorization-server
@@ -800,384 +800,6 @@ Trong 2 phần thông tin này, phần challenge được giử đi khi client c
   "email_verified": true
 }
 ```
-  
-# Spring Security OAuth 2 Authorization Server version 1.0 cho Spring Boot 3
-
-* pom.xml
-```xml
-<dependency>
-		<groupId>org.springframework.security</groupId>
-		<artifactId>spring-security-oauth2-authorization-server</artifactId>
-		<version>1.0.0</version>
-</dependency>
-```
-
-* SecurityConfig.java
-```java
-@Configuration
-public class SecurityConfig {
-
-  // do Spring chưa đưa OAuth2AuthorizationServer thành 1 phần chính thức của Spring Security Oauth
-  // => cần phải config thông qua bean SecurityFilterChain bằng cách gọi method static applyDefaultSecurity của class OAuth2AuthorizationServerConfiguration và truyền HttpSecurity làm tham số
-
-  // đặt config Authorization Server lên Order(1)
-  @Bean
-  @Order(1)
-  public SecurityFilterChain asSecurityFilterChain(HttpSecurity http) throws Exception {
-    OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
-
-    // OpenID connect 1.0 bị tắt trong config mặc định
-    // bật OpenId Connect 1.0 thông qua khởi tạo OidcConfigurer
-    http.getConfigurer(OAuth2AuthorizationServerConfigurer.class)
-      // lấy ra configurer để thay đổi cấu hình mặc định của OAuth2AuthorizationServerConfigurer
-      .oidc(Customizer.withDefaults());
-      // khởi tạo OidcConfigurer
-
-    // chuyển hướng tới login page khi chưa được xác thực từ authorization endpoint
-    // đảm bảo các user chưa xác thực khi gọi đến bất kỳ authorization endpoint này cũng chuyển hướng đến /login
-    http.exceptionHandling(
-        e -> e.authenticationEntryPoint(
-            new LoginUrlAuthenticationEntryPoint("/login")
-        )
-    );`
-
-    return http.build();
-  }
-
-  // config thứ 2 của SecurityFilterChain chp app
-  @Bean
-  @Order(2)
-  public SecurityFilterChain appSecurityFilterChain(HttpSecurity http) throws Exception {
-    // config sử dung form login để client chuyển hướng user tới AuthServer sử dụng
-    http.formLogin()
-        .and()
-        .authorizeHttpRequests().anyRequest().authenticated();
-
-    return http.build();
-  }
-
-  @Bean
-  public UserDetailsService userDetailsService() {
-    var u1 = User.withUsername("user")
-        .password("password")
-        .authorities("read")
-        .build();
-
-    return new InMemoryUserDetailsManager(u1);
-  }
-
-  @Bean
-  public PasswordEncoder passwordEncoder() {
-    return NoOpPasswordEncoder.getInstance();
-  }
-
-  // đăng ký client với auth server
-  // triển khai quản lý client
-  @Bean
-  public RegisteredClientRepository registeredClientRepository() {
-    RegisteredClient r1 = RegisteredClient.withId(UUID.randomUUID().toString())
-        .clientId("client")
-        .clientSecret("secret")
-        /// vì cấu hình sử dụng OpenID nên có thể sử dụng bất kỳ scope nào cung cấp bởi OidcScopes
-        .scope(OidcScopes.OPENID)
-        .scope(OidcScopes.PROFILE)
-        // có thể cấu hihf nhiều redirect url
-        // khi client chuyển hướng user tới auth server sẽ thêm parameter redirect_url trong request để auth server chọn đúng redirect_url đã config
-        // auth server cần biết về redirect_url để chắc chắn redirect_url mà client cung cấp không bị ai đó thay đổi
-        .redirectUri("https://dummy.url/authorized")
-        // sử dụng phương thức xác thực HTTP Basic (giử token được mã hoá theo Base64 trong header để xác thực client)
-        .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
-        // grant type là authorization code
-        .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-        // sử dụng thêm request token
-        .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
-        .build();
-
-    return new InMemoryRegisteredClientRepository(r1);
-  }
-
-  // AuthorizationServerSettings chứa các config cài đặt cho OAuth2 Auth server, chỉ định cho các protocol endpoint
-  /* các URI được đặt mặc định như sau:
-   public final class AuthorizationServerSettings extends AbstractSettings {...
-	  public static Builder builder() {
-		  return new Builder()
-			  .authorizationEndpoint("/oauth2/authorize")
-			  .tokenEndpoint("/oauth2/token")
-			  .tokenIntrospectionEndpoint("/oauth2/introspect")
-			  .tokenRevocationEndpoint("/oauth2/revoke")
-			  .jwkSetEndpoint("/oauth2/jwks")
-			  .oidcUserInfoEndpoint("/userinfo")
-			  .oidcClientRegistrationEndpoint("/connect/register");
-	  }
-    ...
-  }*/
-  // AuthorizationServerSettings là 1 thành phần bắt buộc (thay thế ProviderSettings ở version 0.3)
-  // OAuth2AuthorizationServerConfigurer tự động đăng ký AuthorizationServerSettings @Bean, không cần cung cấp
-  // AuthorizationServerSettings thiết lập tất cả các endpoint cho Auth Server
-  // xem các endpoint được cung cấp bằng cách gọi tới: GET  /.wellknown/openid-configuration
-  @Bean
-  public AuthorizationServerSettings authorizationServerSettings() {
-    return AuthorizationServerSettings.builder()
-      .build();
-  }
-
-  // bật OpenID Connext mặc đinh đã cấu hình sử dụng jwt để mã hoá toekn_id
-  // cần cung cấp bộ jwk để sign token => tạo ra token
-  @Bean
-  public JWKSource<SecurityContext> jwkSource() throws Exception {
-    KeyPair keyPair = generateRsaKey();
-		RSAPublicKey publicKey = (RSAPublicKey) keyPair.getPublic();
-		RSAPrivateKey privateKey = (RSAPrivateKey) keyPair.getPrivate();
-
-    RSAKey rsaKey = new RSAKey.Builder(publicKey)
-        .privateKey(privateKey)
-        .keyID(UUID.randomUUID().toString())
-        .build();
-
-    JWKSet jwkSet = new JWKSet(key);
-    return new ImmutableJWKSet(jwkSet);
-  }
-
-  private static KeyPair generateRsaKey() { 
-		KeyPair keyPair;
-		try {
-			KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
-			keyPairGenerator.initialize(2048);
-			keyPair = keyPairGenerator.generateKeyPair();
-		}
-		catch (Exception ex) {
-			throw new IllegalStateException(ex);
-		}
-		return keyPair;
-	}
-
-  // tạo bean để cung cấp bộ giải mã cho Auth server xác thực token
-  @Bean 
-	public JwtDecoder jwtDecoder(JWKSource<SecurityContext> jwkSource) {
-		return OAuth2AuthorizationServerConfiguration.jwtDecoder(jwkSource);
-	}
-
-}
-```
-* Các url sử dụng:
- http://localhost:8080/oauth2/authorize?response_type=code&client_id=client&scope=openid&redirect_uri=https://springone.io/authorized&code_challenge=QYPAZ5NU8yvtlQ9erXrUYR-T5AGCjCF47vN-KsaI2A8&code_challenge_method=S256
-
- http://localhost:8080/oauth2/token?client_id=client&redirect_uri=https://springone.io/authorized&grant_type=authorization_code&code=dWlJMGpGlUAPz0sRU1y8suXDyWejo0_B4-WrLP-ks5kSlcdvlGG-u1OxOORvvpm7IMJaC_lMqzTX2Oh6AKHGOb2J4-Hp6PVPvGjLeUQMnWzz6h3Xyy1D0S6czbiTeU8f&code_verifier=qPsH306-ZDDaOE8DFzVn05TkN3ZZoVmI_6x4LsVglQI
-
-
-### Tuỳ chỉnh cấu hình Spring Security OAuth 2 Authorization Server
-#### tuỳ chỉnh claims cho token
-* Thêm @Bean OAuth2TokenCustomizer cho lớp config
-```java
-@Bean
-public OAuth2TokenCustomizer<JwtEncodingContext> oAuth2TokenCustomizer() {
-  return  context -> {
-    context.getClaims().claim("test", "test");
-  };
-}
-```
-
-#### tuỳ chỉnh lại redirect uri validator
-* mặc định uri redirect của client cung cấp không chấp nhận local host
-* viết lại logic của redirect uri
-  * logic chỉ kiểm tra redirect_uri cung cấp trong request khi client chuyển hướng user tới authserver để login có giống với redirect_uri khi dăng kí client voeis auth server hay không
-
-```java
-// tạo class CustomRedirectUriValidator 
-public class CustomRedirectUriValidator implements Consumer<OAuth2AuthorizationCodeRequestAuthenticationContext> {
-
-  @Override
-  public void accept(OAuth2AuthorizationCodeRequestAuthenticationContext context) {
-    OAuth2AuthorizationCodeRequestAuthenticationToken a = context.getAuthentication();
-    // lấy các client đã đăng ký trong context
-    RegisteredClient registeredClient = context.getRegisteredClient();
-    String uri = a.getRedirectUri();
-
-    if (!registeredClient.getRedirectUris().contains(uri)) {
-      var error = new OAuth2Error(OAuth2ErrorCodes.INVALID_REQUEST);
-      throw new OAuth2AuthorizationCodeRequestAuthenticationException(error, null);
-    }
-  }
-}
-/***************************************************************************************/
-// trong class config
-
-// đưa CustomRedirectUriValidator vừa tạo vào authorization endpoint provider
-private Consumer<List<AuthenticationProvider>> getAuthorizationEndpointProviders() {
-  return providers -> {
-    for (AuthenticationProvider p : providers) {
-      if (p instanceof OAuth2AuthorizationCodeRequestAuthenticationProvider x) {
-        x.setAuthenticationValidator(new CustomRedirectUriValidator());
-      }
-    }
-  };
-}
-
-@Bean
-@Order(1)
-public SecurityFilterChain asSecurityFilterChain(HttpSecurity http) throws Exception {
-  OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
-
-  http.getConfigurer(OAuth2AuthorizationServerConfigurer.class)
-      .authorizationEndpoint(
-        // tuỳ chỉnh cung cấp lại authorization endpoint provider
-          a -> a.authenticationProviders(getAuthorizationEndpointProviders())
-      )
-      .oidc(Customizer.withDefaults());
-
-  http.exceptionHandling(
-      e -> e.authenticationEntryPoint(
-          new LoginUrlAuthenticationEntryPoint("/login")
-      )
-  );
-
-  return http.build();
-}
-```
-#### tuỳ chỉnh sử dụng loại token sử dụng để xác thưc
-* Có 2 loại token chính:
-  * opaque: token không chứa data
-  * non-opaque: token chứa data bên trong (như jwt)
-* Tuỳ chỉnh bằng cách gọi method tokenSettings khi tạo ra 1 RegisteredClient
-```java
-@Bean
-public RegisteredClientRepository registeredClientRepository() {
-  RegisteredClient r1 = RegisteredClient.withId(UUID.randomUUID().toString())
-      .clientId("client")
-      .clientSecret("secret")
-      .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
-      .scope(OidcScopes.OPENID)
-      .scope(OidcScopes.PROFILE)
-      .redirectUri("https://springone.io/authorized")
-      .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-      .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
-      .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
-      .tokenSettings(
-          TokenSettings.builder()
-              // chuyển access_tokrn về loại REFERENCE. chính là opaque token, không chứa nội data
-              // mặc định là loại SELF_CONTAINED, chính là non-opaque token
-              // khi nhận được 1 opaque token, client sử tụng endpoint: /oauth2/introspect?token=<access_token> method POST, kiểu xác thực Basic auth, cung cấp client Id và client secrect để lấy được thông tin về user phát hành token
-              .accessTokenFormat(OAuth2TokenFormat.REFERENCE)
-              // tuỳ chỉnh thời gian tồn tại của token là 9000s (cả id_token và access_token)
-              .accessTokenTimeToLive(Duration.ofSeconds(900))
-              .build()
-      )
-      .build();
-
-  return new InMemoryRegisteredClientRepository(r1);
-}
-```
-
-#### ghi đè lại RegisteredClientRepository, sử dụng db để lưu trữ client
-* table: clients
-  * id
-  * client_id
-  * secrect
-  * scope
-  * auth method
-  * grant_type
-  * redirect_url
-* table: users
-  * id
-  * username
-  * password
-  * authority
-
-* tạo entity, repo
-```java
-public interface ClientRepository extends JpaRepository<Client, Integer> {
-
-  @Query("SELECT c FROM Client c WHERE c.clientId = :clientId")
-  Optional<Client> findByClientId(String clientId);
-
-}
-
-@Entity
-@Table(name = "clients")
-@Data
-public class Client {
-
-  @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
-  private int id;
-
-  private String clientId;
-  private String secret;
-  private String redirectUri;
-  private String scope;
-  private String authMethod;
-  private String grantType;
-
-  public static Client from(RegisteredClient registeredClient) {
-    Client client = new Client();
-
-    client.setClientId(registeredClient.getClientId());
-    client.setSecret(registeredClient.getClientSecret());
-
-    client.setRedirectUri(    // NOT CLEAN CODE
-      registeredClient.getRedirectUris().stream().findAny().get()
-    );
-    client.setScope(
-      registeredClient.getScopes().stream().findAny().get()
-    );
-    client.setAuthMethod(
-      registeredClient.getClientAuthenticationMethods().stream().findAny().get().getValue()
-    );
-    client.setGrantType(
-      registeredClient.getAuthorizationGrantTypes().stream().findAny().get().getValue()
-    );
-
-    return client;
-  }
-
-  public static RegisteredClient from(Client client) {
-    return RegisteredClient.withId(String.valueOf(client.getId()))
-      .clientId(client.getClientId())
-      .clientSecret(client.getSecret())
-      .scope(client.getScope())
-      .redirectUri(client.getRedirectUri())
-      .clientAuthenticationMethod(new ClientAuthenticationMethod(client.getAuthMethod()))
-      .authorizationGrantType(new AuthorizationGrantType(client.getGrantType()))
-      .build();
-  }
-}
-```
-
-* tạo service cho client
-```java
-@Service
-@Transactional
-public class CustomClientService implements RegisteredClientRepository {
-
-  private final ClientRepository clientRepository;
-
-  public CustomClientService(ClientRepository clientRepository) {
-    this.clientRepository = clientRepository;
-  }
-
-  @Override
-  public void save(RegisteredClient registeredClient) {
-    clientRepository.save(Client.from(registeredClient));
-  }
-
-  @Override
-  public RegisteredClient findById(String id) {
-    var client = clientRepository.findById(Integer.valueOf(id))
-      .orElseThrow();
-    return Client.from(client);
-  }
-
-  @Override
-  public RegisteredClient findByClientId(String clientId) {
-    var client = clientRepository.findByClientId(clientId)
-      .orElseThrow();
-    return Client.from(client);
-  }
-}
-```
-
-* sử dụng service thay thế cho @Bean RegisteredClientRepository
-
 # Resource Server
 * Resource cần thực hiện xác thực token được nhận từ client
 * Có nhiều cách để xác thực token:
@@ -2021,7 +1643,7 @@ public class ResourceServerConfig extends ResourceServerConfigurerAdapter {
 curl -H "Authorization:Bearer eyJhbGciOiJSUzI1NiIsInR5cCI…" http://localhost:9090/hello
 ```
 
-#### Thêm chi tiết tuỷ chỉnh cho JWT
+#### Thêm chi tiết tuỷ chỉnh cho JWT được cung cấp bởi auth server
 * Trong nhiều trường hợp, không cần nhiều hơn những gì Spring cung cấp, tuy nhiên đôi khi có những yêu cầu cần thêm chi tiết tuỳ chỉnh vào token
 * Nếu giải mã 1 token mặc định do Spring triển khai sẽ nhận được:
 ```json
@@ -2033,4 +1655,549 @@ curl -H "Authorization:Bearer eyJhbGciOiJSUzI1NiIsInR5cCI…" http://localhost:9
   "client_id": "client", // client đã yêu cầu token
   "scope": ["read"] // quyền được cấp cho client
 }
+```
+* Token sẽ lưu trữ tất cả chi tiết cần thiết cho xác thực bằng HTTP Basic
+* Triển khai cấu hình thêm time zone của auth server vào token. Để thực hiện cần tạo 1 object type TokenEnhancer
+```java
+public class CustomTokenEnhancer implements TokenEnhancer { 
+  // thực thi interface TokenEnhancer
+ 
+ // method enhance() nhận được token hiện tại và trả về token đã được tăng cường
+  @Override
+  public OAuth2AccessToken enhance(OAuth2AccessToken oAuth2AccessToken,
+    OAuth2Authentication oAuth2Authentication) {
+  
+    // tạo 1 token dựa trên token đã nhận
+    var token = new DefaultOAuth2AccessToken(oAuth2AccessToken);
+    
+    // khai báo 1 map, chứa các chi tiết muốn thêm vào token
+    Map<String, Object> info = 
+      Map.of("generatedInZone", ZoneId.systemDefault().toString());
+    
+    // thêm chi tiết vào token
+    token.setAdditionalInformation(info); 
+    
+    // trả về token đã được thêm chi tiết
+    return token; 
+  }
+}
+```
+* Với file cấu hình cho auth server, sử dụng cùng 1 cấu hình như trên, chỉ thay đổi method configure() áp dụng token đã được tăng cường
+```java
+@Configuration
+@EnableAuthorizationServer
+public class AuthServerConfig extends AuthorizationServerConfigurerAdapter {
+  // Omitted code
+ 
+  @Override
+  public void configure(AuthorizationServerEndpointsConfigurer endpoints) {
+ 
+ // xác định TokenEnhancerChain
+  TokenEnhancerChain tokenEnhancerChain = new TokenEnhancerChain(); 
+  
+  // thêm 2 token được tăng cường vào list
+  var tokenEnhancers = 
+    List.of(new CustomTokenEnhancer(), jwtAccessTokenConverter());
+ 
+  // đưa list vào chain
+  tokenEnhancerChain.setTokenEnhancers(tokenEnhancers);
+ 
+  // cấu hình sử dụng tokenEnhancerChain
+  endpoints.authenticationManager(authenticationManager)
+    .tokenStore(tokenStore())
+    .tokenEnhancer(tokenEnhancerChain); 
+  }
+}
+```
+* Việc cấu hình token tuỳ chỉnh có hơi phức tạp. Chúng ta phải tạo 1 chain của token enhancer và đặt toàn bộ chain thay thế cho chỉ 1 object. Bởi vì object access token converter cũng là 1 token enhancer. Nếu chỉ cấu hình token enhancer tuỳ chỉnh, phải ghi đè lại hành vi của access token converter. Thay vào đó, chỉ cần thêm cả 2 vào 1 chain, và cấu hình cho chain chứa cả 2 object.
+
+* Khởi động auth server và gọi đến endpoint /oauth/token với cURL sau: 
+```txt
+curl -v -XPOST -u client:secret "http://localhost:8080/oauth/token?grant_type=password&username=john&password=12345&scope=read"
+```
+* response nhận được:
+```json
+{
+  "access_token":"eyJhbGciOiJSUzI…",
+  "token_type":"bearer",
+  "refresh_token":"eyJhbGciOiJSUzI1…",
+  "expires_in":43199,
+  "scope":"read",
+  "generatedInZone":"Europe/Bucharest",
+  "jti":"0c39ace4-4991-40a2-80ad-e9fdeb14f9ec"
+}
+```
+* giải mã phần payload của token
+```json
+{
+  "user_name": "john",
+  "scope": ["read"],
+  "generatedInZone": "Europe/Bucharest", 
+  "exp": 1582591525,
+  "authorities": ["read"],
+  "jti": "0c39ace4-4991-40a2-80ad-e9fdeb14f9ec",
+  "client_id": "client"
+}
+```
+
+#### Cấu hình resource server để đọc chi tiết tuỳ chỉnh của 1 JWT
+* AccessTokenConverter là 1 object chuyển token thành 1 Authentication. Đây là 1 object cần thay đổi để có thể xem các chi tiết tuỳ chỉnh trong token. 
+* Trước đấy, chúng ta tạo 1 bean loại JwtAccessTokenConverter, sử dụng token này để set key được resource server sử dụng để xác thưc token. 
+* Tạo triển khai tuỳ chỉnh của JwtAccessTokenConverter, xem xét các chi tiết mới về token. Cách đơn giản nhất là mở rộng và ghi đè method extractAuthentication(). Method này chuyển token thành Authentication object
+```java
+public class AdditionalClaimsAccessTokenConverter extends JwtAccessTokenConverter {
+ 
+  @Override
+  public OAuth2Authentication extractAuthentication(Map<String, ?> map) {
+    // áp dụng logic được triển khai bởi JwtAccessTokenConverter class và lấy object authentication ban đầu
+    var authentication = super.extractAuthentication(map);
+    // thêm chi tiết tuỳ chỉnh vào authentication
+    authentication.setDetails(map); 
+    // trả lại authentication object
+    return authentication; 
+  }
+}
+```
+* Trong class cấu hình của resource server, co thể sử dụng access token converter tuỳ chỉnh
+```java
+@Configuration
+@EnableResourceServer
+public class ResourceServerConfig extends ResourceServerConfigurerAdapter {
+  // Omitted code
+  @Bean
+  public JwtAccessTokenConverter jwtAccessTokenConverter() {
+    var converter = new AdditionalClaimsAccessTokenConverter(); 
+    converter.setVerifierKey(publicKey);
+    return converter;
+  }
+}
+```
+* Đưa Authentication được AdditionalClaimsAccessTokenConverter chuyển đổi từ token vào controllẻ để kiểm tra
+```java
+@RestController
+public class HelloController {
+  @GetMapping("/hello")
+  public String hello(OAuth2Authentication authentication) {
+    // lấy các chi tiết bổ sung được thêm vào object authentication 
+    OAuth2AuthenticationDetails details = 
+      (OAuth2AuthenticationDetails) authentication.getDetails();
+    return "Hello! " + details.getDecodedDetails(); 
+ }
+}
+```
+* Method getDecodedDetails() trả về 1 map chứa chi tiết của token
+* Khởi động resource server và gọi đến endpoint /hello theo cURL sau:
+```txt
+ curl -H "Authorization:Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6Ikp… " http://localhost:9090/hello
+ ```
+ * Response trả về:
+ ```txt
+Hello! {user_name=john, scope=[read], generatedInZone=Europe/Bucharest, 
+  exp=1582595692, authorities=[read], jti=982b02be-d185-48de-a4d3-
+  9b27337d1a46, client_id=client}
+ ```
+
+# Spring Security OAuth 2 Authorization Server version 1.0 cho Spring Boot 3 (2023)
+1. Thêm dependency: 
+  * spring-security-oauth2-authorization-server (trên maven story)
+  * Spring Web
+  * Spring Security
+```xml
+<dependency>
+		<groupId>org.springframework.security</groupId>
+		<artifactId>spring-security-oauth2-authorization-server</artifactId>
+		<version>1.0.0</version>
+</dependency>
+```
+
+2. tạo file cấu hình SecurityConfig.java
+```java
+@Configuration
+public class SecurityConfig {
+
+  // do Spring chưa đưa OAuth2AuthorizationServer thành 1 phần chính thức của Spring Security Oauth
+  // => cần phải config thông qua bean SecurityFilterChain bằng cách gọi method static applyDefaultSecurity của class OAuth2AuthorizationServerConfiguration và truyền HttpSecurity làm tham số
+
+  // đặt config Authorization Server lên Order(1)
+  @Bean
+  @Order(1)
+  public SecurityFilterChain asSecurityFilterChain(HttpSecurity http) throws Exception {
+    OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
+
+    // OpenID connect 1.0 bị tắt trong config mặc định
+    // bật OpenId Connect 1.0 thông qua khởi tạo OidcConfigurer
+    http.getConfigurer(OAuth2AuthorizationServerConfigurer.class)
+      // lấy ra configurer để thay đổi cấu hình mặc định của OAuth2AuthorizationServerConfigurer
+      .oidc(Customizer.withDefaults());
+      // khởi tạo OidcConfigurer
+
+    // chuyển hướng tới login page khi chưa được xác thực từ authorization endpoint
+    // đảm bảo các user chưa xác thực khi gọi đến bất kỳ authorization endpoint này cũng chuyển hướng đến /login
+    http.exceptionHandling(
+        e -> e.authenticationEntryPoint(
+            new LoginUrlAuthenticationEntryPoint("/login")
+        )
+    );`
+
+    return http.build();
+  }
+
+  // config thứ 2 của SecurityFilterChain chp app
+  @Bean
+  @Order(2)
+  public SecurityFilterChain appSecurityFilterChain(HttpSecurity http) throws Exception {
+    // config sử dung form login để client chuyển hướng user tới AuthServer sử dụng
+    http.formLogin()
+        .and()
+        .authorizeHttpRequests().anyRequest().authenticated();
+
+    return http.build();
+  }
+
+  @Bean
+  public UserDetailsService userDetailsService() {
+    var u1 = User.withUsername("user")
+        .password("password")
+        .authorities("read")
+        .build();
+
+    return new InMemoryUserDetailsManager(u1);
+  }
+
+  @Bean
+  public PasswordEncoder passwordEncoder() {
+    return NoOpPasswordEncoder.getInstance();
+  }
+
+  // đăng ký client với auth server
+  // triển khai quản lý client
+  @Bean
+  public RegisteredClientRepository registeredClientRepository() {
+    RegisteredClient r1 = RegisteredClient.withId(UUID.randomUUID().toString())
+        .clientId("client")
+        .clientSecret("secret")
+        /// vì cấu hình sử dụng OpenID nên có thể sử dụng bất kỳ scope nào cung cấp bởi OidcScopes
+        .scope(OidcScopes.OPENID)
+        .scope(OidcScopes.PROFILE)
+        // có thể cấu hihf nhiều redirect url
+        // khi client chuyển hướng user tới auth server sẽ thêm parameter redirect_url trong request để auth server chọn đúng redirect_url đã config
+        // auth server cần biết về redirect_url để chắc chắn redirect_url mà client cung cấp không bị ai đó thay đổi
+        .redirectUri("https://dummy.url/authorized")
+        // sử dụng phương thức xác thực HTTP Basic (giử token được mã hoá theo Base64 trong header để xác thực client)
+        .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+        // grant type là authorization code
+        .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+        // sử dụng thêm request token
+        .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+        .build();
+
+    return new InMemoryRegisteredClientRepository(r1);
+  }
+
+  // AuthorizationServerSettings chứa các config cài đặt cho OAuth2 Auth server, chỉ định cho các protocol endpoint
+  /* các URI được đặt mặc định như sau:
+   public final class AuthorizationServerSettings extends AbstractSettings {...
+	  public static Builder builder() {
+		  return new Builder()
+			  .authorizationEndpoint("/oauth2/authorize")
+			  .tokenEndpoint("/oauth2/token")
+			  .tokenIntrospectionEndpoint("/oauth2/introspect")
+			  .tokenRevocationEndpoint("/oauth2/revoke")
+			  .jwkSetEndpoint("/oauth2/jwks")
+			  .oidcUserInfoEndpoint("/userinfo")
+			  .oidcClientRegistrationEndpoint("/connect/register");
+	  }
+    ...
+  }*/
+  // AuthorizationServerSettings là 1 thành phần bắt buộc (thay thế ProviderSettings ở version 0.3)
+  // OAuth2AuthorizationServerConfigurer tự động đăng ký AuthorizationServerSettings @Bean, không cần cung cấp
+  // AuthorizationServerSettings thiết lập tất cả các endpoint cho Auth Server
+  // xem các endpoint được cung cấp bằng cách gọi tới: GET  /.wellknown/openid-configuration
+  @Bean
+  public AuthorizationServerSettings authorizationServerSettings() {
+    return AuthorizationServerSettings.builder()
+      .build();
+  }
+
+  // bật OpenID Connext mặc đinh đã cấu hình sử dụng jwt để mã hoá toekn_id
+  // cần cung cấp bộ jwk để sign token => tạo ra token
+  @Bean
+  public JWKSource<SecurityContext> jwkSource() throws Exception {
+    KeyPair keyPair = generateRsaKey();
+		RSAPublicKey publicKey = (RSAPublicKey) keyPair.getPublic();
+		RSAPrivateKey privateKey = (RSAPrivateKey) keyPair.getPrivate();
+
+    RSAKey rsaKey = new RSAKey.Builder(publicKey)
+        .privateKey(privateKey)
+        .keyID(UUID.randomUUID().toString())
+        .build();
+
+    JWKSet jwkSet = new JWKSet(key);
+    return new ImmutableJWKSet(jwkSet);
+  }
+
+  private static KeyPair generateRsaKey() { 
+		KeyPair keyPair;
+		try {
+			KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+			keyPairGenerator.initialize(2048);
+			keyPair = keyPairGenerator.generateKeyPair();
+		}
+		catch (Exception ex) {
+			throw new IllegalStateException(ex);
+		}
+		return keyPair;
+	}
+
+  // tạo bean để cung cấp bộ giải mã cho Auth server xác thực token
+  @Bean 
+	public JwtDecoder jwtDecoder(JWKSource<SecurityContext> jwkSource) {
+		return OAuth2AuthorizationServerConfiguration.jwtDecoder(jwkSource);
+	}
+
+}
+```
+3. Urls client giử đến authorization server:
+  * Client chuyển hướng user tới authorization server theo url:
+```txt
+http://localhost:8080/oauth2/authorize?response_type=code&client_id=client&scope=openid&redirect_uri=https://springone.io/authorized&code_challenge=QYPAZ5NU8yvtlQ9erXrUYR-T5AGCjCF47vN-KsaI2A8&code_challenge_method=S256
+```
+  * Client nhận authorization_code, gọi đến authorization server thu thập access_token:
+```txt
+http://localhost:8080/oauth2/token?client_id=client&redirect_uri=https://springone.io/authorized&grant_type=authorization_code&code=dWlJMGpGlUAPz0sRU1y8suXDyWejo0_B4-WrLP-ks5kSlcdvlGG-u1OxOORvvpm7IMJaC_lMqzTX2Oh6AKHGOb2J4-Hp6PVPvGjLeUQMnWzz6h3Xyy1D0S6czbiTeU8f&code_verifier=qPsH306-ZDDaOE8DFzVn05TkN3ZZoVmI_6x4LsVglQI
+```
+
+
+### Tuỳ chỉnh cấu hình Spring Security OAuth 2 Authorization Server
+#### tuỳ chỉnh claims cho token
+* Thêm @Bean OAuth2TokenCustomizer cho lớp config
+```java
+@Bean
+public OAuth2TokenCustomizer<JwtEncodingContext> oAuth2TokenCustomizer() {
+  return  context -> {
+    context.getClaims().claim("test", "test");
+  };
+}
+```
+
+#### tuỳ chỉnh lại redirect uri validator
+* mặc định uri redirect của client cung cấp không chấp nhận local host
+* viết lại logic của redirect uri
+  * logic chỉ kiểm tra redirect_uri cung cấp trong request khi client chuyển hướng user tới auth server để login 
+  * chỉ chấp nhận redirect_uri giống redirect_uri đã cung cấp khi đăng kí client cho auth server
+  * không có logic khác => loại bỏ việc mặc định không chấp nhận gọi đến từ localhost
+```java
+// tạo class CustomRedirectUriValidator 
+public class CustomRedirectUriValidator implements Consumer<OAuth2AuthorizationCodeRequestAuthenticationContext> {
+
+  @Override
+  public void accept(OAuth2AuthorizationCodeRequestAuthenticationContext context) {
+    OAuth2AuthorizationCodeRequestAuthenticationToken a = context.getAuthentication();
+    // lấy các client đã đăng ký trong context
+    RegisteredClient registeredClient = context.getRegisteredClient();
+    String uri = a.getRedirectUri();
+
+    if (!registeredClient.getRedirectUris().contains(uri)) {
+      var error = new OAuth2Error(OAuth2ErrorCodes.INVALID_REQUEST);
+      throw new OAuth2AuthorizationCodeRequestAuthenticationException(error, null);
+    }
+  }
+}
+/***************************************************************************************/
+// trong class config
+
+// đưa CustomRedirectUriValidator vừa tạo vào authorization endpoint provider
+private Consumer<List<AuthenticationProvider>> getAuthorizationEndpointProviders() {
+  return providers -> {
+    for (AuthenticationProvider p : providers) {
+      if (p instanceof OAuth2AuthorizationCodeRequestAuthenticationProvider x) {
+        x.setAuthenticationValidator(new CustomRedirectUriValidator());
+      }
+    }
+  };
+}
+
+@Bean
+@Order(1)
+public SecurityFilterChain asSecurityFilterChain(HttpSecurity http) throws Exception {
+  OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
+
+  http.getConfigurer(OAuth2AuthorizationServerConfigurer.class)
+      .authorizationEndpoint(
+        // tuỳ chỉnh cung cấp lại authorization endpoint provider
+          a -> a.authenticationProviders(getAuthorizationEndpointProviders())
+      )
+      .oidc(Customizer.withDefaults());
+
+  http.exceptionHandling(
+      e -> e.authenticationEntryPoint(
+          new LoginUrlAuthenticationEntryPoint("/login")
+      )
+  );
+
+  return http.build();
+}
+```
+#### tuỳ chỉnh sử dụng loại token sử dụng để xác thưc
+* Có 2 loại token chính:
+  * opaque: token không chứa data
+  * non-opaque: token chứa data bên trong (như jwt)
+* Tuỳ chỉnh bằng cách gọi method tokenSettings khi tạo ra 1 RegisteredClient
+```java
+@Bean
+public RegisteredClientRepository registeredClientRepository() {
+  RegisteredClient r1 = RegisteredClient.withId(UUID.randomUUID().toString())
+      .clientId("client")
+      .clientSecret("secret")
+      .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+      .scope(OidcScopes.OPENID)
+      .scope(OidcScopes.PROFILE)
+      .redirectUri("https://springone.io/authorized")
+      .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+      .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+      .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
+      .tokenSettings(
+          TokenSettings.builder()
+              // chuyển access_tokrn về loại REFERENCE. chính là opaque token, không chứa nội data
+              // mặc định là loại SELF_CONTAINED, chính là non-opaque token
+              // khi nhận được 1 opaque token, client sử tụng endpoint: /oauth2/introspect?token=<access_token> method POST, kiểu xác thực Basic auth, cung cấp client Id và client secrect để lấy được thông tin về user phát hành token
+              .accessTokenFormat(OAuth2TokenFormat.REFERENCE)
+              // tuỳ chỉnh thời gian tồn tại của token là 9000s (cả id_token và access_token)
+              .accessTokenTimeToLive(Duration.ofSeconds(900))
+              .build()
+      )
+      .build();
+
+  return new InMemoryRegisteredClientRepository(r1);
+}
+```
+
+#### ghi đè lại RegisteredClientRepository, sử dụng db để lưu trữ client
+* table: clients
+  * id
+  * client_id
+  * secrect
+  * scope
+  * auth method
+  * grant_type
+  * redirect_url
+* table: users
+  * id
+  * username
+  * password
+  * authority
+
+* tạo entity, repo
+```java
+public interface ClientRepository extends JpaRepository<Client, Integer> {
+
+  @Query("SELECT c FROM Client c WHERE c.clientId = :clientId")
+  Optional<Client> findByClientId(String clientId);
+
+}
+
+@Entity
+@Table(name = "clients")
+@Data
+public class Client {
+
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private int id;
+
+  private String clientId;
+  private String secret;
+  private String redirectUri;
+  private String scope;
+  private String authMethod;
+  private String grantType;
+
+  public static Client from(RegisteredClient registeredClient) {
+    Client client = new Client();
+
+    client.setClientId(registeredClient.getClientId());
+    client.setSecret(registeredClient.getClientSecret());
+
+    client.setRedirectUri(    // NOT CLEAN CODE
+      registeredClient.getRedirectUris().stream().findAny().get()
+    );
+    client.setScope(
+      registeredClient.getScopes().stream().findAny().get()
+    );
+    client.setAuthMethod(
+      registeredClient.getClientAuthenticationMethods().stream().findAny().get().getValue()
+    );
+    client.setGrantType(
+      registeredClient.getAuthorizationGrantTypes().stream().findAny().get().getValue()
+    );
+
+    return client;
+  }
+
+  public static RegisteredClient from(Client client) {
+    return RegisteredClient.withId(String.valueOf(client.getId()))
+      .clientId(client.getClientId())
+      .clientSecret(client.getSecret())
+      .scope(client.getScope())
+      .redirectUri(client.getRedirectUri())
+      .clientAuthenticationMethod(new ClientAuthenticationMethod(client.getAuthMethod()))
+      .authorizationGrantType(new AuthorizationGrantType(client.getGrantType()))
+      .build();
+  }
+}
+```
+
+* tạo service cho client
+```java
+@Service
+@Transactional
+public class CustomClientService implements RegisteredClientRepository {
+
+  private final ClientRepository clientRepository;
+
+  public CustomClientService(ClientRepository clientRepository) {
+    this.clientRepository = clientRepository;
+  }
+
+  @Override
+  public void save(RegisteredClient registeredClient) {
+    clientRepository.save(Client.from(registeredClient));
+  }
+
+  @Override
+  public RegisteredClient findById(String id) {
+    var client = clientRepository.findById(Integer.valueOf(id))
+      .orElseThrow();
+    return Client.from(client);
+  }
+
+  @Override
+  public RegisteredClient findByClientId(String clientId) {
+    var client = clientRepository.findByClientId(clientId)
+      .orElseThrow();
+    return Client.from(client);
+  }
+}
+```
+
+* sử dụng service thay thế cho @Bean RegisteredClientRepository, xoá @Bean RegisteredClientRepository trong lớp config, để Spring tự tìm annotation @Service và tạo bean trong context
+
+# Spring Security OAuth 2 Resource Server cho Spring Boot 3 (2023)
+1. Thêm dependencies: 
+  * Sping Web
+  * Spring Security
+  * 
+```xml
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+</dependency>
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-security</artifactId>
+</dependency>
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-web</artifactId>
+</dependency>
 ```

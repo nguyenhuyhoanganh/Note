@@ -1810,7 +1810,7 @@ Hello! {user_name=john, scope=[read], generatedInZone=Europe/Bucharest,
 </dependency>
 ```
 
-2. tạo file cấu hình SecurityConfig.java
+2. Tạo file cấu hình SecurityConfig.java
 ```java
 @Configuration
 public class SecurityConfig {
@@ -1949,11 +1949,16 @@ public class SecurityConfig {
 		return keyPair;
 	}
 
+  /*
   // tạo bean để cung cấp bộ giải mã cho Auth server xác thực token
+  // bộ giải mã này là bắt buộc khi sử dụng scope là UserInfo hay Client Registration để resource server lấy thông tin về id_token
+  // mặc định Spring đã tự động triển khai 1 cái bên resource server
+  // bên auth server thì chắc là đ cần tạo @Bean này ha, mà sao trong doc thấy tạo
   @Bean 
 	public JwtDecoder jwtDecoder(JWKSource<SecurityContext> jwkSource) {
 		return OAuth2AuthorizationServerConfiguration.jwtDecoder(jwkSource);
 	}
+  */
 
 }
 ```
@@ -2038,7 +2043,7 @@ public SecurityFilterChain asSecurityFilterChain(HttpSecurity http) throws Excep
   return http.build();
 }
 ```
-#### tuỳ chỉnh sử dụng loại token sử dụng để xác thưc
+#### tuỳ chỉnh sử dụng loại token sử dụng để xác thưc (không nên sử dụng, JWT vẫn là tốt nhất)
 * Có 2 loại token chính:
   * opaque: token không chứa data
   * non-opaque: token chứa data bên trong (như jwt)
@@ -2186,7 +2191,6 @@ public class CustomClientService implements RegisteredClientRepository {
 1. Thêm dependencies: 
   * Sping Web
   * Spring Security
-  * 
 ```xml
 <dependency>
   <groupId>org.springframework.boot</groupId>
@@ -2201,3 +2205,115 @@ public class CustomClientService implements RegisteredClientRepository {
   <artifactId>spring-boot-starter-web</artifactId>
 </dependency>
 ```
+2. Tạo class SecurityConfig
+```java
+@Configuration
+public class SecurityConfig {
+
+  @Value("${jwksUri}")
+  private String jwksUri; // jwksUri=http://localhost:8080/oauth2/jwks
+
+  @Bean
+  public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    
+    // method .oauth2ResourceServer() để làm cho app hoạt động như 1 resource server
+    http.oauth2ResourceServer(
+      // cấu hình cho resource server sử dụng jwt để xác thực
+      r -> r.jwt()
+        // khai báo 1 uri, cung cấp cho resource server truy cấp lấy public key
+        .jwkSetUri(jwksUri)
+    );
+
+    // các request cần được xác thực
+    http.authorizeHttpRequests().anyRequest().authenticated();
+    return http.build();
+  }
+
+  /*
+  // Spring tự cung cấp 1 bean JwtDecoder để giải mã token tuy nhiên cũng có thể tuỳ chỉnh sử dụng bean sau
+  // có thể gọi method sau trên bean SecurityFilterChain cũng tương tự: 
+  //.oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.decoder(NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build())));
+  @Bean
+  public JwtDecoder jwtDecoder() {
+    return JwtDecoders.fromIssuerLocation(issuerUri);
+  }
+  */
+}
+```
+3. Khởi động resource server, gọi đến 1 endpoint bất kỳ được bảo mật
+  * sử dụng access_token thu thập ở auth server
+  * đưa access_token vào request với param là Authntication, value là chuỗi access_token đi kèm với tiền tố "Bearer "
+
+### Sử dụng acess_token chuyển đổi về object Authentication 
+* Spring sẽ inject Authentication như 1 tham số truyền vào method trong Controller (cũng có thể lấy ra Authentication bằng các sử dụng SecurityContextHolder)
+```java
+@RestController
+public class DemoController {
+
+  @GetMapping("/demo")
+  public String demo(Authentication authentication) {
+    // authentication được inject là loại JwtAuthenticationToken
+    // JwtAuthenticationToken chứa username, token, authorities
+    // mặc định authorities trả về giá trị "SCOPE_openid" khi khai báo client sử dụng Scope là openid
+    // không phải là các roles hay authorities mà resource sử dụng để cho phép client truy cập tài nguyên
+    return "Demo!";
+  }
+}
+```
+* Thay đổi auth server để thêm claim về authority của user trong access_token
+  * thêm @Bean OAuth2TokenCustomizer<JwtEncodingContext> vào class config của auth server:
+```java
+@Bean
+public OAuth2TokenCustomizer<JwtEncodingContext> oAuth2TokenCustomizer() {
+  return  context -> {
+    var authorities = context.getPrincipal().getAuthorities()
+    // authorities là 1 list GrantedAuthority, chuyển đổi nó thành 1 list String chứa tên của authority
+    context.getClaims().claim("authorities", authorities.stream().map(a -> a.getAuthorities()).toList());
+  };
+}
+```
+* Access_token nhận được từ auth server, trong phần payload sẽ chứa claim authorities là 1 mảng String tên các authorities của user
+* Ở resource server, Spring mặc định chuyển accsee_token nhận được thành 1 object authentication với type là JwtAuthenticationToken
+* Object JwtAuthenticationToken chứa username, token, authorities ... Tuy nhiên authorities nhận được là scope caung cấp khi đăng ký client cho auth serer (object JwtAuthenticationToken được inject trong class Controller bên trên có authorities là "SCOPE_openid")
+* Cần custom lại class Converter để thay đổi logic chuyển đổi token thành 1 Authentication chứa authoriries là các roles hay authorities của user login
+* Class config
+```java
+@Configuration
+public class SecurityConfig {
+
+  @Value("${jwksUri}")
+  private String jwksUri;
+
+  @Bean
+  public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    http.oauth2ResourceServer(
+      r -> r.jwt().jwkSetUri(jwksUri)
+        // method .jwtAuthenticationConverter() chuyển đổi bất cứ jwt token nào thành object JwtAuthenticationToken
+        // cung cấp 1 converter, thực hiện việc chuyển đổi thánh Authentication có chứa authoriries như mong muốn
+        .jwtAuthenticationConverter(new CustomJwtAuthenticationTokenConverter())
+    );
+
+    http.authorizeHttpRequests().anyRequest().authenticated();
+    return http.build();
+  }
+}
+```
+* Class converter
+```java
+public class CustomJwtAuthenticationTokenConverter implements Converter<Jwt, CustomJwtAuthenticationToken> {
+
+
+  @Override
+  public CustomJwtAuthenticationToken convert(Jwt source) {
+    List<String> authorities = (List<String>) source.getClaims().get("authorities");
+    // class JwtAuthenticationToken do Spring cung cấp có hàm contructor nhận vào 2 tham số: JWT và Collection<? extends GrantedAuthority> 
+    // mặc định Spring sử dụng constructor chỉ nhận JWT làm tham số và tự tạo authorities dựa trên JWT
+    // sử dụng hàm constructor có cung cấp Collection<? extends GrantedAuthority> để tạo ra JwtAuthenticationToken có authorities tuỳ chỉnh
+    JwtAuthenticationToken authenticationObj =
+        new JwtAuthenticationToken(source, authorities.stream().map(SimpleGrantedAuthority::new).toList());
+
+    return authenticationObj;
+  }
+}
+```
+

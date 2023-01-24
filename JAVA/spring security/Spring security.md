@@ -1294,6 +1294,495 @@ public class ProjectConfig extends WebSecurityConfigurerAdapter {
 https://github.com/nguyenhuyhoanganh/spring-security-in-action-source/tree/master/ssia-ch11-ex1-s1
 
 
+
+# Triển khai bảo mật method với 
+* Giả sử ứng dụng không phải ứng dụng web, không thể sử dụng SpringSecurity cho bảo mật và uỷ quyền với HTTP endpoints. Chúng ta sẽ sử dụng cấu hình uỷ quyền ở cấp độ method, như sử dụng cho các layer service, repository, ...
+* Theo mặc định bảo mật cấp độ method bị vô hiệu hoá, cần kích hoạt nó. Nó cũng cung cấp nhiều cách tiếp cận để áp dụng uỷ quyền:
+  * Call authorization: quyết định ai đó có thể gọi method theo quy tắc đặc quyền đã triển khai (preauthorization) hoặc nếu ai đó có thể truy cập những gì method return sau khi method được thực thi (postauthorization)
+  * Filtering: quyết định những gì method có thể nhận thông qua các tham số của nó (prefiltering) và những gì người có thể nhận lại từ method sau khi method thực thi (postfiltering)
+
+### Call authorization (Pre- and postauthorizations)
+* Đề cập đến việc áp dụng các quy tắc uỷ quyền để quyết định xem 1 method có thể gọi hay cho phép method sau khi gọi quyết định người gọi có được truy cập giá trị được return bởi method
+* Cơ chế đăng sau việc áp dụng quy tắc uỷ quyền là kích hoạt Spring Aspect. Aspect chặn cuộc gọi đến method cho áp dụng quy tắc uỷ quyền, dựa trên quy tắc uỷ quyền quyết định có chuyển tiếp cuộc gọi đến method bị chặn hay không.
+* Phân loại call authorization:
+  * Preauthorization: framework kiểm tra các quy tắc uỷ quyền trước khi method gọi
+  * Postauthorization: framework kiểm tra quy tắc uỷ quyền sau khi method thực thi
+* Giả sử có method  findDocumentsByUser(String username) trả về các tài liệu cho 1 user cụ thể. Người gọi cung cấp username làm tham số để method truy vấn tài liệu. Cần đảm bảo user được xác thực chỉ thu được tài liệu họ sở hữu. Cần áp dụng quy tắc cho method chỉ nhận username của user đã xác thực làm tham số
+* Khi áp dụng quy tắc uỷ quyền hoằn toàn cấm bất cứ ai gọi tới method trong tình huống cụ thể là preauthorization. Framework xác minh điều kiện uỷ quyền trước khi thực hiện method, nếu người gọi tới không có quyền theo quy tắc uỷ quyền, framework không uỷ quyền gọi tới method và ném ra 1 exception
+* Khi áp dụng quy tắc uỷ quyền cho phép ai đó gọi tới method nhưng không cần thiết nhận được kết quả return của method, sử dụng postauthorization. Framework kiểm tra quy tắc uỷ quyền sau khi thực thi method. Sử dụng loại uỷ quyền này để hạn chế truy cập tới method return trong điều kiẹn nhất định. Áp dụng quy tắc uỷ quyền trên kết quả return bởi method.
+* Cẩn thận với postauthorization, vì dù quy tắc uỷ quyền áp dụng có thành công hay không thì sự thay đổi vẫn xảy ra trong quá trình thực thi method. Ngay cả khi sử dụng annotation @Transactional, thay đôi vẫn không được rollback nếu postauthorization fails
+#### Cấu hình cho phép sử dụng bảo mật method
+* Sử dụng annotation @EnableGlobalMethodSecurity, cung cấp 3 cách tiếp cận để xác định quy tắc uỷ quyền
+  * pre-/postauthorization annotations
+  * JSR 250 annotation, @RolesAllowed
+  * @Secured annotation
+* Hầu hết trường hợp pre-/postauthorization annotations là cách tiếp cận thường xuyên được sử dụng, cần cung cấp thuộc tính prePostEnabled của @EnableGlobalMethodSecurity thành true
+```java
+@Configuration
+@EnableGlobalMethodSecurity(prePostEnabled = true)
+public class ProjectConfig {}
+```
+* Sử dụng bảo mật method với bất kỳ phương thức xác thực nào từ HTTP Basic tới OAuth2, để đơn giản, hãy sử dụng xác thực với HTTP Basic
+
+#### Triển khai bảo mật bằng preauthorization
+* Ví dụ về sử dụng preauthorization, cung cấp 1 endpoint /hello trả về chuỗi "Hello, " và tên. Để lấy được tên, controller gọi tới service method. Method này áp dụng preauthorization để xác minh user phải có quyền "write" 
+* Class config cấu hình 1 số user
+```java
+@Configuration
+@EnableGlobalMethodSecurity(prePostEnabled = true) 
+public class ProjectConfig {
+  @Bean 
+  public UserDetailsService userDetailsService() {
+    var service = new InMemoryUserDetailsManager();
+    
+    var u1 = User.withUsername("natalie") 
+      .password("12345")
+      .authorities("read")
+      .build();
+    
+    var u2 = User.withUsername("emma")
+      .password("12345")
+      .authorities("write")
+      .build();
+    
+    service.createUser(u1);
+    service.createUser(u2);
+    return service;
+  }
+
+  @Bean 
+  public PasswordEncoder passwordEncoder() {
+    return NoOpPasswordEncoder.getInstance();
+  }
+}
+```
+* Sử dụng annotation @PreAuthorize trên method service. Annotation nhận giá trị giá dạng biểu thức SpEL mô tả quy tắc uỷ quyền. 
+* Có thể xác định hạn chế cho user dựa trên quyền hạn nhất định sử dụng hasAuthority()
+```java
+@Service
+public class NameService {
+  @PreAuthorize("hasAuthority('write')") // chỉ user có quyền write mới gọi được method
+  public String getName() {
+    return "Fantastico";
+  }
+}
+```
+* Class controller
+```java
+@RestController
+public class HelloController {
+  @Autowired 
+  private NameService nameService;
+  
+  @GetMapping("/hello")
+  public String hello() {
+    return "Hello, " + nameService.getName(); 
+  }
+}
+```
+* Tương tự, sử dụng SpEL khác như:
+  * hasAnyAuthority(): chỉ định nhiều quyền, user phải có ít nhất 1 trong những quyền được chỉ định để gọi tới method
+  * hasRole(): chỉ định 1 vai trò nhất định user phải có để gọi method
+  * hasAnyRole() : chỉ định nhiều vai trò
+* Ví dụ khác, endpoint nhận giá trị thông qua path variable và gọi method ở service. triển khai quy tắc uỷ quyền dựa trên giá trị này
+* Class controller
+```java
+@RestController
+public class HelloController {
+  @Autowired 
+  private NameService nameService;
+
+  // xác định endpoint nhận giá trị từ path variable
+  @GetMapping("/secret/names/{name}") 
+  public List<String> names(@PathVariable String name) {
+    // gọi tới method được bảo vệ cung cấp them số là giá trị path variable
+    return nameService.getSecretNames(name); 
+  }
+}
+```
+* Class service
+```java
+@Service
+public class NameService {
+  
+  private Map<String, List<String>> secretNames = 
+    Map.of("natalie", List.of("Energico", "Perfecto"),"emma", List.of("Fantastico"));
+ 
+  // sử dung #name đại diện cho giá trị tham số "name" truyền vào method getSecretNames()
+  // có quyền truy cập tới object authentication mà sử dụng để tham chiều tới user hiện tại đã xác thực
+  // method chỉ được gọi nếu username của user đã xác thực giống với giá trị truyền vào làm tham số của method
+  @PreAuthorize 
+  ("#name == authentication.principal.username")
+  public List<String> getSecretNames(String name) {
+    return secretNames.get(name);
+  }
+}
+```
+* Có thể áp dụng bảo mật method cho bất kỳ lớp nào trong ứng dụng, không chỉ riêng lớp service
+#### Triển khai bảo mật bằng postauthorization
+* Tưởng tượng method lấy 1 số dữ liệu từ nguồn dữ liệu như web service hay database, có thể tự tin về những gì method thực hiện, những không chắc chắn về bên thứ 3 mà method gọi tới. Vì vậy cho phép method thực thi, nhưng cần xác thực những gì nó trả về, nếu khong đáp ứng các tiêu chí, sẽ không cho phép người gọi truy cập giá trị method return
+* Sử dụng annotation @PostAuthorize 
+```java
+@Configuration
+@EnableGlobalMethodSecurity(prePostEnabled = true)
+public class ProjectConfig {
+  @Bean
+  public UserDetailsService userDetailsService() {
+    var service = new InMemoryUserDetailsManager();
+    var u1 = User.withUsername("natalie")
+      .password("12345")
+      .authorities("read")
+      .build();
+ 
+    var u2 = User.withUsername("emma")
+      .password("12345")
+      .authorities("write")
+      .build();
+ 
+    service.createUser(u1);
+    service.createUser(u2);
+    return service;
+  }
+ 
+  @Bean
+  public PasswordEncoder passwordEncoder() {
+    return NoOpPasswordEncoder.getInstance();
+  }
+}
+
+// mỗi employee được liên kết với 1 user
+public class Employee {
+  private String name;
+  private List<String> books;
+  private List<String> roles;
+  // Omitted constructor, getters, and setters
+}
+
+@Service
+public class BookService {
+  private Map<String, Employee> records =
+    Map.of("emma", new Employee("Emma Thompson",
+        List.of("Karamazov Brothers"),
+        List.of("accountant", "reader")),
+      "natalie", new Employee("Natalie Parker",
+        List.of("Beautiful Paris"),
+        List.of("researcher"))
+    );
+
+  @PostAuthorize("returnObject.roles.contains('reader')")
+  public Employee getBookDetails(String name) {
+    return records.get(name);
+  }
+}
+
+@RestController
+public class BookController {
+  @Autowired
+  private BookService bookService;
+  
+  // chỉ cho user truy cập được list book của employee có roles là read
+  @GetMapping("/book/details/{name}")
+  public Employee getDetails(@PathVariable String name) {
+    return bookService.getBookDetails(name);
+  }
+}
+```
+#### Với các logic uỷ quyền phức tạp
+* Khi logic uỷ quyền phức tạp, yêu cầu viết SpEL dài, tạo ra mã khó, đọc ảnh hướng đến khả năng bảo trì của ứng dụng, cần tách biệt logic uỷ quyền ra 1 class riêng biệt
+* Ví dụ về app quản lý document, để lấy thông tin chi tiết về document chỉ có quản trị viên hoặc người sở hữu document đó
+```java
+public class Document {
+  private String owner;
+  // Omitted constructor, getters, and setters
+}
+
+@Repository
+public class DocumentRepository {
+  private Map<String, Document> documents = 
+    Map.of("abc123", new Document("natalie"),
+      "qwe123", new Document("natalie"),
+      "asd555", new Document("emma"));
+ 
+  public Document findDocument(String code) {
+    return documents.get(code); 
+  }
+}
+
+@Service
+public class DocumentService {
+  @Autowired
+  private DocumentRepository documentRepository;
+ 
+  // sử dụng hasPermission() tham chiếu tới biểu thức uỷ quyền
+  // returnObject là giá trị trả về
+  // ROLE_admin là tên vai trò được cho phép truy cập
+  @PostAuthorize("hasPermission(returnObject, 'ROLE_admin')")
+  public Document getDocument(String code) {
+    return documentRepository.findDocument(code);
+  }
+}
+```
+* Viết một object thực hiện interface PermissionEvaluator. PermissionEvaluator cung cấp 2 cách để triển khai logic uỷ quyền:
+  * theo object và permission: Giả định nhận được 2 object, 1 là object tuân theo quy tắc uỷ quyền, 1 là object cung cấp các chi tiết cần thiết để triển khai logic uỷ quyền
+  * theo object ID, object type và permission: object ID sử dụng truy xuất object cấn thiết, object type sử dụng để áp dụng cho nhiều loại object và 1 object cung cấp chi tiết để uỷ quyền
+```java
+public interface PermissionEvaluator {
+  boolean hasPermission(
+    Authentication a, 
+    Object subject,
+    Object permission);
+ 
+  boolean hasPermission(
+    Authentication a, 
+    Serializable id, 
+    String type, 
+    Object permission);
+}                                                                                          
+```
+* Spring tự cung cấp giá trị cho object Authentication như 1 tham số cho method hasPermission()
+* Sau đây là class custom sử dụng cách triển khai logic uỷ quyền thứ 1:
+```java
+@Component
+public class DocumentsPermissionEvaluator implements PermissionEvaluator { 
+  @Override
+  public boolean hasPermission(Authentication authentication, Object target,
+    Object permission) {
+    Document document = (Document) target; 
+    String p = (String) permission; 
+    boolean admin = authentication.getAuthorities()
+      .stream()
+      .anyMatch(a -> a.getAuthority().equals(p));
+    return admin || document.getOwner().equals(authentication.getName());
+  }
+
+  @Override
+  public boolean hasPermission(Authentication authentication, Serializable targetId,
+    String targetType, Object permission) {
+    return false; 
+  }
+}
+```
+* Để cho spring biết về 1 triển khai PermissionEvaluator mới, phải xác định 1 MethodSecurityExpressionHandler trong class config
+```java
+@Configuration
+@EnableGlobalMethodSecurity(prePostEnabled = true)
+public class ProjectConfig extends GlobalMethodSecurityConfiguration {
+  @Autowired
+  private DocumentsPermissionEvaluator evaluator;
+ 
+  @Override 
+  protected MethodSecurityExpressionHandler createExpressionHandler() {
+    var expressionHandler = new DefaultMethodSecurityExpressionHandler();
+    expressionHandler.setPermissionEvaluator(evaluator); 
+    return expressionHandler; 
+  }
+  // Omitted definition of the UserDetailsService and PasswordEncoder beans
+}
+```
+* Ở đoạn code trên sử dụng DefaultMethodSecurityExpressionHandler là 1 triển khai của MethodSecurityExpressionHandler mà Spring cung cấp. 
+* Có thể tự triển khai 1 MethodSecurityExpressionHandler tuỳ chỉnh để xác định biểu thức SpEL tuỳ chỉnh sử dụng áp dụng các quy tắc uỷ quyền
+* Class controller
+```java
+@RestController
+public class DocumentController {
+  @Autowired
+  private DocumentService documentService;
+ 
+  @GetMapping("/documents/{code}")
+  public Document getDetails(@PathVariable String code) {
+    return documentService.getDocument(code);
+  }
+}
+```
+* Cấu hình sử dụng cách triển khai logic uỷ quyền thứ 2 của PermissionEvaluator, sử dụng 1 định danh và object type thay vì chính object. Ví dụ áp dụng với @PreAuthorize, chưa có object trả về, sử dụng định danh là code của document
+```java
+@Component
+public class DocumentsPermissionEvaluator implements PermissionEvaluator {
+ 
+  @Autowired
+  private DocumentRepository documentRepository;
+ 
+  @Override
+  public boolean hasPermission(Authentication authentication, Object target,
+    Object permission) {
+    return false; 
+  }
+ 
+  @Override
+  public boolean hasPermission(Authentication authentication, Serializable targetId,
+    String targetType, Object permission) {
+    String code = targetId.toString(); 
+    Document document = documentRepository.findDocument(code);
+    String p = (String) permission;
+    boolean admin = authentication.getAuthorities()
+      .stream()
+      .anyMatch(a -> a.getAuthority().equals(p));
+    return admin || document.getOwner().equals(authentication.getName());
+  }
+}
+
+@Service
+public class DocumentService {
+ 
+  @Autowired
+  private DocumentRepository documentRepository;
+ 
+  @PreAuthorize("hasPermission(#code, 'document', 'ROLE_admin')")
+  public Document getDocument(String code) {
+    return documentRepository.findDocument(code);
+  }
+}
+```
+
+* Với annotation @EnableGlobalMethodSecurity được dùng để bật bảo mật method, cung cấp cho nó thuộc tính prePostEnabled = true cho phép sử dụng các annotation @PreAuthorize và @PostAuthorize để định cấu hình uỷ quyền trước và sau khi thực thi method. Spring còn cung cấp thêm 2 annotation khác, bằng cách cung cấp thuộc tính cho @EnableGlobalMethodSecurity với jsr250Enabled = true cho phép sử dụng @RolesAllowed và securedEnabled = true cho phép sử dụng @Secured
+* @RolesAllowed và @Secured chỉ định người dùng với vai trò hoặc quyền hạn nào đó có thể gọi tới method nhất định
+```java
+@Service
+public class NameService {
+  // chỉ ADMIN mới được gọi method
+  // tương tự @Secured("ROLE_ADMIN")
+  @RolesAllowed("ROLE_ADMIN")
+  public String getName() {
+    return "Fantastico";
+  }
+}
+```
+### Filtering (Pre- and postfiltering)
+* Trong trường hợp không muốn chặn 1 method, nhưng đảm bảo các tham số giử đến nó tuân theo một số quy tắc hoặc trong tình huống muốn đảm bảo người gọi đến method chỉ nhận 1 phần của giá trị return.
+  * Prefiltering: framework lọc giá trị của các tham số trước khi gọi method
+  * Postfiltering: framework lọc giá trị returrn sau khi gọi method
+* Với preauthorization, nếu tham số không tuân theo quy tắc uỷ quyền thì frameowrk không gọi method nào cả, với prefiltering, method vẫn được gọi, nhưng chỉ giá trị tuân theo quy tắc mới được đưa vào làm tham số cho method. Ex: 1 user chỉ bán được sản phẩm của họ, trong trường hợp user gọi đến method bán 1 danh sách sản phẩm, trong những sản phẩm có sản phẩm không thuộc về họ thì bị loại bỏ
+* Filtering không ném ra exception nếu tham số hoặc giá trị trả về không tuân theo luật uỷ quyền. 
+* Chỉ áp dụng tính năng lọc cho collections hoặc array. Chỉ sử dụng Prefiltering nếu method nhận tham số dưới dạng 1 array hoặc 1 collection. Với Postfiltering, chỉ áp dụng nếu method trả về 1 collection hoặc 1 array
+#### Áp dụng Prefiltering để uỷ quyền method
+* Vẫn sử dụng annotation @GlobalMethodSecurity và bật prePostEnabled
+```java
+@Configuration
+@EnableGlobalMethodSecurity(prePostEnabled = true)
+public class ProjectConfig {
+  @Bean
+  public UserDetailsService userDetailsService() {
+    var uds = new InMemoryUserDetailsManager();
+    var u1 = User.withUsername("nikolai")
+      .password("12345")
+      .authorities("read")
+      .build();
+    var u2 = User.withUsername("julien")
+      .password("12345")
+      .authorities("write")
+      .build();
+    uds.createUser(u1);
+    uds.createUser(u2);
+    return uds;
+  }
+  @Bean
+  public PasswordEncoder passwordEncoder() {
+    return NoOpPasswordEncoder.getInstance();
+  }
+}
+
+public class Product {
+  private String name;
+  private String owner; 
+  // Omitted constructor, getters, and setters
+}
+
+@Service
+public class ProductService {
+  // Sử dụng annotation PreFilter
+  // filterObject đại diện cho tham số truyền vào, có type là Product
+  // chỉ cho phép product có owner là name của caller được thực thi
+  @PreFilter("filterObject.owner == authentication.name")
+  public List<Product> sellProducts(List<Product> products) {
+  // sell products and return the sold products list
+  return products; 
+  }
+}
+
+@RestController
+public class ProductController {
+  @Autowired
+  private ProductService productService;
+
+  @GetMapping("/sell")
+  public List<Product> sellProduct() {
+    List<Product> products = new ArrayList<>();
+    products.add(new Product("beer", "nikolai"));
+    products.add(new Product("candy", "nikolai"));
+    products.add(new Product("chocolate", "julien"));
+    return productService.sellProducts(products);
+  }
+}
+```
+* Aspect đã thay đổi collection truyền vào, nhưng không phải trả về 1 instance mới của collection. Cùng 1 instance của collection, Aspect chỉ xoá đi elements không khớp với tiêu chí đã cho. Cẩm đảm bảo rằng tham số truyền vào không phải 1 collection bất biến nếu không quá trì lọc sẽ dẫn đến 1 runtime exception
+```java
+@RestController
+public class ProductController {
+  @Autowired
+  private ProductService productService;
+
+  @GetMapping("/sell")
+  public List<Product> sellProduct() {
+    // sử dụng List.of() trả về 1 instance bất biến của list => trả về exception 
+    List<Product> products = List.of( 
+    new Product("beer", "nikolai"),
+    new Product("candy", "nikolai"),
+    new Product("chocolate", "julien"));
+    return productService.sellProducts(products);
+  }
+}
+```
+#### Áp dụng Postfiltering để uỷ quyền method
+* Ví dụ về gọi đến method findProducts() trả về list products chỉ thuộc sở hữu của người gọi, sử dụng annotation @PostFilter
+```java
+@Service
+public class ProductService {
+  @PostFilter("filterObject.owner == authentication.name")
+  public List<Product> findProducts() {
+    List<Product> products = new ArrayList<>();
+    products.add(new Product("beer", "nikolai"));
+    products.add(new Product("candy", "nikolai"));
+    products.add(new Product("chocolate", "julien"));
+    return products;
+  }
+}
+
+@RestController
+public class ProductController {
+  Autowired
+  private ProductService productService;
+  
+  @GetMapping("/find")
+  public List<Product> findProducts() {
+    return productService.findProducts();
+  }
+}
+```
+#### Sử dụng filtering trong Spring Data
+* Sử dụng các annotation @PreFilter và @PostFilter áp dụng cho layer repository để lọc dữ liệu là sai, với method findAll() mà không sử dung phân trang có thể dẫn đến OutOfMemoryError. Ngay cả khi dữ liệu đủ chứa trong heap thì việc lọc dữ liệu vẫn kém hiệu quả hơn nhiều so với truy vấn ngay từ đầu
+* Làm thế nào để chỉ chọn dữ liệu yêu cầu ngay từ đâu thay vì lọc dữ liệu sau khi chọn => bằng cách cung cấp SpEL trực tiếp trong query sử dụng trong layer repository, thực hiện theo 2 bước:
+  * Thêm 1 object loại SecurityEvaluationContextExtension vào Spring Context
+  * Điều chỉnh query trong layer repository bằng các mệnh đề thứch hợp
+```java
+@Configuration
+@EnableGlobalMethodSecurity(prePostEnabled = true)
+public class ProjectConfig {
+  @Bean 
+  public SecurityEvaluationContextExtension securityEvaluationContextExtension() {
+    return new SecurityEvaluationContextExtension();
+  }
+  // Omitted declaration of the UserDetailsService and PasswordEncoder
+}
+
+public interface ProductRepository extends JpaRepository<Product, Integer> {
+
+  // không nên sử dụng @PostFilter
+  // @PostFilter("filterObject.owner == authentication.name")
+ @Query("SELECT p FROM Product p WHERE p.name LIKE %:text% AND p.owner=?#{authentication.name}")
+ List<Product> findProductByNameContains(String text);
+}
+```
+
 # Config với Spring Security 5.7
 * không sử dụng WebSecurityConfigurerAdapter
 * các method ghi đè của WebSecurityConfigurerAdapter sẽ thay thế bằng các bean
@@ -1304,27 +1793,27 @@ https://github.com/nguyenhuyhoanganh/spring-security-in-action-source/tree/maste
 public AuthenticationManager authenticationManager(HttpSecurity http, AuthenticationProvider authenticationProvider) throws Exception {
 // BCryptPasswordEncoder bCryptPasswordEncoder, UserDetailService userDetailService
 
-    // return http.getSharedObject(AuthenticationManagerBuilder.class)
-    //   .userDetailsService(userDetailsService)
-    //   .passwordEncoder(bCryptPasswordEncoder)
-    //   .and()
-    //   .build();
-    // đưa UserDetailsService và PasswordEncoder vào AuthenticationManager
+  // return http.getSharedObject(AuthenticationManagerBuilder.class)
+  //   .userDetailsService(userDetailsService)
+  //   .passwordEncoder(bCryptPasswordEncoder)
+  //   .and()
+  //   .build();
+  // đưa UserDetailsService và PasswordEncoder vào AuthenticationManager
 
-    return http.getSharedObject(AuthenticationManagerBuilder.class)
-        .authenticationProvider(authenticationProvider)
-        .build();
-    // đưa AuthenticationProvider vào AuthenticationManager
+  return http.getSharedObject(AuthenticationManagerBuilder.class)
+    .authenticationProvider(authenticationProvider)
+    .build();
+  // đưa AuthenticationProvider vào AuthenticationManager
     
 }
 
-    @Bean
-    SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) {
-        http.authorizeRequests().
-            .mvcMatchers("/hello").hasRole("ADMIN")
-            .anyRequest().authenticated();
-        return http.build();
-    }
+@Bean
+SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) {
+  http.authorizeRequests().
+    .mvcMatchers("/hello").hasRole("ADMIN")
+    .anyRequest().authenticated();
+  return http.build();
+}
 
 ```
 # Config với Spring Security 6.0 Spring Boot 3.0
@@ -1341,11 +1830,11 @@ public AuthenticationManager authenticationManager(HttpSecurity http, Authentica
 @Bean
 SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) {
     http.authorizationHttpRequest().
-        .requestMatchers("/demo")
-        // giống antMatchers, phân biệt "/demo" và "/demo/"
-        .access(new WebExpressionAuthorizationManager("isAuthenticated()"));
-        // ~ .access("isAuthenticated") 
+      .requestMatchers("/demo")
+      // giống antMatchers, phân biệt "/demo" và "/demo/"
+      .access(new WebExpressionAuthorizationManager("isAuthenticated()"));
+      // ~ .access("isAuthenticated") 
 
-        return http.build();
-    }
+    return http.build();
+  }
 ```

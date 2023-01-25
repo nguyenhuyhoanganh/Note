@@ -1643,7 +1643,11 @@ public class ResourceServerConfig extends ResourceServerConfigurerAdapter {
 curl -H "Authorization:Bearer eyJhbGciOiJSUzI1NiIsInR5cCI…" http://localhost:9090/hello
 ```
 
+<<<<<<< HEAD
 #### Thêm chi tiết tuỷ chỉnh cho JWT được cung cấp bởi auth server
+=======
+#### Thêm chi tiết tuỷ chỉnh cho JWT
+>>>>>>> 13455a2 (Resource Server, use symmetric key and asymmetrci key pairs to sign token JWT)
 * Trong nhiều trường hợp, không cần nhiều hơn những gì Spring cung cấp, tuy nhiên đôi khi có những yêu cầu cần thêm chi tiết tuỳ chỉnh vào token
 * Nếu giải mã 1 token mặc định do Spring triển khai sẽ nhận được:
 ```json
@@ -1655,6 +1659,7 @@ curl -H "Authorization:Bearer eyJhbGciOiJSUzI1NiIsInR5cCI…" http://localhost:9
   "client_id": "client", // client đã yêu cầu token
   "scope": ["read"] // quyền được cấp cho client
 }
+<<<<<<< HEAD
 ```
 * Token sẽ lưu trữ tất cả chi tiết cần thiết cho xác thực bằng HTTP Basic
 * Triển khai cấu hình thêm time zone của auth server vào token. Để thực hiện cần tạo 1 object type TokenEnhancer
@@ -2317,3 +2322,6 @@ public class CustomJwtAuthenticationTokenConverter implements Converter<Jwt, Cus
 }
 ```
 
+=======
+```
+>>>>>>> 13455a2 (Resource Server, use symmetric key and asymmetrci key pairs to sign token JWT)

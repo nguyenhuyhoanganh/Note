@@ -80,6 +80,7 @@ console.log(jonas.__proto__ === Person.prototype); // Person.prototype không ph
 console.log(Person.prototype.isPrototypeOf(jonas));
 
 // object được tạo ra sẽ không chứa phương thức caclAge, nhưng object vẫn có quyền truy cập phương thức do kế thừa nguyên mẫu
+
 // static method: không được các object kế thừa từ nguyên mẫu, chỉ nguyên mẫu gọi đc
 Person.hey = function () {
   console.log('Hey there 👋');
@@ -170,7 +171,7 @@ const sarah = Object.create(PersonProto);
 sarah.init('Sarah', 1979);
 sarah.calcAge();
 =====================================================================================================================================
-Kế thừa: giúp chó classes child có các method riêng nhưng vẫn sử dụng đưuọc lại method từ classes parent
+Kế thừa: giúp cho classes child có các method riêng nhưng vẫn sử dụng đưuọc lại method từ classes parent
 // Inheritance Between "Classes": Constructor Functions
 const Person = function (firstName, birthYear) {
   this.firstName = firstName;

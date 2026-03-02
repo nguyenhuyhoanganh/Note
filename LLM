@@ -1,0 +1,53 @@
+Dưới đây là bản hệ thống hóa toàn bộ luồng dữ liệu của mô hình Llama 3.2 (16 layers, hidden size 2048) dựa trên cấu trúc kỹ thuật mà chúng ta đã phân tích.
+Bản vẽ này đi từ đầu vào (Text) cho đến đầu ra (Next Token) và cơ chế lặp để tạo thành câu hoàn chỉnh.
+🏗️ SƠ ĐỒ KỸ THUẬT TỔNG THỂ (LLM DATA FLOW)
+1. Giai đoạn Tiền xử lý (Input Processing)
+Chuyển đổi ngôn ngữ con người thành con số mà máy tính có thể tính toán.
+ * Text: "Tell a joke"
+ * Tokenizer: Chia văn bản thành các đơn vị nhỏ.
+   * Tokens: ["Tell", " a", " joke", "</s>"]
+ * Token IDs: Ánh xạ vào từ điển (vocab size \approx 128k).
+   * Shape: [N] (với N=4) \rightarrow [1287, 432, 9182, 2]
+2. Giai đoạn Embedding (Không gian hóa)
+Mỗi ID được tra cứu trong một bảng ma trận khổng lồ để biến thành một vector đặc trưng.
+ * Input: [4] (4 con số ID)
+ * Embedding Layer: Biến mỗi ID thành 1 vector 2048 chiều.
+ * Output Shape: [4, 2048]
+   > Giải thích: Mỗi từ bây giờ là một hàng gồm 2048 con số thực, chứa đựng "ngữ nghĩa" sơ khai của từ đó.
+   > 
+3. Giai đoạn Xử lý lõi (Transformer Layers)
+Dữ liệu đi qua 16 tầng giống hệt nhau về cấu trúc để "thấu hiểu" ngữ cảnh.
+Bên trong mỗi Layer:
+ * Self-Attention: * Tạo ra 3 ma trận Q (Query), K (Key), V (Value) bằng cách nhân Input với các trọng số W_q, W_k, W_v.
+   * Tính toán Attention Score: \text{Attention} = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V
+   * Mục đích: Giúp từ "joke" biết rằng nó đang đi sau từ "Tell a".
+ * MLP (Multi-Layer Perceptron):
+   * Up Projection: [4, 2048] \rightarrow [4, 8192] (Mở rộng không gian để tính toán phức tạp).
+   * Activation (SiLU): Lọc dữ liệu phi tuyến tính.
+   * Down Projection: [4, 8192] \rightarrow [4, 2048] (Nén lại về kích thước cũ).
+Kết quả sau 16 Layer: Shape vẫn là [4, 2048], nhưng các con số đã chứa đựng toàn bộ logic và kiến thức của mô hình.
+4. Giai đoạn Dự đoán (Output Head)
+Mô hình tập trung vào thông tin của token cuối cùng để tìm từ tiếp theo.
+ * Trích xuất: Chỉ lấy vector cuối cùng (vị trí thứ 4).
+   * Shape: [2048]
+ * LM Head (Linear Layer): Nhân vector này với ma trận từ điển.
+   * 2048 \rightarrow 128,256 (Logits).
+   * Logits: Các con số thô đại diện cho "độ tự tin" của mô hình cho mỗi từ trong từ điển.
+ * Softmax: Chuyển Logits thành xác suất (0% - 100%).
+   * Ví dụ: " Why" (62%), " Knock" (21%), " Once" (1%).
+5. Giai đoạn Giải mã (Decoding Loop)
+Chọn một token và bắt đầu lại từ đầu.
+ * Sampling: Chọn ID 9182 (tương ứng với " Why").
+ * Autoregressive: Ghép " Why" vào chuỗi cũ.
+   * Prompt mới: "Tell a joke </s> Why"
+ * Lặp lại: Toàn bộ quy trình trên chạy lại với N=5, rồi N=6... cho đến khi mô hình xuất ra token dừng (End of Sentence).
+📊 Tóm tắt biến đổi Tensor (Shape)
+| Bước | Thành phần | Input Shape | Output Shape |
+|---|---|---|---|
+| 1 | Tokenizer | Text | [N] |
+| 2 | Embedding | [N] | [N, 2048] |
+| 3 | 16 Layers | [N, 2048] | [N, 2048] |
+| 4 | Slicing | [N, 2048] | [2048] (Last token) |
+| 5 | LM Head | [2048] | [128256] (Logits) |
+| 6 | Softmax | [128256] | [128256] (Probs) |
+Bạn có muốn chúng ta đi sâu vào toán học của phần Self-Attention (Q, K, V) để xem chính xác các từ "kết nối" với nhau như thế nào không?
